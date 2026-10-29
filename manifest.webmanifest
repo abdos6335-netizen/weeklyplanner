@@ -1,7 +1,7 @@
 {
   "name": "WeeklyPlanner",
   "short_name": "Planner",
-  "description": "مخطط أسبوعي للمهام والمشروعات — مفتوح المصدر",
+  "description": "مخطط أسبوعي للمهام والمشروعات والماليات — إدخال صوتي وتقارير طباعة",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

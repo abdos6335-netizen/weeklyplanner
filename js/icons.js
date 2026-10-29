@@ -31,6 +31,7 @@ const P = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/>',
   layers: '<path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 12.5l8 4.5 8-4.5"/>',
   mic: '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V20"/>',
+  printer: '<path d="M7 8V3.5h10V8M7 17H4.5V9.5h15V17H17M7 14h10v6.5H7z"/><path d="M16.5 11.5h.01"/>',
   alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.01"/>',
 };
 

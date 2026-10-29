@@ -1,4 +1,4 @@
-// WeeklyPlanner — المرحلة 1: الدخول، المهام الأسبوعية، الإعدادات والثيم.
+// WeeklyPlanner — المهام الأسبوعية والمشروعات والتسليمات والماليات والإدخال الصوتي.
 import { createStore } from './store.js';
 import { t, setLang, lang, dir, locale } from './i18n.js';
 import * as D from './dates.js';
@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -205,6 +205,7 @@ function shell() {
         </button>`).join('')}
     </nav>
     ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>` : ''}
+    <button class="voice-fab" data-action="voice-open" aria-label="${t('voice_entry')}">${icon('mic', 23)}<span>${t('voice_entry')}</span></button>
   </div>`;
 }
 
@@ -356,8 +357,41 @@ function renderProjects() {
       ${ds.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('deliverable_name')}</th><th>${t('design_stage')}</th><th>${t('due_date')}</th><th>${t('approval_status')}</th><th></th></tr></thead><tbody>${ds.map(d=>`<tr><td><strong>${esc(d.name)}</strong><small>${esc(d.kind||'')} ${d.notes?'· '+esc(d.notes):''}</small></td><td>${esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage]||d.stage||'—')}</td><td>${esc(d.dueDate||'—')}</td><td><select class="input compact" data-change="deliverable-status" data-id="${esc(d.id)}"><option value="pending" ${d.status==='pending'?'selected':''}>${t('approval_pending')}</option><option value="submitted" ${d.status==='submitted'?'selected':''}>${t('approval_submitted')}</option><option value="approved" ${d.status==='approved'?'selected':''}>${t('approval_approved')}</option><option value="revision" ${d.status==='revision'?'selected':''}>${t('approval_revision')}</option></select></td><td><button class="btn sm danger" data-action="delete-deliverable" data-id="${esc(d.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_deliverables')}</p>`}</section>`;
   }
   const projects = [...S.projects].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><h2>${esc(p.name)}</h2><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
+  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><h2>${esc(p.name)}</h2><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button><div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(p.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
 }
+function printProjectReport(id, mode) {
+  const p = S.projects.find(x => x.id === id); if (!p) return;
+  const ds = S.deliverables.filter(x => x.projectId === id).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const fs = S.financeEntries.filter(x => x.projectId === id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const income=fs.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), expense=fs.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);
+  const financial = mode === 'finance';
+  const rows = financial ? fs.map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(x.category||'—')}</td><td>${x.kind==='income'?'تحصيل':'مصروف'}</td><td>${money(x.amount)} ج.م</td><td>${esc(x.description||'')}</td></tr>`).join('') : ds.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.stage||'—')}</td><td>${esc(x.kind||'—')}</td><td>${esc(x.dueDate||'—')}</td><td>${esc(({pending:'لم يُرسل',submitted:'مرسل للمراجعة',approved:'معتمد',revision:'مطلوب تعديل'})[x.status]||x.status||'—')}</td><td>${esc(x.notes||'')}</td></tr>`).join('');
+  const title = financial ? 'التقرير المالي للمشروع' : 'تقرير موقف المشروع';
+  const summary = financial ? `<div class="stats"><p>قيمة التعاقد: <b>${money(p.contractValue)} ج.م</b></p><p>إجمالي التحصيلات: <b>${money(income)} ج.م</b></p><p>إجمالي المصروفات: <b>${money(expense)} ج.م</b></p><p>صافي التدفق النقدي: <b>${money(income-expense)} ج.م</b></p><p>المتبقي للتحصيل: <b>${money(Number(p.contractValue||0)-income)} ج.م</b></p></div>` : `<div class="stats"><p>نوع المشروع: <b>${esc(projectTypeLabel(p.type))}</b></p><p>الحالة: <b>${esc(projectStatusLabel(p.status))}</b></p><p>العميل: <b>${esc(p.client||'—')}</b></p><p>الموقع: <b>${esc(p.location||'—')}</b></p><p>التسليمات: <b>${ds.length}</b> · المعتمد: <b>${ds.filter(x=>x.status==='approved').length}</b></p><p>ملاحظات: ${esc(p.notes||'—')}</p></div>`;
+  const headers = financial ? '<th>التاريخ</th><th>البند</th><th>الحركة</th><th>المبلغ</th><th>الوصف</th>' : '<th>التسليم</th><th>المرحلة</th><th>النوع</th><th>الموعد</th><th>الاعتماد</th><th>ملاحظات</th>';
+  const w=window.open('', '_blank'); if(!w){toast(t('print_popup_blocked'));return;}
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} - ${esc(p.name)}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#222;line-height:1.6}h1{font-size:24px}h2{font-size:18px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px;border:1px solid #ddd;padding:12px;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #bbb;padding:7px;text-align:right}th{background:#eee}.meta{color:#666}@media print{button{display:none}body{padding:0}.stats{break-inside:avoid}}</style><h1>${title}</h1><h2>${esc(p.name)}</h2><div class="meta">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>${summary}<table><thead><tr>${headers}</tr></thead><tbody>${rows||`<tr><td colspan="6">لا توجد بيانات مسجلة</td></tr>`}</tbody></table><p class="meta">تم إنشاء التقرير من WeeklyPlanner</p><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></html>`);
+  w.document.close();
+}
+function openPrintChoice(id) {
+  const p=S.projects.find(x=>x.id===id); if(!p)return;
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('print_project')} · ${esc(p.name)}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('print_choose')}</p><div class="btnrow"><button class="btn primary" data-action="print-status" data-id="${esc(id)}">${t('project_status_report')}</button><button class="btn primary" data-action="print-finance" data-id="${esc(id)}">${t('finance_report')}</button></div></section></div>`;
+}
+function openVoiceSheet() {
+  const options=S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">${t('review_save')}</button></div></section></div>`;
+}
+function startVoiceRecognition() {
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast(t('voice_unsupported'));return;}
+  const rec=new SR(); rec.lang=lang()==='ar'?'ar-EG':'en-US'; rec.interimResults=true; rec.continuous=false;
+  const status=$('#voice-status'), field=$('#voice-text'); let finalText='';
+  rec.onstart=()=>{if(status)status.textContent=t('voice_listening');};
+  rec.onerror=()=>{if(status)status.textContent=t('voice_error');};
+  rec.onresult=(e)=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const txt=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=txt+' ';else interim+=txt;}if(field)field.value=(finalText+interim).trim(); const text=(finalText+interim).trim(); const match=text.match(/\d+(?:[.,]\d+)?/);if(match&&$('#voice-amount'))$('#voice-amount').value=match[0].replace(',','.'); const p=S.projects.find(x=>text.toLowerCase().includes(x.name.toLowerCase()));if(p&&$('#voice-project'))$('#voice-project').value=p.id; if(/مصروف|دفعت|صرف|expense/i.test(text)&&$('#voice-kind'))$('#voice-kind').value='expense';if(/تحصيل|استلمت|قبضت|دفعة|income/i.test(text)&&$('#voice-kind'))$('#voice-kind').value='income';};
+  rec.onend=()=>{if(status)status.textContent=t('voice_done');}; rec.start();
+}
+
 function renderFinance() {
   const totalIncome=S.financeEntries.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), totalExpense=S.financeEntries.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0), contracts=S.projects.reduce((n,p)=>n+Number(p.contractValue||0),0);
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -661,6 +695,13 @@ async function onClick(e) {
     }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
     case 'nav': S.section = el.dataset.section; S.activeProjectId = null; render(); window.scrollTo(0, 0); break;
+    case 'voice-open': openVoiceSheet(); break;
+    case 'voice-start': startVoiceRecognition(); break;
+    case 'close-voice': $('#layer').innerHTML=''; break;
+    case 'print-project': openPrintChoice(el.dataset.id); break;
+    case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
+    case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
+    case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const target=$('#voice-target')?.value; if(target==='finance'){const projectId=$('#voice-project')?.value, amount=Number($('#voice-amount')?.value);if(!projectId||amount<=0){toast(t('voice_finance_required'));break;}await S.store.save('financeEntries',{id:uid(),projectId,kind:$('#voice-kind').value,amount,date:$('#voice-date').value||D.todayISO(),category:t('general'),description:text,createdAt:Date.now(),source:'voice'});toast(t('saved'));}else{const title=text.length>90?text.slice(0,87)+'…':text;await S.store.save('tasks',normalizeTask({id:uid(),title,notes:text,date:D.todayISO(),weekRef:D.todayISO(),priority:2,status:'todo',createdAt:Date.now(),updatedAt:Date.now()}));toast(t('saved'));} $('#layer').innerHTML='';render();break;}
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
     case 'open-project': S.activeProjectId = el.dataset.id; render(); window.scrollTo(0,0); break;
@@ -769,9 +810,11 @@ function onInput(e) {
 }
 
 function onChange(e) {
-  const el = e.target.closest('[data-change]');
-  if (!el) return;
-  const k = el.dataset.change;
+  const el = e.target;
+  if (el.id === 'voice-target') { const box=$('#voice-finance-fields'); if(box) box.hidden=el.value!=='finance'; return; }
+  const changed = el.closest('[data-change]');
+  if (!changed) return;
+  const k = changed.dataset.change;
   if (k === 'deliverable-status') { const d=S.deliverables.find(x=>x.id===el.dataset.id); if(d) S.store.save('deliverables',{...d,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
   else if (k === 'glass') updateTheme((x) => { x.glass = el.checked; }, { render: true });
   else if (k === 'text-auto') {
@@ -785,6 +828,7 @@ function onChange(e) {
 }
 
 function onKey(e) {
+  if (e.key === 'Escape' && $('#layer')?.innerHTML) { $('#layer').innerHTML=''; if (S.sheet) S.sheet=null; return; }
   if (e.key === 'Escape' && S.sheet) { closeSheet(); return; }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName);
   if (S.sheet && e.key === 'Enter' && document.activeElement && document.activeElement.id === 'f-title') { e.preventDefault(); saveSheet(); return; }
