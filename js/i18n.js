@@ -66,6 +66,14 @@ const ar = {
   finance_soon: 'قسم الماليات يأتي بعد المشروعات: التعاقد، التحصيل، المصروفات، ونسبة المكسب لكل مشروع.',
   voice_soon: 'والتسجيل الصوتي بعدها.',
 
+  new_project: 'مشروع جديد', edit_project: 'تعديل المشروع', project_name: 'اسم المشروع', project_type: 'نوع المشروع',
+  type_residential: 'سكني', type_administrative: 'إداري', type_commercial: 'تجاري', type_fitout: 'تشطيبات وتنفيذ',
+  status_planning: 'تخطيط', status_active: 'جاري', status_on_hold: 'متوقف مؤقتًا', status_completed: 'مكتمل',
+  client: 'العميل', location: 'الموقع', no_location: 'لم يُحدد الموقع', contract_value: 'قيمة التعاقد', start_date: 'تاريخ البداية', end_date: 'تاريخ النهاية',
+  projects_intro: 'تابع المشروعات السكنية والإدارية والتجارية وأعمال التشطيبات والتنفيذ من مكان واحد.', projects_count: 'مشروع', no_projects: 'لسه مفيش مشروعات. ابدأ بإضافة أول مشروع.', all_projects: 'كل المشروعات', edit: 'تعديل', currency: 'ج.م',
+  deliverables: 'التسليمات والاعتمادات', deliverable_name: 'اسم التسليم', design_stage: 'مرحلة التصميم', stage_concept: 'فكرة مبدئية', stage_design: 'تصميم', stage_technical: 'لوحات تنفيذية', stage_execution: 'تنفيذ', deliverable_type: 'نوع اللوحة/التسليم', type_plan: 'مسقط أفقي', type_elevation: 'واجهة داخلية', type_section: 'قطاع', type_rcp: 'سقف منعكس RCP', type_detail: 'تفصيلة', other: 'أخرى', due_date: 'موعد التسليم', approval_status: 'حالة الاعتماد', approval_pending: 'لم يُرسل', approval_submitted: 'مرسل للمراجعة', approval_approved: 'معتمد', approval_revision: 'مطلوب تعديل', add_deliverable: 'إضافة تسليم', no_deliverables: 'لا توجد تسليمات مسجلة لهذا المشروع بعد.', approved: 'معتمد', confirm_delete_project: 'حذف المشروع وكل التسليمات والحركات المالية المرتبطة به؟', project_deleted_ok: 'تم حذف المشروع والبيانات المرتبطة به.',
+  contracts_total: 'إجمالي التعاقدات', collected: 'التحصيلات المسجلة', expenses: 'المصروفات', remaining: 'متبقي للتحصيل', net_cash: 'صافي التدفق النقدي', add_finance_entry: 'تسجيل حركة مالية', project: 'المشروع', choose_project: 'اختر مشروعًا', transaction_type: 'نوع الحركة', income: 'تحصيل / إيراد', amount: 'المبلغ', category: 'التصنيف', general: 'عام', design: 'تصميم', materials: 'خامات', labor: 'عمالة', transport: 'نقل', description: 'الوصف', save_entry: 'حفظ الحركة', transactions: 'الحركات المالية', project_deleted: 'مشروع محذوف', no_transactions: 'لا توجد حركات مالية مسجلة حتى الآن.', form_required: 'راجع المشروع والمبلغ قبل الحفظ.',
+
   // الإعدادات
   g_appearance: 'المظهر',
   g_colors: 'الألوان والأسطح',
@@ -129,7 +137,7 @@ const ar = {
 
   version: 'الإصدار',
   about_text: 'تطبيق مفتوح المصدر لتخطيط المهام الأسبوعية، مجاني بالكامل، ويعمل على الهاتف والتابلت والكمبيوتر.',
-  stage: 'المرحلة 1: المهام الأسبوعية والثيم',
+  stage: 'الإصدار 2: المهام والمشروعات والتسليمات والماليات',
 };
 
 const en = {
@@ -198,6 +206,13 @@ const en = {
   finance_soon: 'Finance comes after projects: contracts, collections, expenses, and profit share per project.',
   voice_soon: 'Voice recording follows.',
 
+  new_project: 'New project', edit_project: 'Edit project', project_name: 'Project name', project_type: 'Project type',
+  type_residential: 'Residential', type_administrative: 'Administrative', type_commercial: 'Commercial', type_fitout: 'Fit-out & execution',
+  status_planning: 'Planning', status_active: 'Active', status_on_hold: 'On hold', status_completed: 'Completed',
+  client: 'Client', location: 'Location', no_location: 'Location not set', contract_value: 'Contract value', start_date: 'Start date', end_date: 'End date',
+  projects_intro: 'Manage residential, administrative, commercial, fit-out and execution projects in one place.', projects_count: 'projects', no_projects: 'No projects yet. Add your first project.', all_projects: 'All projects', edit: 'Edit', currency: 'EGP',
+  deliverables: 'Deliverables & approvals', deliverable_name: 'Deliverable name', design_stage: 'Design stage', stage_concept: 'Concept', stage_design: 'Design', stage_technical: 'Technical drawings', stage_execution: 'Execution', deliverable_type: 'Drawing / deliverable type', type_plan: 'Floor plan', type_elevation: 'Interior elevation', type_section: 'Section', type_rcp: 'Reflected ceiling plan (RCP)', type_detail: 'Detail', other: 'Other', due_date: 'Due date', approval_status: 'Approval status', approval_pending: 'Not submitted', approval_submitted: 'Submitted for review', approval_approved: 'Approved', approval_revision: 'Revision required', add_deliverable: 'Add deliverable', no_deliverables: 'No deliverables recorded for this project yet.', approved: 'approved', confirm_delete_project: 'Delete this project and all its related deliverables and finance entries?', project_deleted_ok: 'Project and related data deleted.',
+  contracts_total: 'Total contracts', collected: 'Collections recorded', expenses: 'Expenses', remaining: 'Remaining to collect', net_cash: 'Net cash flow', add_finance_entry: 'Record a finance entry', project: 'Project', choose_project: 'Choose a project', transaction_type: 'Transaction type', income: 'Collection / income', amount: 'Amount', category: 'Category', general: 'General', design: 'Design', materials: 'Materials', labor: 'Labor', transport: 'Transport', description: 'Description', save_entry: 'Save entry', transactions: 'Transactions', project_deleted: 'Deleted project', no_transactions: 'No finance entries recorded yet.', form_required: 'Check the project and amount before saving.',
   g_appearance: 'Appearance',
   g_colors: 'Colors & surfaces',
   g_icons_fonts: 'Icons & font',
@@ -260,7 +275,7 @@ const en = {
 
   version: 'Version',
   about_text: 'An open-source weekly task planner. Completely free, works on phone, tablet and desktop.',
-  stage: 'Stage 1: weekly tasks and theming',
+  stage: 'Version 2: tasks, projects, deliverables and finance',
 };
 
 const DICT = { ar, en };

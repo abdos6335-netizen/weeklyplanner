@@ -299,3 +299,35 @@ input[type="color"]:disabled { opacity: .4; cursor: default; }
 .soon { display: grid; justify-items: start; gap: .6rem; padding: 1.4rem; max-width: 620px; }
 .soon h2 { font-size: 1.3rem; font-weight: 800; }
 .soon p { margin: 0; }
+
+/* المرحلة الثانية: المشروعات والتسليمات والماليات */
+.page-tools { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin: .3rem 0 1rem; flex-wrap:wrap; }
+.project-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr)); gap:.8rem; }
+.project-card { width:100%; color:var(--text); text-align:start; border:1px solid var(--btn-ring); cursor:pointer; transition:transform .15s ease,border-color .15s ease; }
+.project-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+.project-card h2 { font-size:1.12rem; margin:.8rem 0 .25rem; }
+.project-title { display:flex; align-items:center; justify-content:space-between; gap:.8rem; }
+.project-foot { display:flex; justify-content:space-between; gap:.6rem; color:var(--text-2); font-size:.82rem; margin:.9rem 0 .4rem; }
+.progress { height:5px; border-radius:99px; overflow:hidden; background:var(--surface-2); margin-bottom:.85rem; }
+.progress span { display:block; height:100%; background:var(--accent); border-radius:99px; }
+.stats-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; margin-bottom:1rem; }
+.stat { display:flex; flex-direction:column; gap:.35rem; padding:1rem; min-width:0; }
+.stat span { color:var(--text-2); font-size:.82rem; }
+.stat strong { font-size:1.12rem; overflow-wrap:anywhere; }
+.form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem .8rem; }
+.entry-form { display:grid; gap:.65rem; margin-top:.85rem; }
+.lab { display:block; color:var(--text-2); font-size:.86rem; font-weight:700; margin:.2rem 0 .3rem; }
+.input, .textarea { width:100%; min-width:0; color:var(--text); background:var(--surface); border:1px solid var(--btn-ring); border-radius:var(--r-md); padding:.7rem .8rem; font:inherit; }
+.input:focus, .textarea:focus { outline:2px solid var(--accent); outline-offset:1px; }
+.input.compact { min-width:125px; padding:.4rem; font-size:.8rem; }
+.sheet-actions { display:flex; justify-content:flex-end; gap:.6rem; margin-top:1rem; }
+.table-wrap { width:100%; overflow-x:auto; margin-top:.8rem; }
+.data-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+.data-table th,.data-table td { text-align:start; padding:.75rem .55rem; border-bottom:1px solid var(--btn-ring); white-space:nowrap; }
+.data-table th { color:var(--text-2); font-size:.78rem; }
+.data-table td small { display:block; color:var(--text-2); white-space:normal; max-width:260px; }
+.positive { color:#16834a; font-weight:800; }.negative { color:#b5473c; font-weight:800; }
+.empty-state { text-align:center; padding:2rem 1rem; }
+.chip { display:inline-flex; align-items:center; border-radius:99px; padding:.22rem .65rem; background:var(--accent-soft); color:var(--text); font-size:.78rem; font-weight:700; }
+@media(min-width:650px) { .stats-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:420px) { .form-grid { grid-template-columns:1fr; } .data-table { font-size:.8rem; } .data-table th,.data-table td { padding:.6rem .4rem; } }
