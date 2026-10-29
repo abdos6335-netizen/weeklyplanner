@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '2.1.0';
+const VERSION = '2.2.0';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -379,7 +379,25 @@ function openPrintChoice(id) {
 }
 function openVoiceSheet() {
   const options=S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">${t('review_save')}</button></div></section></div>`;
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
+}
+function inferVoiceCommand(raw) {
+  const text=String(raw||'').trim(), low=text.toLowerCase();
+  const numMatch=text.match(/\d[\d,،]*(?:[.]\d+)?/);
+  let project=S.projects.find(p=>text.includes(p.name));
+  let target=$('#voice-target')?.value||'auto';
+  if(target==='auto') {
+    if(/تقرير|اطبع|طباعة|موقف المشروع|التقرير المالي|تقرير فني/.test(text)) target='report';
+    else if(/مشروع جديد|اعمل مشروع|أنشئ مشروع|انشئ مشروع|بدأت مشروع/.test(text)) target='project';
+    else if(/لوحة|تسليم|اعتماد|اعتمد|مراجعة|rev\s*0?\d/i.test(text)) target='deliverable';
+    else if(/دفعة|استلمت|قبضت|تحصيل|مصروف|دفعت|صرفت|جنيه|ج\.م/.test(text)) target='finance';
+    else target='task';
+  }
+  const amount=numMatch?Number(numMatch[0].replace(/[،,]/g,'')):0;
+  const date= /بكرة|غدا|غداً/.test(text)?D.addDays(D.todayISO(),1):/النهارده|اليوم/.test(text)?D.todayISO():((text.match(/\b20\d{2}-\d{2}-\d{2}\b/)||[])[0]||D.todayISO());
+  const priority=/مهم جدا|مهمة جدًا|أولوية عالية|عاجل|ضروري/.test(text)?3:/مش مهم|أولوية منخفضة/.test(text)?1:2;
+  const isExpense=/مصروف|صرفت|دفعت/.test(text), kind=isExpense?'expense':'income';
+  return {text,target,project,amount,date,priority,kind,low};
 }
 function startVoiceRecognition() {
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -388,8 +406,46 @@ function startVoiceRecognition() {
   const status=$('#voice-status'), field=$('#voice-text'); let finalText='';
   rec.onstart=()=>{if(status)status.textContent=t('voice_listening');};
   rec.onerror=()=>{if(status)status.textContent=t('voice_error');};
-  rec.onresult=(e)=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const txt=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=txt+' ';else interim+=txt;}if(field)field.value=(finalText+interim).trim(); const text=(finalText+interim).trim(); const match=text.match(/\d+(?:[.,]\d+)?/);if(match&&$('#voice-amount'))$('#voice-amount').value=match[0].replace(',','.'); const p=S.projects.find(x=>text.toLowerCase().includes(x.name.toLowerCase()));if(p&&$('#voice-project'))$('#voice-project').value=p.id; if(/مصروف|دفعت|صرف|expense/i.test(text)&&$('#voice-kind'))$('#voice-kind').value='expense';if(/تحصيل|استلمت|قبضت|دفعة|income/i.test(text)&&$('#voice-kind'))$('#voice-kind').value='income';};
+  rec.onresult=(e)=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const txt=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=txt+' ';else interim+=txt;}if(field)field.value=(finalText+interim).trim(); const c=inferVoiceCommand(field?.value||''); const target=$('#voice-target');if(target&&target.value==='auto'){} const amt=$('#voice-amount');if(c.amount&&amt)amt.value=c.amount;const proj=$('#voice-project');if(c.project&&proj)proj.value=c.project.id;const kind=$('#voice-kind');if(kind)kind.value=c.kind;const box=$('#voice-finance-fields');if(box)box.hidden=c.target!=='finance';const msg=$('#voice-understanding');if(msg)msg.textContent=`النوع المتوقع: ${{task:'مهمة',finance:'حركة مالية (تحتاج تأكيدًا)',project:'إنشاء مشروع (يحتاج تأكيدًا)',deliverable:'تحديث تسليم/اعتماد (يحتاج تأكيدًا)',report:'تقرير'}[c.target]||'مهمة'}. ${c.project?'المشروع: '+c.project.name+'. ':''}${c.amount?'المبلغ المكتشف: '+c.amount+'. ':''}راجع البيانات قبل المتابعة.`;};
   rec.onend=()=>{if(status)status.textContent=t('voice_done');}; rec.start();
+}
+async function handleVoiceCommand(c) {
+  if(c.target==='report') {
+    if(!c.project){toast('لم أتعرف على اسم مشروع موجود. افتح المشروع المطلوب أو اكتب اسمه كما هو.');return;}
+    const financial=/مالي|مالية|تحصيل|مصروف/.test(c.text); printProjectReport(c.project.id,financial?'finance':'status'); $('#layer').innerHTML=''; return;
+  }
+  if(c.target==='task') {
+    const date=c.date, title=c.text.length>90?c.text.slice(0,87)+'…':c.text;
+    const task=normalizeTask({id:uid(),title,notes:c.text,date,weekRef:date,priority:c.priority,status:'todo',createdAt:Date.now(),updatedAt:Date.now(),projectId:c.project?.id||null});
+    return S.store.save('tasks',task).then(()=>{toast('تم حفظ المهمة.');$('#layer').innerHTML='';render();});
+  }
+  if(c.target==='finance') {
+    const projectId=$('#voice-project')?.value||c.project?.id, amount=Number($('#voice-amount')?.value)||c.amount;
+    if(!projectId||!amount||amount<=0){toast('لازم تحدد مشروعًا ومبلغًا صحيحًا قبل تسجيل الحركة المالية.');return;}
+    const project=S.projects.find(p=>p.id===projectId); const kind=$('#voice-kind')?.value||c.kind; const date=$('#voice-date')?.value||c.date;
+    if(!confirm(`تأكيد تسجيل ${kind==='income'?'تحصيل':'مصروف'} بقيمة ${money(amount)} ج.م في مشروع «${project?.name||''}» بتاريخ ${date}؟`))return;
+    return S.store.save('financeEntries',{id:uid(),projectId,kind,amount,date,category:t('general'),description:c.text,createdAt:Date.now(),source:'voice'}).then(()=>{toast(t('saved'));$('#layer').innerHTML='';render();});
+  }
+  if(c.target==='project') {
+    const name=c.text.replace(/.*?(?:مشروع جديد|اعمل مشروع|أنشئ مشروع|انشئ مشروع|بدأت مشروع)\s*/,'').trim().slice(0,160);
+    if(!name||name===c.text){toast('اذكر اسم المشروع بوضوح، ثم أعد المحاولة.');return;}
+    if(!confirm(`هل تريد إنشاء مشروع جديد باسم «${name}»؟`))return;
+    const duplicate=S.projects.find(p=>p.name.trim().toLowerCase()===name.toLowerCase());if(duplicate){toast('يوجد مشروع بهذا الاسم بالفعل؛ لم يتم إنشاء نسخة مكررة.');return;}
+    const type=/سكني|فيلا|شقة|منزل/.test(c.text)?'residential':/إداري|مكتب|شركة/.test(c.text)?'administrative':/تجاري|محل|عيادة/.test(c.text)?'commercial':'fitout';
+    const p={id:uid(),name,type,status:'planning',client:'',location:'',contractValue:0,startDate:D.todayISO(),endDate:null,notes:`تم الإنشاء من الأمر الصوتي: ${c.text}`,createdAt:Date.now(),updatedAt:Date.now(),source:'voice'};
+    await S.store.save('projects',p); S.activeProjectId=p.id; S.section='projects'; $('#layer').innerHTML=''; toast('تم إنشاء المشروع. راجع بياناته وأكمل العميل وقيمة التعاقد عند الحاجة.'); render(); return;
+  }
+  if(c.target==='deliverable') {
+    if(!c.project){toast('حدد المشروع أولًا أو اذكر اسمه المطابق في الأمر.');return;}
+    const name=(c.text.match(/(?:لوحة|تسليم)\s+(.+?)(?:\s+(?:rev|مراجعة|واتعمدت|وتم الاعتماد|اتعمدت|اعتمدت|اتسلمت|تم التسليم).*)?$/i)||[])[1];
+    const revision=(c.text.match(/rev\s*0?\d+/i)||[])[0]||((c.text.match(/مراجعة\s*0?\d+/)||[])[0]||'');
+    const approved=/اعتمد|اتعمدت|معتمد/.test(c.text), submitted=/سلمت|اتسلمت|تم التسليم/.test(c.text);
+    if(!name){toast('لم أستطع تحديد اسم اللوحة بدقة. اكتب اسم اللوحة في النص ثم أعد المحاولة.');return;}
+    const status=approved?'approved':submitted?'submitted':'pending';
+    if(!confirm(`تأكيد تحديث مشروع «${c.project.name}»؟\nالتسليم: ${name.trim()}\nالمراجعة: ${revision||'غير محددة'}\nالحالة: ${{approved:'معتمد',submitted:'مرسل للمراجعة',pending:'لم يُرسل'}[status]}`))return;
+    const d={id:uid(),projectId:c.project.id,name:name.trim(),stage:'technical',kind:'other',dueDate:c.date,status,notes:`${revision?revision+' · ':''}${c.text}`,createdAt:Date.now(),updatedAt:Date.now(),source:'voice'};
+    return S.store.save('deliverables',d).then(()=>{toast('تم تسجيل تحديث التسليم.');$('#layer').innerHTML='';render();});
+  }
 }
 
 function renderFinance() {
@@ -701,7 +757,7 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
-    case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const target=$('#voice-target')?.value; if(target==='finance'){const projectId=$('#voice-project')?.value, amount=Number($('#voice-amount')?.value);if(!projectId||amount<=0){toast(t('voice_finance_required'));break;}await S.store.save('financeEntries',{id:uid(),projectId,kind:$('#voice-kind').value,amount,date:$('#voice-date').value||D.todayISO(),category:t('general'),description:text,createdAt:Date.now(),source:'voice'});toast(t('saved'));}else{const title=text.length>90?text.slice(0,87)+'…':text;await S.store.save('tasks',normalizeTask({id:uid(),title,notes:text,date:D.todayISO(),weekRef:D.todayISO(),priority:2,status:'todo',createdAt:Date.now(),updatedAt:Date.now()}));toast(t('saved'));} $('#layer').innerHTML='';render();break;}
+    case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
     case 'open-project': S.activeProjectId = el.dataset.id; render(); window.scrollTo(0,0); break;
