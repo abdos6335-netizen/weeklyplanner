@@ -1,5 +1,5 @@
 // Service worker: يخزّن هيكل التطبيق ليعمل أوفلاين. غيّر VERSION عند نشر تحديث.
-const VERSION = 'wp-v3.0.0';
+const VERSION = 'wp-v3.0.1';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
   'js/app.js', 'js/store.js', 'js/theme.js', 'js/i18n.js', 'js/icons.js', 'js/dates.js', 'js/firebase-config.js',
