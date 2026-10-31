@@ -38,11 +38,14 @@ class MeetingRecordingService : Service() {
         return START_NOT_STICKY
     }
 
+    @Suppress("DEPRECATION")
+    private fun createRecorder(): MediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else MediaRecorder()
+
     private fun startRecording() {
         val path = outputPath ?: run { stopSelf(); return }
         try {
             File(path).parentFile?.mkdirs()
-            val r = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else @Suppress("DEPRECATION") MediaRecorder()
+            val r = createRecorder()
             r.setAudioSource(MediaRecorder.AudioSource.MIC)
             r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
