@@ -76,11 +76,13 @@ class _MeetingsPageState extends State<MeetingsPage> with WidgetsBindingObserver
       final dir = await _recordingsDir();
       final files = dir.listSync().whereType<File>().where((f) => f.path.endsWith('.m4a')).toList()
         ..sort((a,b) => b.statSync().modified.compareTo(a.statSync().modified));
-      if (mounted) setState(() {
-        _recordings
-          ..clear()
-          ..addAll(files.map((f) => RecordingItem(f.path, f.statSync().modified)));
-      });
+      if (mounted) {
+        setState(() {
+          _recordings
+            ..clear()
+            ..addAll(files.map((f) => RecordingItem(f.path, f.statSync().modified)));
+        });
+      }
     } catch (e) { _showError('تعذر قراءة التسجيلات: $e'); }
   }
 
