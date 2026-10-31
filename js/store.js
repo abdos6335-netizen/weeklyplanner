@@ -15,7 +15,7 @@ import { firebaseConfig } from './firebase-config.js';
 
 const FB_VERSION = '11.10.0';
 const FB_BASE = `https://www.gstatic.com/firebasejs/${FB_VERSION}`;
-export const COLLECTIONS = ['tasks', 'settings', 'projects', 'deliverables', 'financeEntries'];
+export const COLLECTIONS = ['tasks', 'settings', 'projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets'];
 
 const clean = (o) => JSON.parse(JSON.stringify(o, (_, v) => (v === undefined ? null : v)));
 
@@ -25,6 +25,8 @@ function createLocalStore() {
   const cache = {};
   const watchers = {};
   const authCbs = new Set();
+  const statusCbs = new Set();
+  const emitStatus = (status) => statusCbs.forEach((cb) => cb(status));
   let user = localStorage.getItem('wp1:local-user') ? { uid: 'local', name: 'Local', local: true } : null;
 
   const read = (n) => {
@@ -46,6 +48,7 @@ function createLocalStore() {
 
   return {
     mode: 'local',
+    onStatus(cb) { statusCbs.add(cb); cb({ state: 'local', message: 'البيانات محفوظة على هذا الجهاز فقط' }); return () => statusCbs.delete(cb); },
     get user() { return user; },
     ready: Promise.resolve(),
     onAuth(cb) {
@@ -100,6 +103,10 @@ async function createCloudStore() {
 
   let user = null;
   const authCbs = new Set();
+  const statusCbs = new Set();
+  let syncState = { state: 'idle', message: 'متصل' };
+  const emitStatus = (state, message) => { syncState = { state, message }; statusCbs.forEach((cb) => cb(syncState)); };
+  if (typeof window !== 'undefined') { window.addEventListener('offline', () => emitStatus('offline', 'لا يوجد اتصال — ستُحفظ التغييرات محليًا للمزامنة لاحقًا')); window.addEventListener('online', () => emitStatus('syncing', 'عاد الاتصال — جارٍ استكمال المزامنة…')); }
   const lastData = {};
   let resolveReady;
   const ready = new Promise((r) => (resolveReady = r));
@@ -116,6 +123,7 @@ async function createCloudStore() {
 
   return {
     mode: 'cloud',
+    onStatus(cb) { statusCbs.add(cb); cb(syncState); return () => statusCbs.delete(cb); },
     get user() { return user; },
     ready,
     onAuth(cb) {
@@ -138,6 +146,9 @@ async function createCloudStore() {
         }
       }
     },
+    async signInEmail(email, password) { await authMod.signInWithEmailAndPassword(auth, email, password); },
+    async signUpEmail(email, password) { await authMod.createUserWithEmailAndPassword(auth, email, password); },
+    async resetPassword(email) { await authMod.sendPasswordResetEmail(auth, email); },
     async signOut() { await authMod.signOut(auth); },
     watch(n, cb) {
       if (!user) return () => {};
@@ -146,17 +157,31 @@ async function createCloudStore() {
         (snap) => {
           const arr = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           lastData[n] = arr;
+          emitStatus('synced', 'تمت المزامنة');
           cb(arr);
         },
-        (err) => console.error('firestore watch error', n, err)
+        (err) => { console.error('firestore watch error', n, err); emitStatus('error', `تعذر تحميل ${n}: ${err.message || err}`); }
       );
     },
     // لا ننتظر تأكيد السيرفر (يعمل أوفلاين)؛ الأخطاء تُرمى لمن ينتظر الوعد
     save(n, doc) {
+      if (!user) return Promise.reject(new Error('يجب تسجيل الدخول قبل الحفظ'));
       const { id, ...rest } = clean(doc);
-      return fs.setDoc(fs.doc(db, 'users', user.uid, n, id), rest, { merge: true });
+      emitStatus('syncing', 'جارٍ حفظ التغييرات…');
+      fs.setDoc(fs.doc(db, 'users', user.uid, n, id), rest, { merge: true })
+        .then(() => emitStatus('synced', 'تمت المزامنة'))
+        .catch((err) => { emitStatus('error', `فشل الحفظ أو المزامنة: ${err.message || err}`); console.error('firestore save error', n, err); });
+      // Firestore يضع التغيير في الطابور المحلي عند انقطاع الشبكة؛ لا نعلّق واجهة المستخدم انتظارًا للاتصال.
+      return Promise.resolve();
     },
-    remove(n, id) { return fs.deleteDoc(fs.doc(db, 'users', user.uid, n, id)); },
+    remove(n, id) {
+      if (!user) return Promise.reject(new Error('يجب تسجيل الدخول قبل الحذف'));
+      emitStatus('syncing', 'جارٍ تحديث البيانات…');
+      fs.deleteDoc(fs.doc(db, 'users', user.uid, n, id))
+        .then(() => emitStatus('synced', 'تمت المزامنة'))
+        .catch((err) => { emitStatus('error', `فشل الحذف أو المزامنة: ${err.message || err}`); console.error('firestore delete error', n, err); });
+      return Promise.resolve();
+    },
     snapshot: (n) => (lastData[n] || []).slice(),
   };
 }
