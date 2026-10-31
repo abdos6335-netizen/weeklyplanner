@@ -15,7 +15,7 @@ import { firebaseConfig } from './firebase-config.js';
 
 const FB_VERSION = '11.10.0';
 const FB_BASE = `https://www.gstatic.com/firebasejs/${FB_VERSION}`;
-export const COLLECTIONS = ['tasks', 'settings', 'projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets'];
+export const COLLECTIONS = ['tasks', 'settings', 'projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets', 'meetings'];
 
 const clean = (o) => JSON.parse(JSON.stringify(o, (_, v) => (v === undefined ? null : v)));
 
