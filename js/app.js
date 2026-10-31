@@ -494,14 +494,57 @@ async function handleVoiceCommand(c) {
 }
 
 
-function renderMeetings() {
+
+ // تسجيل صوت الاجتماع كاملًا داخل المتصفح، مع حفظ محلي في IndexedDB.
+ S.meetingMediaRecorder = null; S.meetingAudioChunks = []; S.pendingMeetingAudio = null;
+ function meetingAudioDb(){
+   return new Promise((resolve,reject)=>{
+     const req=indexedDB.open('weeklyplanner-meeting-audio',1);
+     req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('audio'))db.createObjectStore('audio',{keyPath:'meetingId'});};
+     req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+   });
+ }
+ async function saveMeetingAudio(meetingId, blob){
+   const db=await meetingAudioDb();
+   await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite');tx.objectStore('audio').put({meetingId,blob,mimeType:blob.type,updatedAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+   db.close();
+ }
+ async function openMeetingAudio(meetingId, download=false){
+   const db=await meetingAudioDb();
+   const row=await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(meetingId);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+   db.close(); if(!row?.blob){toast('لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.');return;}
+   const url=URL.createObjectURL(row.blob);
+   if(download){const a=document.createElement('a');a.href=url;a.download='WeeklyPlanner-meeting-'+meetingId+'.webm';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return;}
+   const w=window.open('','_blank'); if(!w){URL.revokeObjectURL(url);toast('اسمح بالنوافذ المنبثقة لتشغيل التسجيل.');return;}
+   w.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>تسجيل الاجتماع</title><body style="font-family:Arial;padding:24px"><h2>تسجيل الاجتماع</h2><audio controls autoplay style="width:100%"></audio></body></html>');
+   w.document.querySelector('audio').src=url; w.addEventListener('beforeunload',()=>URL.revokeObjectURL(url));
+ }
+ async function startMeetingAudioCapture(){
+   if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){toast('تسجيل الصوت الكامل غير مدعوم في هذا المتصفح. افتح WeeklyPlanner عبر Chrome أو ثبّته كتطبيق.');return;}
+   try{
+     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+     S.meetingAudioChunks=[];
+     const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(x=>MediaRecorder.isTypeSupported(x));
+     S.meetingMediaRecorder=new MediaRecorder(stream,mime?{mimeType:mime}:{});
+     S.meetingMediaRecorder.ondataavailable=e=>{if(e.data?.size)S.meetingAudioChunks.push(e.data);};
+     S.meetingMediaRecorder.onstop=()=>{S.pendingMeetingAudio=new Blob(S.meetingAudioChunks,{type:S.meetingMediaRecorder?.mimeType||'audio/webm'});stream.getTracks().forEach(t=>t.stop());S.meetingMediaRecorder=null;S.meetingAudioChunks=[];const status=$('#meeting-audio-status');if(status)status.textContent='تم إنهاء التسجيل الصوتي — سيُحفظ مع الاجتماع عند الضغط على حفظ الاجتماع.';toast('تم تجهيز التسجيل الصوتي للحفظ مع الاجتماع.');};
+     S.meetingMediaRecorder.start(1000);
+     const status=$('#meeting-audio-status');if(status)status.textContent='● جارٍ تسجيل صوت الاجتماع كاملًا. اترك التطبيق مفتوحًا أثناء التسجيل.';
+     const start=$('[data-action="meeting-audio-start"]'),stop=$('[data-action="meeting-audio-stop"]');if(start)start.disabled=true;if(stop)stop.disabled=false;
+   }catch(e){console.error(e);toast('تعذر بدء التسجيل. تحقق من صلاحية الميكروفون واستخدام اتصال آمن HTTPS.');}
+ }
+ function stopMeetingAudioCapture(){
+   if(S.meetingMediaRecorder&&S.meetingMediaRecorder.state!=='inactive'){S.meetingMediaRecorder.stop();}
+   const start=$('[data-action="meeting-audio-start"]'),stop=$('[data-action="meeting-audio-stop"]');if(start)start.disabled=false;if(stop)stop.disabled=true;
+ }
+\nfunction renderMeetings() {
   if(S.activeMeetingProjectId) {
     const p=S.projects.find(x=>x.id===S.activeMeetingProjectId);
     if(!p){S.activeMeetingProjectId=null;return renderMeetings();}
     const rows=S.meetings.filter(m=>m.projectId===p.id).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
     return `<div class="page-tools"><button class="btn sm" data-action="meeting-back">← كل المشاريع</button><span class="chip">${rows.length} Meetings</span></div>
       <section class="card glass"><h2>${esc(p.name)}</h2><p class="muted">${esc(p.client||'')}</p></section>
-      ${rows.map(m=>`<section class="card glass meeting-card"><div class="dhead"><div><h2>Meeting ${String(m.sequence||0).padStart(2,'0')} · ${esc(m.title||'')}</h2><p class="muted">${esc(m.date)} ${esc(m.time||'')} · ${m.mode==='online'?'Online':'Offline'}</p></div><button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button></div><p>${esc(m.minutes||m.transcript||'لا يوجد ملخص بعد')}</p></section>`).join('')||'<p class="muted">لا توجد اجتماعات مسجلة لهذا المشروع.</p>'}`;
+      ${rows.map(m=>`<section class="card glass meeting-card"><div class="dhead"><div><h2>Meeting ${String(m.sequence||0).padStart(2,'0')} · ${esc(m.title||'')}</h2><p class="muted">${esc(m.date)} ${esc(m.time||'')} · ${m.mode==='online'?'Online':'Offline'}</p></div><button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button><button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button><button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button></div><p>${esc(m.minutes||m.transcript||'لا يوجد ملخص بعد')}</p></section>`).join('')||'<p class="muted">لا توجد اجتماعات مسجلة لهذا المشروع.</p>'}`;
   }
   const projects=[...S.projects].sort((a,b)=>a.name.localeCompare(b.name));
   return `<div class="page-tools"><p class="muted">سجل اجتماعات العملاء ومحاضر الاجتماعات، مرتب حسب المشروع.</p></div>
@@ -515,7 +558,7 @@ function renderMeetings() {
         <div><label class="lab" for="meeting-mode">نوع الاجتماع</label><select class="input" id="meeting-mode"><option value="online">Online</option><option value="offline">Offline</option></select></div></div>
         <label class="lab" for="meeting-title">عنوان الاجتماع</label><input class="input" id="meeting-title" placeholder="موضوع الاجتماع">
         <label class="lab" for="meeting-participants">الحضور</label><input class="input" id="meeting-participants">
-        <div class="meeting-record-row"><select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><button class="btn" type="button" data-action="meeting-record">🎙 بدء الإملاء الصوتي</button><button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button><span class="muted small">يحتاج إبقاء صفحة التطبيق مفتوحة أثناء الإملاء.</span></div>
+        <div class="meeting-record-row"><button class="btn primary" type="button" data-action="meeting-audio-start">● بدء تسجيل الاجتماع كاملًا</button><button class="btn" type="button" data-action="meeting-audio-stop" disabled>إيقاف التسجيل</button><span id="meeting-audio-status" class="muted small">يُحفظ الصوت محليًا على هذا الجهاز مع بيانات الاجتماع.</span></div><div class="meeting-record-row"><select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><button class="btn" type="button" data-action="meeting-record">إملاء صوتي للنص</button><button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button></div>
         <label class="lab" for="meeting-transcript">نص التسجيل / الملاحظات</label><textarea class="input textarea" id="meeting-transcript" rows="5" placeholder="يمكنك الإملاء أو كتابة النقاط هنا"></textarea>
         <label class="lab" for="meeting-minutes">Minutes of Meeting</label><textarea class="input textarea" id="meeting-minutes" rows="5" placeholder="الملخص والاتفاقات وطلبات العميل"></textarea>
         <label class="lab" for="meeting-decisions">القرارات</label><textarea class="input textarea" id="meeting-decisions" rows="3"></textarea>
@@ -902,7 +945,7 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
-    case 'meeting-record': startMeetingRecognition(); break;
+    case 'meeting-audio-start': await startMeetingAudioCapture(); break;\n    case 'meeting-audio-stop': stopMeetingAudioCapture(); break;\n    case 'meeting-audio-play': await openMeetingAudio(el.dataset.id,false); break;\n    case 'meeting-audio-download': await openMeetingAudio(el.dataset.id,true); break;\n    case 'meeting-record': startMeetingRecognition(); break;
     case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
     case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
     case 'meeting-print': printMeetingReport(el.dataset.id); break;
@@ -1018,7 +1061,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
       const meeting={id:uid(),projectId:project.id,sequence,title:$('#meeting-title').value.trim()||`Meeting ${String(sequence).padStart(2,'0')}`,client:$('#meeting-client').value.trim()||project.client||'',date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript:$('#meeting-transcript').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),createdAt:Date.now(),updatedAt:Date.now()};
-      await S.store.save('meetings',meeting);
+      await S.store.save('meetings',meeting);\n      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;}
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
     }
