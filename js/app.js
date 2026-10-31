@@ -26,6 +26,7 @@ const S = {
   personalBudgets: [],
   meetings: [],
   activeMeetingProjectId: null,
+  meetingRecognition: null,
   financeView: 'projects',
   expenseMonth: D.todayISO().slice(0,7),
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
@@ -399,7 +400,7 @@ function openPrintChoice(id) {
 }
 function openVoiceSheet() {
   const options=S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><select class="input compact" id="voice-language" aria-label="لغة التسجيل"><option value="ar-EG">العربية</option><option value="en-US">English</option><option value="ar-EG,en-US">Auto (Arabic / English)</option></select><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><select class="input compact" id="voice-language" aria-label="لغة التسجيل"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
 }
 
 function parseSpokenTaskDate(text){
@@ -514,7 +515,7 @@ function renderMeetings() {
         <div><label class="lab" for="meeting-mode">نوع الاجتماع</label><select class="input" id="meeting-mode"><option value="online">Online</option><option value="offline">Offline</option></select></div></div>
         <label class="lab" for="meeting-title">عنوان الاجتماع</label><input class="input" id="meeting-title" placeholder="موضوع الاجتماع">
         <label class="lab" for="meeting-participants">الحضور</label><input class="input" id="meeting-participants">
-        <div class="meeting-record-row"><button class="btn" type="button" data-action="meeting-record">🎙 تسجيل/إملاء صوتي</button><span class="muted small">يحتاج إبقاء صفحة التطبيق مفتوحة أثناء الإملاء.</span></div>
+        <div class="meeting-record-row"><select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><button class="btn" type="button" data-action="meeting-record">🎙 بدء الإملاء الصوتي</button><button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button><span class="muted small">يحتاج إبقاء صفحة التطبيق مفتوحة أثناء الإملاء.</span></div>
         <label class="lab" for="meeting-transcript">نص التسجيل / الملاحظات</label><textarea class="input textarea" id="meeting-transcript" rows="5" placeholder="يمكنك الإملاء أو كتابة النقاط هنا"></textarea>
         <label class="lab" for="meeting-minutes">Minutes of Meeting</label><textarea class="input textarea" id="meeting-minutes" rows="5" placeholder="الملخص والاتفاقات وطلبات العميل"></textarea>
         <label class="lab" for="meeting-decisions">القرارات</label><textarea class="input textarea" id="meeting-decisions" rows="3"></textarea>
@@ -529,11 +530,11 @@ function renderMeetings() {
 function startMeetingRecognition(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){toast(t('voice_unsupported'));return;}
-  const rec=new SR();rec.lang=lang()==='ar'?'ar-EG':'en-US';rec.continuous=true;rec.interimResults=true;
+  const rec=new SR();rec.lang=$('#meeting-language')?.value||(lang()==='ar'?'ar-EG':'en-US');rec.continuous=true;rec.interimResults=true;S.meetingRecognition=rec;
   const field=$('#meeting-transcript');let finalText=field.value?field.value+' ':'';
   rec.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const v=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=v+' ';else interim+=v;}field.value=(finalText+interim).trim();};
   rec.onerror=()=>toast('تعذر الوصول للميكروفون. تحقق من صلاحية المتصفح.');
-  rec.onend=()=>toast('انتهى الإملاء الصوتي. راجع النص قبل الحفظ.');
+  rec.onend=()=>{S.meetingRecognition=null;toast('انتهى الإملاء الصوتي. راجع النص قبل الحفظ.');};
   try{rec.start();toast('بدأ الإملاء الصوتي. اترك صفحة التطبيق مفتوحة.');}catch(e){toast('تعذر بدء التسجيل الصوتي.');}
 }
 function printMeetingReport(id){
@@ -902,6 +903,7 @@ async function onClick(e) {
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
     case 'meeting-record': startMeetingRecognition(); break;
+    case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
     case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
     case 'meeting-print': printMeetingReport(el.dataset.id); break;
     case 'meeting-back': S.activeMeetingProjectId=null; render(); break;
