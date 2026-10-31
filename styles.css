@@ -362,3 +362,15 @@ input, select, textarea { font-size: max(16px, 1em); }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; } }
 @media print { .tabbar,.rail,.fab,.voice-fab,.topbar,.project-print-actions { display:none !important; } }
+
+
+/* v3.0: sync feedback, personal expense ledger and accessible mobile controls */
+.sync-indicator { display:inline-flex; align-items:center; max-width:48%; padding:.28rem .6rem; border-radius:999px; background:var(--surface-2); color:var(--text-2); font-size:.72rem; line-height:1.35; overflow-wrap:anywhere; }
+.sync-indicator[data-state="syncing"] { color:var(--accent); }
+.sync-indicator[data-state="error"] { color:#b5473c; background:color-mix(in srgb,#b5473c 10%,transparent); }
+.sync-indicator[data-state="synced"] { color:#16834a; }
+.finance-switch,.auth-links { display:flex; flex-wrap:wrap; gap:.55rem; margin-bottom:.85rem; }
+.auth-divider { display:flex; align-items:center; gap:.7rem; color:var(--text-2); font-size:.82rem; margin:1rem 0 .5rem; }
+.auth-links { justify-content:space-between; margin-top:.5rem; }
+.expense-warning { padding:.7rem .85rem; border-radius:var(--r-md); color:#9a5b00; background:color-mix(in srgb,#e9a23b 15%,transparent); font-weight:700; }
+@media(max-width:520px) { .sync-indicator { font-size:.65rem; max-width:43%; } .finance-switch .btn { flex:1; } }
