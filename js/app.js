@@ -404,16 +404,15 @@ function openVoiceSheet() {
 
 function parseSpokenTaskDate(text){
   const today=D.parse(D.todayISO());
-  const iso=(String(text).match(/\\b20\\d{2}-\\d{2}-\\d{2}\\b/)||[])[0];if(iso&&D.isValidISO(iso))return iso;
+  const iso=(String(text).match(/\b20\d{2}-\d{2}-\d{2}\b/)||[])[0];if(iso&&D.isValidISO(iso))return iso;
   if(/بكرة|غدا|غداً|tomorrow/i.test(text))return D.addDays(D.todayISO(),1);
   if(/النهارده|اليوم|today/i.test(text))return D.todayISO();
   const monthNames={يناير:0,فبراير:1,مارس:2,ابريل:3,أبريل:3,مايو:4,يونيو:5,يوليو:6,أغسطس:7,اغسطس:7,سبتمبر:8,أكتوبر:9,اكتوبر:9,نوفمبر:10,ديسمبر:11,january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11};
   const named=Object.entries(monthNames).find(([m])=>new RegExp(m,'i').test(text));
-  const dayMatch=text.match(/(?:يوم|day)?\\s*(?:رقم\\s*)?(\\d{1,2})/i);
-  if(named&&dayMatch){let y=today.getFullYear(),m=named[1];if(m<today.getMonth()||(m===today.getMonth()&&Number(dayMatch[1])<today.getDate()))y++;const d=new Date(y,m,Number(dayMatch[1]));if(d.getMonth()===m&&d.getDate()===Number(dayMatch[1]))return D.toISO(d);}
+  const dayMatch=text.match(/(?:يوم\\s*|day\\s+)(\\d{1,2})/i);
+  if(named&&dayMatch){let y=today.getFullYear(),m=named[1];if(m<today.getMonth()||(m===today.getMonth()&&Number(dayMatch[1])<today.getDate()))y++;const d=new Date(y,m,Number(dayMatch[1]));if(d.getMonth()===m&&d.getDate()===Number(dayMatch[1]))return D.iso(d);}
   const nextMonth=/الشهر القادم|الشهر الجاي|الشهر المقبل|next month/i.test(text);
-  if(dayMatch&&(nextMonth||/يوم\\s*\\d{1,2}/.test(text))){let y=today.getFullYear(),m=today.getMonth()+(nextMonth?1:0);if(!nextMonth&&Number(dayMatch[1])<today.getDate())m++;const d=new Date(y,m,Number(dayMatch[1]));if(d.getDate()===Number(dayMatch[1]))return D.toISO(d);}
-  const monthWord=/الشهر الحالي|this month/i.test(text);
+  if(dayMatch&&(nextMonth||/يوم\\s*\\d{1,2}/.test(text))){let y=today.getFullYear(),m=today.getMonth()+(nextMonth?1:0);if(!nextMonth&&Number(dayMatch[1])<today.getDate())m++;const d=new Date(y,m,Number(dayMatch[1]));if(d.getDate()===Number(dayMatch[1]))return D.iso(d);}
   return D.todayISO();
 }
 
