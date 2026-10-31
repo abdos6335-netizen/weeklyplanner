@@ -15,7 +15,7 @@ const ar = {
 
   nav_tasks: 'المهام',
   nav_projects: 'المشروعات',
-  nav_finance: 'الماليات',
+  nav_finance: 'الماليات', nav_meetings: 'Meeting',
   settings: 'الإعدادات',
   today: 'اليوم',
   this_week: 'هذا الأسبوع',
@@ -156,7 +156,7 @@ const en = {
 
   nav_tasks: 'Tasks',
   nav_projects: 'Projects',
-  nav_finance: 'Finance',
+  nav_finance: 'Finance', nav_meetings: 'Meetings',
   settings: 'Settings',
   today: 'Today',
   this_week: 'This week',
