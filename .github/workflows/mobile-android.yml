@@ -3,7 +3,7 @@ name: Mobile Android validation
 on:
   pull_request:
     paths:
-      - 'mobile/**'
+      - 'mobile/**'\n      - 'js/app.js'
       - '.github/workflows/mobile-android.yml'
   push:
     branches: [main]
@@ -22,7 +22,7 @@ jobs:
           cache: true
       - name: Generate Android and iOS platform scaffolding
         run: bash mobile/tool/bootstrap_platforms.sh
-      - name: Analyze Dart
+      - name: Validate WeeklyPlanner web app JavaScript\n        run: node --check js/app.js\n      - name: Analyze Dart
         working-directory: mobile
         run: flutter analyze
       - name: Build Android APK
