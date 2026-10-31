@@ -164,23 +164,33 @@ async function createCloudStore() {
       );
     },
     // لا ننتظر تأكيد السيرفر (يعمل أوفلاين)؛ الأخطاء تُرمى لمن ينتظر الوعد
-    save(n, doc) {
-      if (!user) return Promise.reject(new Error('يجب تسجيل الدخول قبل الحفظ'));
+    async save(n, doc) {
+      if (!user) throw new Error('يجب تسجيل الدخول قبل الحفظ');
       const { id, ...rest } = clean(doc);
+      if (!id) throw new Error('معرّف السجل مطلوب قبل الحفظ');
       emitStatus('syncing', 'جارٍ حفظ التغييرات…');
-      fs.setDoc(fs.doc(db, 'users', user.uid, n, id), rest, { merge: true })
-        .then(() => emitStatus('synced', 'تمت المزامنة'))
-        .catch((err) => { emitStatus('error', `فشل الحفظ أو المزامنة: ${err.message || err}`); console.error('firestore save error', n, err); });
-      // Firestore يضع التغيير في الطابور المحلي عند انقطاع الشبكة؛ لا نعلّق واجهة المستخدم انتظارًا للاتصال.
-      return Promise.resolve();
+      try {
+        // انتظر نتيجة Firestore الفعلية حتى لا تعرض الواجهة نجاحًا قبل تأكيد الكتابة.
+        await fs.setDoc(fs.doc(db, 'users', user.uid, n, id), rest, { merge: true });
+        emitStatus('synced', 'تم تأكيد حفظ التغييرات');
+      } catch (err) {
+        emitStatus('error', `فشل الحفظ أو المزامنة: ${err.message || err}`);
+        console.error('firestore save error', n, err);
+        throw err;
+      }
     },
-    remove(n, id) {
-      if (!user) return Promise.reject(new Error('يجب تسجيل الدخول قبل الحذف'));
+    async remove(n, id) {
+      if (!user) throw new Error('يجب تسجيل الدخول قبل الحذف');
+      if (!id) throw new Error('معرّف السجل مطلوب قبل الحذف');
       emitStatus('syncing', 'جارٍ تحديث البيانات…');
-      fs.deleteDoc(fs.doc(db, 'users', user.uid, n, id))
-        .then(() => emitStatus('synced', 'تمت المزامنة'))
-        .catch((err) => { emitStatus('error', `فشل الحذف أو المزامنة: ${err.message || err}`); console.error('firestore delete error', n, err); });
-      return Promise.resolve();
+      try {
+        await fs.deleteDoc(fs.doc(db, 'users', user.uid, n, id));
+        emitStatus('synced', 'تم تأكيد تحديث البيانات');
+      } catch (err) {
+        emitStatus('error', `فشل الحذف أو المزامنة: ${err.message || err}`);
+        console.error('firestore delete error', n, err);
+        throw err;
+      }
     },
     snapshot: (n) => (lastData[n] || []).slice(),
   };
