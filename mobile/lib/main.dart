@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -54,7 +55,11 @@ class _MeetingsPageState extends State<MeetingsPage> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _stateSub = _recorder.onStateChanged().listen((s) { if (mounted) setState(() => _state = s); });
+    _stateSub = _recorder.onStateChanged().listen((s) {
+      if (mounted) {
+        setState(() => _state = s);
+      }
+    });
     _amplitudeSub = _recorder.onAmplitudeChanged(const Duration(milliseconds: 500)).listen((a) { if (mounted) setState(() => _db = a.current); });
     _loadRecordings();
   }
@@ -147,7 +152,7 @@ class _MeetingsPageState extends State<MeetingsPage> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) => Directionality(
-    textDirection: TextDirection.rtl,
+    textDirection: ui.TextDirection.rtl,
     child: Scaffold(
       appBar: AppBar(title: const Text('اجتماعات المشاريع'), centerTitle: false),
       body: SafeArea(child: ListView(padding: const EdgeInsets.all(16), children: [
