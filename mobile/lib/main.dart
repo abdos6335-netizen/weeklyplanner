@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
@@ -33,6 +34,7 @@ class MeetingsPage extends StatefulWidget {
 }
 
 class _MeetingsPageState extends State<MeetingsPage> with WidgetsBindingObserver {
+  static const MethodChannel _nativeRecorder = MethodChannel('weeklyplanner/meeting_recorder');
   final AudioRecorder _recorder = AudioRecorder();
   final List<RecordingItem> _recordings = [];
   RecordState _state = RecordState.stop;
@@ -81,11 +83,17 @@ class _MeetingsPageState extends State<MeetingsPage> with WidgetsBindingObserver
     setState(() => _error = null);
     final permission = await Permission.microphone.request();
     if (!permission.isGranted) { _showError('لازم تسمح باستخدام الميكروفون لبدء التسجيل.'); return; }
+    if (Platform.isAndroid && await Permission.notification.isDenied) { await Permission.notification.request(); }
     try {
       final dir = await _recordingsDir();
       final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final path = '${dir.path}/meeting_$stamp.m4a';
-      await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100), path: path);
+      if (Platform.isAndroid) {
+        await _nativeRecorder.invokeMethod<bool>('start', {'path': path});
+        setState(() => _state = RecordState.record);
+      } else {
+        await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100), path: path);
+      }
       _activePath = path;
       _startedAt = DateTime.now();
       _elapsed = Duration.zero;
@@ -98,18 +106,19 @@ class _MeetingsPageState extends State<MeetingsPage> with WidgetsBindingObserver
   }
 
   Future<void> _pause() async {
-    try { await _recorder.pause(); _clock?.cancel(); setState(() {}); }
+    try { if (Platform.isAndroid) { await _nativeRecorder.invokeMethod('pause'); setState(() => _state = RecordState.pause); } else { await _recorder.pause(); } _clock?.cancel(); setState(() {}); }
     catch (e) { _showError('تعذر إيقاف التسجيل مؤقتًا: $e'); }
   }
 
   Future<void> _resume() async {
-    try { await _recorder.resume(); _startedAt = DateTime.now().subtract(_elapsed); _clock = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted && _recording && _startedAt != null) setState(() => _elapsed = DateTime.now().difference(_startedAt!)); }); setState(() {}); }
+    try { if (Platform.isAndroid) { await _nativeRecorder.invokeMethod('resume'); setState(() => _state = RecordState.record); } else { await _recorder.resume(); } _startedAt = DateTime.now().subtract(_elapsed); _clock = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted && _recording && _startedAt != null) setState(() => _elapsed = DateTime.now().difference(_startedAt!)); }); setState(() {}); }
     catch (e) { _showError('تعذر استكمال التسجيل: $e'); }
   }
 
   Future<void> _stop() async {
     try {
-      final path = await _recorder.stop();
+      final path = Platform.isAndroid ? (_activePath) : await _recorder.stop();
+      if (Platform.isAndroid) await _nativeRecorder.invokeMethod('stop');
       _clock?.cancel();
       _activePath = null;
       if (path != null && await File(path).exists()) await _loadRecordings();
