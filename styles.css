@@ -374,3 +374,10 @@ input, select, textarea { font-size: max(16px, 1em); }
 .auth-links { justify-content:space-between; margin-top:.5rem; }
 .expense-warning { padding:.7rem .85rem; border-radius:var(--r-md); color:#9a5b00; background:color-mix(in srgb,#e9a23b 15%,transparent); font-weight:700; }
 @media(max-width:520px) { .sync-indicator { font-size:.65rem; max-width:43%; } .finance-switch .btn { flex:1; } }
+
+/* Meeting archive */
+.meeting-project{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;margin:8px 0;border:1px solid var(--btn-ring);border-radius:16px;background:var(--surface);color:var(--text);text-align:start;cursor:pointer}
+.meeting-project span:first-child{display:grid;gap:3px}.meeting-project small{color:var(--text-2)}
+.meeting-record-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+.meeting-card{border:1px solid var(--btn-ring)}
+.meeting-card .dhead{align-items:flex-start}

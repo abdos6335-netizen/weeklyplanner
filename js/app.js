@@ -24,6 +24,9 @@ const S = {
   financeEntries: [],
   personalExpenses: [],
   personalBudgets: [],
+  meetings: [],
+  activeMeetingProjectId: null,
+  meetingRecognition: null,
   financeView: 'projects',
   expenseMonth: D.todayISO().slice(0,7),
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
@@ -104,7 +107,7 @@ function registerSW() {
 function onAuth(user) {
   S.unsubs.forEach((u) => u()); S.unsubs = [];
   S.user = user;
-  S.tasks = []; S.projects = []; S.deliverables = []; S.financeEntries = []; S.personalExpenses = []; S.personalBudgets = [];
+  S.tasks = []; S.projects = []; S.deliverables = []; S.financeEntries = []; S.personalExpenses = []; S.personalBudgets = []; S.meetings = [];
   if (!user) { renderLogin(); return; }
   const today = D.todayISO();
   S.sel = today;
@@ -122,6 +125,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('financeEntries', (docs) => { S.financeEntries = docs; if (S.section === 'finance' || S.section === 'projects') render(); }));
   S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance') render(); }));
   S.unsubs.push(S.store.watch('personalBudgets', (docs) => { S.personalBudgets = docs; if (S.section === 'finance') render(); }));
+  S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
   render();
   const q = new URLSearchParams(location.search);
@@ -179,7 +183,7 @@ function render() {
 }
 
 function navList() {
-  return [['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance']];
+  return [['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings']];
 }
 
 function shell() {
@@ -187,7 +191,7 @@ function shell() {
   const rtl = dir() === 'rtl';
   const nav = navList();
   const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : t('nav_' + sec);
-  const content = sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : renderTasks();
+  const content = sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
   return `
   <div class="shell">
     <nav class="rail glass" aria-label="main">
@@ -398,6 +402,21 @@ function openVoiceSheet() {
   const options=S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><select class="input compact" id="voice-language" aria-label="لغة التسجيل"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
 }
+
+function parseSpokenTaskDate(text){
+  const today=D.parse(D.todayISO());
+  const iso=(String(text).match(/\b20\d{2}-\d{2}-\d{2}\b/)||[])[0];if(iso&&D.isValidISO(iso))return iso;
+  if(/بكرة|غدا|غداً|tomorrow/i.test(text))return D.addDays(D.todayISO(),1);
+  if(/النهارده|اليوم|today/i.test(text))return D.todayISO();
+  const monthNames={يناير:0,فبراير:1,مارس:2,ابريل:3,أبريل:3,مايو:4,يونيو:5,يوليو:6,أغسطس:7,اغسطس:7,سبتمبر:8,أكتوبر:9,اكتوبر:9,نوفمبر:10,ديسمبر:11,january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11};
+  const named=Object.entries(monthNames).find(([m])=>new RegExp(m,'i').test(text));
+  const dayMatch=text.match(/(?:يوم\s*|day\s+)(\d{1,2})/i);
+  if(named&&dayMatch){let y=today.getFullYear(),m=named[1];if(m<today.getMonth()||(m===today.getMonth()&&Number(dayMatch[1])<today.getDate()))y++;const d=new Date(y,m,Number(dayMatch[1]));if(d.getMonth()===m&&d.getDate()===Number(dayMatch[1]))return D.iso(d);}
+  const nextMonth=/الشهر القادم|الشهر الجاي|الشهر المقبل|next month/i.test(text);
+  if(dayMatch&&(nextMonth||/يوم\s*\d{1,2}/.test(text))){let y=today.getFullYear(),m=today.getMonth()+(nextMonth?1:0);if(!nextMonth&&Number(dayMatch[1])<today.getDate())m++;const d=new Date(y,m,Number(dayMatch[1]));if(d.getDate()===Number(dayMatch[1]))return D.iso(d);}
+  return D.todayISO();
+}
+
 function inferVoiceCommand(raw) {
   const text=String(raw||'').trim(), low=text.toLowerCase();
   const numMatch=text.match(/\d[\d,،]*(?:[.]\d+)?/);
@@ -423,7 +442,7 @@ function inferVoiceCommand(raw) {
 function startVoiceRecognition() {
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){toast(t('voice_unsupported'));return;}
-  const rec=new SR(); rec.lang=$('#voice-language')?.value || (lang()==='ar'?'ar-EG':'en-US'); rec.interimResults=true; rec.continuous=false;
+  const rec=new SR(); rec.lang=$('#voice-language')?.value || 'ar-EG'; rec.interimResults=true; rec.continuous=false;
   const status=$('#voice-status'), field=$('#voice-text'); let finalText='';
   rec.onstart=()=>{if(status)status.textContent=t('voice_listening');};
   rec.onerror=()=>{if(status)status.textContent=t('voice_error');};
@@ -472,6 +491,57 @@ async function handleVoiceCommand(c) {
     const d={id:uid(),projectId:c.project.id,name:name.trim(),stage:'technical',kind:'other',dueDate:c.date,status,notes:`${revision?revision+' · ':''}${c.text}`,createdAt:Date.now(),updatedAt:Date.now(),source:'voice'};
     return S.store.save('deliverables',d).then(()=>{toast('تم تسجيل تحديث التسليم.');$('#layer').innerHTML='';render();});
   }
+}
+
+
+function renderMeetings() {
+  if(S.activeMeetingProjectId) {
+    const p=S.projects.find(x=>x.id===S.activeMeetingProjectId);
+    if(!p){S.activeMeetingProjectId=null;return renderMeetings();}
+    const rows=S.meetings.filter(m=>m.projectId===p.id).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+    return `<div class="page-tools"><button class="btn sm" data-action="meeting-back">← كل المشاريع</button><span class="chip">${rows.length} Meetings</span></div>
+      <section class="card glass"><h2>${esc(p.name)}</h2><p class="muted">${esc(p.client||'')}</p></section>
+      ${rows.map(m=>`<section class="card glass meeting-card"><div class="dhead"><div><h2>Meeting ${String(m.sequence||0).padStart(2,'0')} · ${esc(m.title||'')}</h2><p class="muted">${esc(m.date)} ${esc(m.time||'')} · ${m.mode==='online'?'Online':'Offline'}</p></div><button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button></div><p>${esc(m.minutes||m.transcript||'لا يوجد ملخص بعد')}</p></section>`).join('')||'<p class="muted">لا توجد اجتماعات مسجلة لهذا المشروع.</p>'}`;
+  }
+  const projects=[...S.projects].sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="page-tools"><p class="muted">سجل اجتماعات العملاء ومحاضر الاجتماعات، مرتب حسب المشروع.</p></div>
+    <section class="card glass"><h2>تسجيل اجتماع جديد</h2>
+      <form data-action="save-meeting" class="entry-form">
+        <div class="form-grid"><div><label class="lab" for="meeting-project">المشروع القائم</label><select class="input" id="meeting-project"><option value="">اختر مشروعًا أو أنشئ مشروعًا جديدًا بالأسفل</option>${projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>
+        <div><label class="lab" for="meeting-new-project">أو اسم مشروع جديد</label><input class="input" id="meeting-new-project" placeholder="اسم المشروع الجديد"></div>
+        <div><label class="lab" for="meeting-client">اسم العميل</label><input class="input" id="meeting-client"></div>
+        <div><label class="lab" for="meeting-date">التاريخ</label><input class="input" id="meeting-date" type="date" value="${D.todayISO()}" required></div>
+        <div><label class="lab" for="meeting-time">الوقت</label><input class="input" id="meeting-time" type="time"></div>
+        <div><label class="lab" for="meeting-mode">نوع الاجتماع</label><select class="input" id="meeting-mode"><option value="online">Online</option><option value="offline">Offline</option></select></div></div>
+        <label class="lab" for="meeting-title">عنوان الاجتماع</label><input class="input" id="meeting-title" placeholder="موضوع الاجتماع">
+        <label class="lab" for="meeting-participants">الحضور</label><input class="input" id="meeting-participants">
+        <div class="meeting-record-row"><select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><button class="btn" type="button" data-action="meeting-record">🎙 بدء الإملاء الصوتي</button><button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button><span class="muted small">يحتاج إبقاء صفحة التطبيق مفتوحة أثناء الإملاء.</span></div>
+        <label class="lab" for="meeting-transcript">نص التسجيل / الملاحظات</label><textarea class="input textarea" id="meeting-transcript" rows="5" placeholder="يمكنك الإملاء أو كتابة النقاط هنا"></textarea>
+        <label class="lab" for="meeting-minutes">Minutes of Meeting</label><textarea class="input textarea" id="meeting-minutes" rows="5" placeholder="الملخص والاتفاقات وطلبات العميل"></textarea>
+        <label class="lab" for="meeting-decisions">القرارات</label><textarea class="input textarea" id="meeting-decisions" rows="3"></textarea>
+        <label class="lab" for="meeting-actions">المهام والمسؤوليات والمواعيد</label><textarea class="input textarea" id="meeting-actions" rows="3"></textarea>
+        <button class="btn primary" type="submit">حفظ الاجتماع</button>
+      </form>
+    </section>
+    <section class="card glass"><h2>المشاريع والاجتماعات</h2>
+      ${projects.map(p=>{const n=S.meetings.filter(m=>m.projectId===p.id).length;return `<button class="meeting-project" data-action="meeting-project" data-id="${esc(p.id)}"><span><b>${esc(p.name)}</b><small>${esc(p.client||'')}</small></span><span class="chip">${n} Meetings →</span></button>`}).join('')||'<p class="muted">لا توجد مشاريع بعد. يمكنك إنشاء أول مشروع من نموذج الاجتماع.</p>'}
+    </section>`;
+}
+function startMeetingRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast(t('voice_unsupported'));return;}
+  const rec=new SR();rec.lang=$('#meeting-language')?.value||(lang()==='ar'?'ar-EG':'en-US');rec.continuous=true;rec.interimResults=true;S.meetingRecognition=rec;
+  const field=$('#meeting-transcript');let finalText=field.value?field.value+' ':'';
+  rec.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const v=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=v+' ';else interim+=v;}field.value=(finalText+interim).trim();};
+  rec.onerror=()=>toast('تعذر الوصول للميكروفون. تحقق من صلاحية المتصفح.');
+  rec.onend=()=>{S.meetingRecognition=null;toast('انتهى الإملاء الصوتي. راجع النص قبل الحفظ.');};
+  try{rec.start();toast('بدأ الإملاء الصوتي. اترك صفحة التطبيق مفتوحة.');}catch(e){toast('تعذر بدء التسجيل الصوتي.');}
+}
+function printMeetingReport(id){
+  const m=S.meetings.find(x=>x.id===id),p=m&&S.projects.find(x=>x.id===m.projectId);if(!m||!p)return;
+  const w=window.open('','_blank');if(!w){toast(t('print_popup_blocked'));return;}
+  const block=(label,value)=>value?`<h3>${label}</h3><p>${esc(value).replace(/\\n/g,'<br>')}</p>`:'';
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>Minutes of Meeting</title><style>body{font-family:Arial;padding:28px;line-height:1.7;color:#222}h1{font-size:24px}h2{font-size:18px}.meta{color:#666;border-bottom:1px solid #ddd;padding-bottom:12px}@media print{button{display:none}}</style><h1>Minutes of Meeting</h1><h2>${esc(p.name)} · Meeting ${String(m.sequence||0).padStart(2,'0')}</h2><div class="meta">العميل: ${esc(m.client||p.client||'—')} · التاريخ: ${esc(m.date)} · الوقت: ${esc(m.time||'—')} · ${m.mode==='online'?'Online':'Offline'}</div>${block('الحضور',m.participants)}${block('ملخص الاجتماع',m.minutes)}${block('نص التسجيل',m.transcript)}${block('القرارات',m.decisions)}${block('المهام والمسؤوليات',m.actions)}<p class="meta">Generated by WeeklyPlanner</p><script>window.onload=()=>setTimeout(()=>window.print(),250)<\\/script></html>`);w.document.close();
 }
 
 function renderFinance() {
@@ -747,7 +817,7 @@ function renderSettings() {
 function exportData() {
   const payload = {
     app: 'weeklyplanner', version: 2, exportedAt: new Date().toISOString(),
-    tasks: S.tasks, settings: S.settings, projects: S.projects, deliverables: S.deliverables, financeEntries: S.financeEntries, personalExpenses: S.personalExpenses, personalBudgets: S.personalBudgets,
+    tasks: S.tasks, settings: S.settings, projects: S.projects, deliverables: S.deliverables, financeEntries: S.financeEntries, personalExpenses: S.personalExpenses, personalBudgets: S.personalBudgets, meetings: S.meetings,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -769,7 +839,7 @@ async function importData(file) {
       if (!task.title) continue;
       persistTask(task); n++;
     }
-    for (const key of ['projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets']) { if (Array.isArray(data[key])) for (const raw of data[key].slice(0, 10000)) { if (raw && typeof raw === 'object' && raw.id) { await S.store.save(key, raw); n++; } } }
+    for (const key of ['projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets', 'meetings']) { if (Array.isArray(data[key])) for (const raw of data[key].slice(0, 10000)) { if (raw && typeof raw === 'object' && raw.id) { await S.store.save(key, raw); n++; } } }
     if (data.settings && typeof data.settings === 'object') {
       S.settings = mergeSettings(data.settings);
       applySettings(false); persistSettings();
@@ -822,7 +892,7 @@ async function onClick(e) {
     case 'auth-toggle': S.authMode=S.authMode==='signup'?'signin':'signup'; renderLogin(); break;
     case 'auth-reset': { const email=$('#auth-email')?.value.trim(); if(!email){toast('اكتب بريدك الإلكتروني أولًا.');break;} try{await S.store.resetPassword(email);toast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.');}catch(err){toast(err.message||'تعذر إرسال الرابط.');} break; }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
-    case 'nav': S.section = el.dataset.section; S.activeProjectId = null; render(); window.scrollTo(0, 0); break;
+    case 'nav': S.section = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; render(); window.scrollTo(0, 0); break;
     case 'voice-open': openVoiceSheet(); break;
     case 'voice-start': startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
@@ -832,12 +902,17 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
+    case 'meeting-record': startMeetingRecognition(); break;
+    case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
+    case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
+    case 'meeting-print': printMeetingReport(el.dataset.id); break;
+    case 'meeting-back': S.activeMeetingProjectId=null; render(); break;
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
     case 'open-project': S.activeProjectId = el.dataset.id; render(); window.scrollTo(0,0); break;
     case 'projects-back': S.activeProjectId = null; render(); break;
-    case 'delete-project': { const p=S.projects.find(x=>x.id===el.dataset.id); if(p && confirm(t('confirm_delete_project'))) { for(const d of S.deliverables.filter(x=>x.projectId===p.id)) await S.store.remove('deliverables',d.id); for(const f of S.financeEntries.filter(x=>x.projectId===p.id)) await S.store.remove('financeEntries',f.id); await S.store.remove('projects',p.id); S.activeProjectId=null; toast(t('project_deleted_ok')); render(); } break; }
+    case 'delete-project': { const p=S.projects.find(x=>x.id===el.dataset.id); if(p && confirm(t('confirm_delete_project'))) { for(const d of S.deliverables.filter(x=>x.projectId===p.id)) await S.store.remove('deliverables',d.id); for(const f of S.financeEntries.filter(x=>x.projectId===p.id)) await S.store.remove('financeEntries',f.id); for(const m of S.meetings.filter(x=>x.projectId===p.id)) await S.store.remove('meetings',m.id); await S.store.remove('projects',p.id); S.activeProjectId=null; toast(t('project_deleted_ok')); render(); } break; }
     case 'delete-deliverable': if(confirm(t('confirm_delete'))) { await S.store.remove('deliverables',el.dataset.id); toast(t('deleted')); } break;
     case 'delete-finance': if(confirm(t('confirm_delete'))) { await S.store.remove('financeEntries',el.dataset.id); toast(t('deleted')); } break;
     case 'open-settings': S.prevSection = S.section; S.section = 'settings'; render(); window.scrollTo(0, 0); break;
@@ -916,7 +991,7 @@ async function onClick(e) {
 
 
 async function onSubmit(e) {
-const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
+const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
     if (a === 'auth-email') { const email=$('#auth-email').value.trim(), password=$('#auth-password').value; if(S.authMode==='signup') await S.store.signUpEmail(email,password); else await S.store.signInEmail(email,password); toast(S.authMode==='signup'?'تم إنشاء الحساب.':'تم تسجيل الدخول.'); }
     else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
       if(duplicate) {
@@ -924,12 +999,34 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
         if(openExisting){S.activeProjectId=duplicate.id;closeSheet();render();return;}
         if(!confirm('هل تريد رغم ذلك إنشاء مشروع آخر بنفس الاسم؟')){toast('تم إلغاء الحفظ لتجنب التكرار.');return;}
       }
-      await S.store.save('projects',p); S.activeProjectId=p.id; closeSheet(); toast(t('saved')); render(); }
+      await S.store.save('projects',p); S.activeProjectId=p.id; closeSheet(); toast(old?'تم تحديث المشروع بنجاح.':'تم إنشاء المشروع بنجاح.'); render(); }
+    else if (a === 'save-meeting') {
+      const existingProjectId=$('#meeting-project').value;
+      const newProjectName=$('#meeting-new-project').value.trim();
+      let project=S.projects.find(p=>p.id===existingProjectId);
+      if(newProjectName) {
+        const duplicate=S.projects.find(p=>p.name.trim().toLocaleLowerCase()===newProjectName.toLocaleLowerCase());
+        if(duplicate && !confirm(`يوجد مشروع باسم «${duplicate.name}». هل تريد ربط الاجتماع بالمشروع الموجود؟ اضغط إلغاء لإنشاء مشروع جديد.`)) throw new Error('ألغيت العملية لتجنب ربط الاجتماع بمشروع غير مقصود.');
+        if(duplicate) project=duplicate;
+        else {
+          project={id:uid(),name:newProjectName,type:'residential',status:'planning',client:$('#meeting-client').value.trim(),location:'',contractValue:0,notes:'تم إنشاؤه من سجل الاجتماعات',createdAt:Date.now(),updatedAt:Date.now()};
+          await S.store.save('projects',project);
+        }
+      }
+      if(!project) throw new Error('اختر مشروعًا أو اكتب اسم مشروع جديد.');
+      const date=$('#meeting-date').value||D.todayISO();
+      const previous=S.meetings.filter(m=>m.projectId===project.id);
+      const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
+      const meeting={id:uid(),projectId:project.id,sequence,title:$('#meeting-title').value.trim()||`Meeting ${String(sequence).padStart(2,'0')}`,client:$('#meeting-client').value.trim()||project.client||'',date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript:$('#meeting-transcript').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),createdAt:Date.now(),updatedAt:Date.now()};
+      await S.store.save('meetings',meeting);
+      toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
+      el.reset(); $('#meeting-date').value=D.todayISO(); render();
+    }
     else if (a === 'save-personal-budget') { const amount=Number($('#personal-budget').value); if(amount<0||!Number.isFinite(amount)) throw new Error('أدخل ميزانية صحيحة'); const month=S.expenseMonth; await S.store.save('personalBudgets',{id:month,amount,updatedAt:Date.now()}); toast('تم حفظ الميزانية.'); }
     else if (a === 'add-personal-expense') { const x={id:uid(),amount:Number($('#pe-amount').value),date:$('#pe-date').value,description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast('تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
-    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast(t('saved')); }
-    else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast(t('saved')); }
+    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast('تم تسجيل بيانات التسليم بنجاح.'); }
+    else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast('تم تسجيل الحركة المالية بنجاح.'); }
   } catch(err) { toast(t('save_failed',{msg:err.message||err})); }
   finally { if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=submitBtn.dataset.oldText||'حفظ';} }
 }
