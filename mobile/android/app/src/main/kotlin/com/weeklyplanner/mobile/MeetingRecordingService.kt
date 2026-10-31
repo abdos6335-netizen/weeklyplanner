@@ -125,7 +125,15 @@ class MeetingRecordingService : Service() {
 
 class RecordingActionReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: android.content.Context, intent: Intent) {
+        // The service is already running in the foreground while a recording is active.
+        // Do not call startForegroundService for pause/resume/stop: Android 12+ may
+        // reject it when the app is backgrounded because these actions do not start
+        // a new microphone foreground-service session.
         val serviceIntent = Intent(context, MeetingRecordingService::class.java).setAction(intent.action)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent) else context.startService(serviceIntent)
+        try {
+            context.startService(serviceIntent)
+        } catch (_: IllegalStateException) {
+            // The recording service is no longer active; ignore a stale notification action.
+        }
     }
 }
