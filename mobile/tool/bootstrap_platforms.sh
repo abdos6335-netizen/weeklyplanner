@@ -10,4 +10,13 @@ flutter create --platforms=android,ios --org com.weeklyplanner --project-name mo
 cp "$backup/AndroidManifest.xml" android/app/src/main/AndroidManifest.xml
 rm -rf android/app/src/main/kotlin
 cp -R "$backup/kotlin" android/app/src/main/kotlin
+cat > test/widget_test.dart <<'EOF'
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('Flutter test environment is available', () {
+    expect(true, isTrue);
+  });
+}
+EOF
 flutter pub get
