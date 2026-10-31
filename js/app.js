@@ -451,7 +451,6 @@ async function handleVoiceCommand(c) {
     const name=c.text.replace(/.*?(?:مشروع جديد|اعمل مشروع|أنشئ مشروع|انشئ مشروع|بدأت مشروع)\s*/,'').trim().slice(0,160);
     if(!name||name===c.text){toast('اذكر اسم المشروع بوضوح، ثم أعد المحاولة.');return;}
     if(!confirm(`هل تريد إنشاء مشروع جديد باسم «${name}»؟`))return;
-    const duplicate=S.projects.find(p=>p.name.trim().toLowerCase()===name.toLowerCase());if(duplicate){toast('يوجد مشروع بهذا الاسم بالفعل؛ لم يتم إنشاء نسخة مكررة.');return;}
     const type=/سكني|فيلا|شقة|منزل/.test(c.text)?'residential':/إداري|مكتب|شركة/.test(c.text)?'administrative':/تجاري|محل|عيادة/.test(c.text)?'commercial':'fitout';
     const p={id:uid(),name,type,status:'planning',client:'',location:'',contractValue:0,startDate:D.todayISO(),endDate:null,notes:`تم الإنشاء من الأمر الصوتي: ${c.text}`,createdAt:Date.now(),updatedAt:Date.now(),source:'voice'};
     const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
