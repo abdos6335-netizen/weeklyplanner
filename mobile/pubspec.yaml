@@ -1,0 +1,20 @@
+name: weeklyplanner_mobile
+description: WeeklyPlanner companion app for Android and iOS
+publish_to: "none"
+version: 1.0.0+1
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  record: ^6.1.2
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.1
+  intl: ^0.20.2
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
