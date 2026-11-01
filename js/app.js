@@ -507,7 +507,7 @@ async function handleVoiceCommand(c) {
      req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
    });
  }
- async function saveMeetingAudio(meetingId, blob){
+ async async function saveMeetingAudio(meetingId, blob){
    const db=await meetingAudioDb();
    await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite');tx.objectStore('audio').put({meetingId,blob,mimeType:blob.type,updatedAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
    db.close();
@@ -523,7 +523,7 @@ async function handleVoiceCommand(c) {
      setTimeout(()=>{const p=nativeAudioRequests.get(requestId);if(p){nativeAudioRequests.delete(requestId);p.reject(new Error('انتهت مهلة الوصول إلى ملف التسجيل.'));}},20000);
    });
  }
- async function openMeetingAudio(meetingId, download=false){
+ async async function openMeetingAudio(meetingId, download=false){
    const meeting=S.meetings.find(m=>m.id===meetingId);
    const player=download?null:window.open('','_blank');
    if(!download&&!player){toast('اسمح بالنوافذ المنبثقة لتشغيل التسجيل.');return;}
@@ -546,7 +546,7 @@ async function handleVoiceCommand(c) {
      player.document.querySelector('audio').src=url; player.addEventListener('beforeunload',()=>URL.revokeObjectURL(url));
    }catch(err){if(player&&!player.closed)player.close();throw err;}
  }
- async function deleteMeetingAudio(meetingId){
+ async async function deleteMeetingAudio(meetingId){
    const meeting=S.meetings.find(m=>m.id===meetingId);if(!meeting)return;
    if(!confirm('هل تريد حذف التسجيل الصوتي لهذا الاجتماع نهائيًا؟'))return;
    if(meeting.audioFileName&&window.WeeklyPlannerNative)await requestNativeAudio('delete',meeting.audioFileName);
