@@ -537,7 +537,8 @@ async function handleVoiceCommand(c) {
    if(S.meetingMediaRecorder&&S.meetingMediaRecorder.state!=='inactive'){S.meetingMediaRecorder.stop();}
    const start=$('[data-action="meeting-audio-start"]'),stop=$('[data-action="meeting-audio-stop"]');if(start)start.disabled=false;if(stop)stop.disabled=true;
  }
-\nfunction renderMeetings() {
+
+function renderMeetings() {
   if(S.activeMeetingProjectId) {
     const p=S.projects.find(x=>x.id===S.activeMeetingProjectId);
     if(!p){S.activeMeetingProjectId=null;return renderMeetings();}
