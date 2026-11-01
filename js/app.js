@@ -993,8 +993,8 @@ async function onClick(e) {
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
     case 'meeting-audio-start': await startMeetingAudioCapture(); break;
     case 'meeting-audio-stop': stopMeetingAudioCapture(); break;
-    case 'meeting-audio-play': await openMeetingAudio(el.dataset.id,false); break;
-    case 'meeting-audio-download': await openMeetingAudio(el.dataset.id,true); break;
+    case 'meeting-audio-play': try{await openMeetingAudio(el.dataset.id,false);}catch(err){console.error(err);toast(err.message||'تعذر تشغيل التسجيل.');} break;
+    case 'meeting-audio-download': try{await openMeetingAudio(el.dataset.id,true);}catch(err){console.error(err);toast(err.message||'تعذر تنزيل التسجيل.');} break;
     case 'meeting-record': startMeetingRecognition(); break;
     case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
     case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
