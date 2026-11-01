@@ -34,9 +34,31 @@ class _PlannerWebViewState extends State<PlannerWebView> {
   @override
   void initState() {
     super.initState();
+    recorder.setMethodCallHandler((call) async {
+      if (call.method == 'serviceEvent') {
+        final data = Map<String, dynamic>.from(call.arguments as Map);
+        final state = data['state']?.toString();
+        final path = data['path']?.toString() ?? activePath;
+        if (state == 'stopped') {
+          await notifyWeb({'state':'stopped','meetingId':meetingId,'projectId':projectId,'fileName':path?.split(Platform.pathSeparator).last});
+          activePath = null;
+          meetingId = null;
+          projectId = null;
+        } else if (state == 'error') {
+          await notifyWeb({'state':'error','message':data['message'] ?? 'حدث خطأ في التسجيل'});
+          activePath = null;
+          meetingId = null;
+          projectId = null;
+        } else if (state == 'recording' || state == 'paused') {
+          await notifyWeb({'state':state,'meetingId':meetingId});
+        }
+      }
+      return null;
+    });
     web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel('WeeklyPlannerRecorder', onMessageReceived: handleMessage)
+      ..addJavaScriptChannel('WeeklyPlannerNative', onMessageReceived: handleNativeRequest)
       ..setNavigationDelegate(NavigationDelegate(
         onPageStarted: (_) => setState(() => loading = true),
         onPageFinished: (_) => setState(() => loading = false),
@@ -47,6 +69,32 @@ class _PlannerWebViewState extends State<PlannerWebView> {
   Future<void> notifyWeb(Map<String, dynamic> data) async {
     final json = jsonEncode(data);
     await web.runJavaScript('window.dispatchEvent(new CustomEvent("weeklyplanner-native-recorder",{detail:$json}));');
+  }
+
+  Future<void> handleNativeRequest(JavaScriptMessage message) async {
+    try {
+      final data = jsonDecode(message.message) as Map<String, dynamic>;
+      final action = data['action']?.toString();
+      final requestId = data['requestId']?.toString();
+      final fileName = data['fileName']?.toString() ?? '';
+      if (fileName.isEmpty || fileName.contains('/') || fileName.contains('\\\\')) {
+        throw StateError('اسم ملف التسجيل غير صالح');
+      }
+      final base = await getApplicationDocumentsDirectory();
+      final file = File('${base.path}/MeetingRecordings/$fileName');
+      if (action == 'read') {
+        if (!await file.exists()) throw StateError('ملف التسجيل غير موجود على هذا الجهاز');
+        final bytes = await file.readAsBytes();
+        await notifyWeb({'state':'audio-data','requestId':requestId,'fileName':fileName,'base64':base64Encode(bytes)});
+      } else if (action == 'delete') {
+        if (await file.exists()) await file.delete();
+        await notifyWeb({'state':'audio-deleted','requestId':requestId,'fileName':fileName});
+      } else {
+        throw StateError('طلب غير معروف');
+      }
+    } catch (e) {
+      await notifyWeb({'state':'audio-error','requestId': (() { try { return (jsonDecode(message.message) as Map)['requestId']; } catch (_) { return null; } })(), 'message':e.toString()});
+    }
   }
 
   Future<void> handleMessage(JavaScriptMessage message) async {
@@ -69,16 +117,10 @@ class _PlannerWebViewState extends State<PlannerWebView> {
         await notifyWeb({'state':'recording','meetingId':meetingId});
       } else if (action == 'pause') {
         await recorder.invokeMethod('pause');
-        await notifyWeb({'state':'paused','meetingId':meetingId});
       } else if (action == 'resume') {
         await recorder.invokeMethod('resume');
-        await notifyWeb({'state':'recording','meetingId':meetingId});
       } else if (action == 'stop') {
         await recorder.invokeMethod('stop');
-        await notifyWeb({'state':'stopped','meetingId':meetingId,'projectId':projectId,'fileName':activePath?.split(Platform.pathSeparator).last});
-        activePath = null;
-        meetingId = null;
-        projectId = null;
       }
     } catch (e) {
       await notifyWeb({'state':'error','message':e.toString()});
