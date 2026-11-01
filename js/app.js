@@ -945,7 +945,11 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
-    case 'meeting-audio-start': await startMeetingAudioCapture(); break;\n    case 'meeting-audio-stop': stopMeetingAudioCapture(); break;\n    case 'meeting-audio-play': await openMeetingAudio(el.dataset.id,false); break;\n    case 'meeting-audio-download': await openMeetingAudio(el.dataset.id,true); break;\n    case 'meeting-record': startMeetingRecognition(); break;
+    case 'meeting-audio-start': await startMeetingAudioCapture(); break;
+    case 'meeting-audio-stop': stopMeetingAudioCapture(); break;
+    case 'meeting-audio-play': await openMeetingAudio(el.dataset.id,false); break;
+    case 'meeting-audio-download': await openMeetingAudio(el.dataset.id,true); break;
+    case 'meeting-record': startMeetingRecognition(); break;
     case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
     case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
     case 'meeting-print': printMeetingReport(el.dataset.id); break;
@@ -1061,7 +1065,8 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
       const meeting={id:uid(),projectId:project.id,sequence,title:$('#meeting-title').value.trim()||`Meeting ${String(sequence).padStart(2,'0')}`,client:$('#meeting-client').value.trim()||project.client||'',date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript:$('#meeting-transcript').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),createdAt:Date.now(),updatedAt:Date.now()};
-      await S.store.save('meetings',meeting);\n      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;}
+      await S.store.save('meetings',meeting);
+      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;}
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
     }
