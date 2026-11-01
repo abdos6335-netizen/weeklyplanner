@@ -1,41 +1,28 @@
 # WeeklyPlanner Mobile
 
-Flutter companion application for Android and iOS. This branch contains the first native meeting-recording implementation slice.
+Android-first Flutter host for the existing WeeklyPlanner web application.
 
-## Generate platform projects and install dependencies
-
-Run from the repository root:
-
+## Build
 ```bash
 bash mobile/tool/bootstrap_platforms.sh
-```
-
-The script generates the standard Android Gradle and iOS Runner scaffolding while preserving the custom Android manifest and Kotlin recording service. It then runs `flutter pub get`.
-
-## Run on a connected device
-
-```bash
 cd mobile
-flutter run
+flutter analyze
+flutter build apk --debug
 ```
 
-## Implemented in this branch
+## Current integration slice
+- Flutter opens the hosted WeeklyPlanner app inside an Android WebView.
+- A JavaScript channel named `WeeklyPlannerRecorder` connects meeting UI actions to the native Android foreground recording service.
+- The meeting screen can request native start/stop recording; Android stores M4A files in the app-private MeetingRecordings directory.
+- A stopped native recording returns its filename and meeting/project identifiers to the web UI; the meeting record stores that filename as metadata.
+- Browser-based recording remains available outside the native WebView.
 
-- Arabic responsive meeting-recording screen.
-- Microphone permission request.
-- Local AAC/M4A audio file storage in the app's private documents directory.
-- Start, pause, resume and stop controls.
-- Android foreground recording service with persistent notification controls.
-- Android notification action receiver for pause/resume/stop.
-- Android CI workflow that generates platform scaffolding, analyzes Dart, and builds a debug APK.
+## Known gaps — not production complete
+- Native audio bytes are not yet exposed back to the web app, so the existing web playback/download controls cannot play native M4A files yet; the current meeting stores the filename only.
+- Notification pause/resume/stop controls work at the service level, but their state is not yet synchronized back into the open WebView UI.
+- The recording file is app-private and is not uploaded or backed up; uninstalling the app can remove it.
+- Transcription and AI-generated minutes are not implemented.
+- iOS native background recording and lock-screen controls are not implemented.
+- Device testing is still required, especially Android microphone foreground-service restrictions and notification actions.
 
-## Not yet complete; do not treat as production-ready
-
-- The recordings list is local and not yet associated with the existing WeeklyPlanner project records.
-- Audio is not synced to Firestore or backed up to cloud storage.
-- Full-audio transcription and AI meeting minutes have not been implemented.
-- iOS background audio mode, interruption handling, and lock-screen transport controls still need native integration and physical-device validation.
-- No floating overlay bubble is implemented; Android overlay requires separate user permission and iOS does not provide an equivalent general overlay.
-- Android and iOS release builds have not been tested on physical devices in this workspace.
-
-No paid AI API, subscription, or cloud transcription service is used by this recording slice. Do not add paid services without an explicit decision.
+No paid transcription API or subscription is used.
