@@ -27,6 +27,9 @@ const S = {
   meetings: [],
   activeMeetingProjectId: null,
   meetingRecognition: null,
+  nativeMeetingRecording: false,
+  nativeMeetingDraftId: null,
+  nativeMeetingFileName: null,
   financeView: 'projects',
   expenseMonth: D.todayISO().slice(0,7),
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
@@ -520,23 +523,39 @@ async function handleVoiceCommand(c) {
    w.document.querySelector('audio').src=url; w.addEventListener('beforeunload',()=>URL.revokeObjectURL(url));
  }
  async function startMeetingAudioCapture(){
-   if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){toast('تسجيل الصوت الكامل غير مدعوم في هذا المتصفح. افتح WeeklyPlanner عبر Chrome أو ثبّته كتطبيق.');return;}
+   const projectId=$('#meeting-project')?.value || null;
+   if(window.WeeklyPlannerRecorder){
+     const draftId=uid();
+     S.nativeMeetingRecording=true; S.nativeMeetingDraftId=draftId; S.nativeMeetingFileName=null;
+     window.WeeklyPlannerRecorder.postMessage(JSON.stringify({action:'start',meetingId:draftId,projectId}));
+     return;
+   }
+   if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){toast('تسجيل الصوت الكامل غير مدعوم في هذا المتصفح.');return;}
    try{
      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
      S.meetingAudioChunks=[];
      const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(x=>MediaRecorder.isTypeSupported(x));
      S.meetingMediaRecorder=new MediaRecorder(stream,mime?{mimeType:mime}:{});
      S.meetingMediaRecorder.ondataavailable=e=>{if(e.data?.size)S.meetingAudioChunks.push(e.data);};
-     S.meetingMediaRecorder.onstop=()=>{S.pendingMeetingAudio=new Blob(S.meetingAudioChunks,{type:S.meetingMediaRecorder?.mimeType||'audio/webm'});stream.getTracks().forEach(t=>t.stop());S.meetingMediaRecorder=null;S.meetingAudioChunks=[];const status=$('#meeting-audio-status');if(status)status.textContent='تم إنهاء التسجيل الصوتي — سيُحفظ مع الاجتماع عند الضغط على حفظ الاجتماع.';toast('تم تجهيز التسجيل الصوتي للحفظ مع الاجتماع.');};
+     S.meetingMediaRecorder.onstop=()=>{S.pendingMeetingAudio=new Blob(S.meetingAudioChunks,{type:S.meetingMediaRecorder?.mimeType||'audio/webm'});stream.getTracks().forEach(t=>t.stop());S.meetingMediaRecorder=null;S.meetingAudioChunks=[];const status=$('#meeting-audio-status');if(status)status.textContent='تم إنهاء التسجيل — سيُحفظ مع الاجتماع عند الضغط على حفظ الاجتماع.';toast('تم تجهيز التسجيل الصوتي للحفظ مع الاجتماع.');};
      S.meetingMediaRecorder.start(1000);
-     const status=$('#meeting-audio-status');if(status)status.textContent='● جارٍ تسجيل صوت الاجتماع كاملًا. اترك التطبيق مفتوحًا أثناء التسجيل.';
+     const status=$('#meeting-audio-status');if(status)status.textContent='● جارٍ تسجيل صوت الاجتماع.';
      const start=$('[data-action="meeting-audio-start"]'),stop=$('[data-action="meeting-audio-stop"]');if(start)start.disabled=true;if(stop)stop.disabled=false;
-   }catch(e){console.error(e);toast('تعذر بدء التسجيل. تحقق من صلاحية الميكروفون واستخدام اتصال آمن HTTPS.');}
+   }catch(e){console.error(e);toast('تعذر بدء التسجيل. تحقق من صلاحية الميكروفون.');}
  }
  function stopMeetingAudioCapture(){
-   if(S.meetingMediaRecorder&&S.meetingMediaRecorder.state!=='inactive'){S.meetingMediaRecorder.stop();}
+   if(S.nativeMeetingRecording && window.WeeklyPlannerRecorder){window.WeeklyPlannerRecorder.postMessage(JSON.stringify({action:'stop'}));return;}
+   if(S.meetingMediaRecorder&&S.meetingMediaRecorder.state!=='inactive')S.meetingMediaRecorder.stop();
    const start=$('[data-action="meeting-audio-start"]'),stop=$('[data-action="meeting-audio-stop"]');if(start)start.disabled=false;if(stop)stop.disabled=true;
  }
+ window.addEventListener('weeklyplanner-native-recorder',(event)=>{
+   const d=event.detail||{},status=$('#meeting-audio-status');
+   if(d.state==='recording'){if(status)status.textContent='● التسجيل الأصلي يعمل في الخلفية؛ يمكنك تصغير التطبيق.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=true;if(b)b.disabled=false;}
+   else if(d.state==='paused'){if(status)status.textContent='التسجيل متوقف مؤقتًا من إشعار Android.';}
+   else if(d.state==='stopped'){S.nativeMeetingRecording=false;S.nativeMeetingFileName=d.fileName||null;if(status)status.textContent='انتهى التسجيل. احفظ الاجتماع لإرفاق اسم ملف الصوت به.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=false;if(b)b.disabled=true;}
+   else if(d.state==='error'){S.nativeMeetingRecording=false;if(status)status.textContent=d.message||'حدث خطأ في التسجيل';toast(d.message||'تعذر التسجيل.');}
+ });
+
 
 function renderMeetings() {
   if(S.activeMeetingProjectId) {
@@ -1065,9 +1084,9 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const date=$('#meeting-date').value||D.todayISO();
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
-      const meeting={id:uid(),projectId:project.id,sequence,title:$('#meeting-title').value.trim()||`Meeting ${String(sequence).padStart(2,'0')}`,client:$('#meeting-client').value.trim()||project.client||'',date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript:$('#meeting-transcript').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),createdAt:Date.now(),updatedAt:Date.now()};
+      const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:$('#meeting-title').value.trim()||`Meeting ${String(sequence).padStart(2,'0')}`,client:$('#meeting-client').value.trim()||project.client||'',date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript:$('#meeting-transcript').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),audioFileName:S.nativeMeetingFileName||null,createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
-      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;}
+      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;} S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
     }
