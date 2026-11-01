@@ -512,12 +512,33 @@ async function handleVoiceCommand(c) {
    await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite');tx.objectStore('audio').put({meetingId,blob,mimeType:blob.type,updatedAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
    db.close();
  }
+ const nativeAudioRequests = new Map();
+ let nativeAudioRequestSeq = 0;
+ function requestNativeAudio(action,fileName){
+   return new Promise((resolve,reject)=>{
+     if(!window.WeeklyPlannerNative){reject(new Error('واجهة ملفات Android غير متاحة. حدّث التطبيق إلى آخر إصدار.'));return;}
+     const requestId='audio_'+(++nativeAudioRequestSeq)+'_'+Date.now();
+     nativeAudioRequests.set(requestId,{resolve,reject});
+     window.WeeklyPlannerNative.postMessage(JSON.stringify({action,requestId,fileName}));
+     setTimeout(()=>{const p=nativeAudioRequests.get(requestId);if(p){nativeAudioRequests.delete(requestId);p.reject(new Error('انتهت مهلة الوصول إلى ملف التسجيل.'));}},20000);
+   });
+ }
  async function openMeetingAudio(meetingId, download=false){
-   const db=await meetingAudioDb();
-   const row=await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(meetingId);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
-   db.close(); if(!row?.blob){toast('لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.');return;}
-   const url=URL.createObjectURL(row.blob);
-   if(download){const a=document.createElement('a');a.href=url;a.download='WeeklyPlanner-meeting-'+meetingId+'.webm';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return;}
+   const meeting=S.meetings.find(m=>m.id===meetingId);
+   let blob=null;
+   if(meeting?.audioFileName && window.WeeklyPlannerNative){
+     const result=await requestNativeAudio('read',meeting.audioFileName);
+     const raw=atob(result.base64), bytes=new Uint8Array(raw.length);
+     for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+     blob=new Blob([bytes],{type:'audio/mp4'});
+   } else {
+     const db=await meetingAudioDb();
+     const row=await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(meetingId);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+     db.close(); blob=row?.blob||null;
+   }
+   if(!blob){toast('لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.');return;}
+   const url=URL.createObjectURL(blob);
+   if(download){const a=document.createElement('a');a.href=url;a.download='WeeklyPlanner-meeting-'+meetingId+(meeting?.audioFileName?'.m4a':'.webm');a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return;}
    const w=window.open('','_blank'); if(!w){URL.revokeObjectURL(url);toast('اسمح بالنوافذ المنبثقة لتشغيل التسجيل.');return;}
    w.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>تسجيل الاجتماع</title><body style="font-family:Arial;padding:24px"><h2>تسجيل الاجتماع</h2><audio controls autoplay style="width:100%"></audio></body></html>');
    w.document.querySelector('audio').src=url; w.addEventListener('beforeunload',()=>URL.revokeObjectURL(url));
@@ -550,6 +571,11 @@ async function handleVoiceCommand(c) {
  }
  window.addEventListener('weeklyplanner-native-recorder',(event)=>{
    const d=event.detail||{},status=$('#meeting-audio-status');
+   if(d.state==='audio-data'||d.state==='audio-deleted'||d.state==='audio-error'){
+     const pending=nativeAudioRequests.get(d.requestId);
+     if(pending){nativeAudioRequests.delete(d.requestId);if(d.state==='audio-error')pending.reject(new Error(d.message||'تعذر الوصول إلى التسجيل'));else pending.resolve(d);}
+     return;
+   }
    if(d.state==='recording'){if(status)status.textContent='● التسجيل الأصلي يعمل في الخلفية؛ يمكنك تصغير التطبيق.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=true;if(b)b.disabled=false;}
    else if(d.state==='paused'){if(status)status.textContent='التسجيل متوقف مؤقتًا من إشعار Android.';}
    else if(d.state==='stopped'){S.nativeMeetingRecording=false;S.nativeMeetingFileName=d.fileName||null;if(status)status.textContent='انتهى التسجيل. احفظ الاجتماع لإرفاق اسم ملف الصوت به.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=false;if(b)b.disabled=true;}
