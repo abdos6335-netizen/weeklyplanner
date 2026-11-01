@@ -34,6 +34,27 @@ class _PlannerWebViewState extends State<PlannerWebView> {
   @override
   void initState() {
     super.initState();
+    recorder.setMethodCallHandler((call) async {
+      if (call.method == 'serviceEvent') {
+        final data = Map<String, dynamic>.from(call.arguments as Map);
+        final state = data['state']?.toString();
+        final path = data['path']?.toString() ?? activePath;
+        if (state == 'stopped') {
+          await notifyWeb({'state':'stopped','meetingId':meetingId,'projectId':projectId,'fileName':path?.split(Platform.pathSeparator).last});
+          activePath = null;
+          meetingId = null;
+          projectId = null;
+        } else if (state == 'error') {
+          await notifyWeb({'state':'error','message':data['message'] ?? 'حدث خطأ في التسجيل'});
+          activePath = null;
+          meetingId = null;
+          projectId = null;
+        } else if (state == 'recording' || state == 'paused') {
+          await notifyWeb({'state':state,'meetingId':meetingId});
+        }
+      }
+      return null;
+    });
     web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel('WeeklyPlannerRecorder', onMessageReceived: handleMessage)
@@ -96,16 +117,10 @@ class _PlannerWebViewState extends State<PlannerWebView> {
         await notifyWeb({'state':'recording','meetingId':meetingId});
       } else if (action == 'pause') {
         await recorder.invokeMethod('pause');
-        await notifyWeb({'state':'paused','meetingId':meetingId});
       } else if (action == 'resume') {
         await recorder.invokeMethod('resume');
-        await notifyWeb({'state':'recording','meetingId':meetingId});
       } else if (action == 'stop') {
         await recorder.invokeMethod('stop');
-        await notifyWeb({'state':'stopped','meetingId':meetingId,'projectId':projectId,'fileName':activePath?.split(Platform.pathSeparator).last});
-        activePath = null;
-        meetingId = null;
-        projectId = null;
       }
     } catch (e) {
       await notifyWeb({'state':'error','message':e.toString()});
