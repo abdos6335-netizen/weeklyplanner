@@ -525,23 +525,34 @@ async function handleVoiceCommand(c) {
  }
  async function openMeetingAudio(meetingId, download=false){
    const meeting=S.meetings.find(m=>m.id===meetingId);
-   let blob=null;
-   if(meeting?.audioFileName && window.WeeklyPlannerNative){
-     const result=await requestNativeAudio('read',meeting.audioFileName);
-     const raw=atob(result.base64), bytes=new Uint8Array(raw.length);
-     for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-     blob=new Blob([bytes],{type:'audio/mp4'});
-   } else {
-     const db=await meetingAudioDb();
-     const row=await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(meetingId);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
-     db.close(); blob=row?.blob||null;
-   }
-   if(!blob){toast('لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.');return;}
-   const url=URL.createObjectURL(blob);
-   if(download){const a=document.createElement('a');a.href=url;a.download='WeeklyPlanner-meeting-'+meetingId+(meeting?.audioFileName?'.m4a':'.webm');a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return;}
-   const w=window.open('','_blank'); if(!w){URL.revokeObjectURL(url);toast('اسمح بالنوافذ المنبثقة لتشغيل التسجيل.');return;}
-   w.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>تسجيل الاجتماع</title><body style="font-family:Arial;padding:24px"><h2>تسجيل الاجتماع</h2><audio controls autoplay style="width:100%"></audio></body></html>');
-   w.document.querySelector('audio').src=url; w.addEventListener('beforeunload',()=>URL.revokeObjectURL(url));
+   const player=download?null:window.open('','_blank');
+   if(!download&&!player){toast('اسمح بالنوافذ المنبثقة لتشغيل التسجيل.');return;}
+   try{
+     let blob=null;
+     if(meeting?.audioFileName && window.WeeklyPlannerNative){
+       const result=await requestNativeAudio('read',meeting.audioFileName);
+       const raw=atob(result.base64), bytes=new Uint8Array(raw.length);
+       for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+       blob=new Blob([bytes],{type:'audio/mp4'});
+     } else {
+       const db=await meetingAudioDb();
+       const row=await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(meetingId);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+       db.close(); blob=row?.blob||null;
+     }
+     if(!blob)throw new Error('لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.');
+     const url=URL.createObjectURL(blob);
+     if(download){const a=document.createElement('a');a.href=url;a.download='WeeklyPlanner-meeting-'+meetingId+(meeting?.audioFileName?'.m4a':'.webm');a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return;}
+     player.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>تسجيل الاجتماع</title><body style="font-family:Arial;padding:24px"><h2>تسجيل الاجتماع</h2><audio controls autoplay style="width:100%"></audio></body></html>');
+     player.document.querySelector('audio').src=url; player.addEventListener('beforeunload',()=>URL.revokeObjectURL(url));
+   }catch(err){if(player&&!player.closed)player.close();throw err;}
+ }
+ async function deleteMeetingAudio(meetingId){
+   const meeting=S.meetings.find(m=>m.id===meetingId);if(!meeting)return;
+   if(!confirm('هل تريد حذف التسجيل الصوتي لهذا الاجتماع نهائيًا؟'))return;
+   if(meeting.audioFileName&&window.WeeklyPlannerNative)await requestNativeAudio('delete',meeting.audioFileName);
+   else {const db=await meetingAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite');tx.objectStore('audio').delete(meetingId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
+   await S.store.save('meetings',{...meeting,audioFileName:null,updatedAt:Date.now()});
+   toast('تم حذف التسجيل الصوتي.');render();
  }
  async function startMeetingAudioCapture(){
    const projectId=$('#meeting-project')?.value || null;
@@ -590,7 +601,7 @@ function renderMeetings() {
     const rows=S.meetings.filter(m=>m.projectId===p.id).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
     return `<div class="page-tools"><button class="btn sm" data-action="meeting-back">← كل المشاريع</button><span class="chip">${rows.length} Meetings</span></div>
       <section class="card glass"><h2>${esc(p.name)}</h2><p class="muted">${esc(p.client||'')}</p></section>
-      ${rows.map(m=>`<section class="card glass meeting-card"><div class="dhead"><div><h2>Meeting ${String(m.sequence||0).padStart(2,'0')} · ${esc(m.title||'')}</h2><p class="muted">${esc(m.date)} ${esc(m.time||'')} · ${m.mode==='online'?'Online':'Offline'}</p></div><button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button><button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button><button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button></div><p>${esc(m.minutes||m.transcript||'لا يوجد ملخص بعد')}</p></section>`).join('')||'<p class="muted">لا توجد اجتماعات مسجلة لهذا المشروع.</p>'}`;
+      ${rows.map(m=>`<section class="card glass meeting-card"><div class="dhead"><div><h2>Meeting ${String(m.sequence||0).padStart(2,'0')} · ${esc(m.title||'')}</h2><p class="muted">${esc(m.date)} ${esc(m.time||'')} · ${m.mode==='online'?'Online':'Offline'}</p></div><button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button><button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button><button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button><button class="btn sm danger" data-action="meeting-audio-delete" data-id="${esc(m.id)}">حذف التسجيل</button></div><p>${esc(m.minutes||m.transcript||'لا يوجد ملخص بعد')}</p></section>`).join('')||'<p class="muted">لا توجد اجتماعات مسجلة لهذا المشروع.</p>'}`;
   }
   const projects=[...S.projects].sort((a,b)=>a.name.localeCompare(b.name));
   return `<div class="page-tools"><p class="muted">سجل اجتماعات العملاء ومحاضر الاجتماعات، مرتب حسب المشروع.</p></div>
@@ -995,6 +1006,7 @@ async function onClick(e) {
     case 'meeting-audio-stop': stopMeetingAudioCapture(); break;
     case 'meeting-audio-play': try{await openMeetingAudio(el.dataset.id,false);}catch(err){console.error(err);toast(err.message||'تعذر تشغيل التسجيل.');} break;
     case 'meeting-audio-download': try{await openMeetingAudio(el.dataset.id,true);}catch(err){console.error(err);toast(err.message||'تعذر تنزيل التسجيل.');} break;
+    case 'meeting-audio-delete': try{await deleteMeetingAudio(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر حذف التسجيل.');} break;
     case 'meeting-record': startMeetingRecognition(); break;
     case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
     case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
