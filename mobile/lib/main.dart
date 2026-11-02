@@ -77,7 +77,7 @@ class _PlannerWebViewState extends State<PlannerWebView> {
       final action = data['action']?.toString();
       final requestId = data['requestId']?.toString();
       final fileName = data['fileName']?.toString() ?? '';
-      if (!RegExp(r'^meeting_[0-9]{10,20}\\.m4a
+      if (!RegExp(r'^meeting_[0-9]{10,20}\.m4a
         throw StateError('اسم ملف التسجيل غير صالح');
       }
       final base = await getApplicationDocumentsDirectory();
