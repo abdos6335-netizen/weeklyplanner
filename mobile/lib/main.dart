@@ -77,7 +77,65 @@ class _PlannerWebViewState extends State<PlannerWebView> {
       final action = data['action']?.toString();
       final requestId = data['requestId']?.toString();
       final fileName = data['fileName']?.toString() ?? '';
-      if (fileName.isEmpty || fileName.contains('/') || fileName.contains('\\\\')) {
+      if (!RegExp(r'^meeting_[0-9]{10,20}\\.m4a
+        throw StateError('اسم ملف التسجيل غير صالح');
+      }
+      final base = await getApplicationDocumentsDirectory();
+      final file = File('${base.path}/MeetingRecordings/$fileName');
+      if (action == 'read') {
+        if (!await file.exists()) throw StateError('ملف التسجيل غير موجود على هذا الجهاز');
+        final bytes = await file.readAsBytes();
+        await notifyWeb({'state':'audio-data','requestId':requestId,'fileName':fileName,'base64':base64Encode(bytes)});
+      } else if (action == 'delete') {
+        if (await file.exists()) await file.delete();
+        await notifyWeb({'state':'audio-deleted','requestId':requestId,'fileName':fileName});
+      } else {
+        throw StateError('طلب غير معروف');
+      }
+    } catch (e) {
+      await notifyWeb({'state':'audio-error','requestId': (() { try { return (jsonDecode(message.message) as Map)['requestId']; } catch (_) { return null; } })(), 'message':e.toString()});
+    }
+  }
+
+  Future<void> handleMessage(JavaScriptMessage message) async {
+    try {
+      final data = jsonDecode(message.message) as Map<String, dynamic>;
+      final action = data['action'];
+      if (action == 'start') {
+        if (activePath != null) throw StateError('يوجد تسجيل يعمل بالفعل');
+        final permission = await Permission.microphone.request();
+        if (!permission.isGranted) throw StateError('يجب السماح باستخدام الميكروفون');
+        await Permission.notification.request();
+        final base = await getApplicationDocumentsDirectory();
+        final dir = Directory('${base.path}/MeetingRecordings');
+        await dir.create(recursive: true);
+        final path = '${dir.path}/meeting_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await recorder.invokeMethod('start', {'path': path});
+        activePath = path;
+        meetingId = data['meetingId']?.toString();
+        projectId = data['projectId']?.toString();
+        await notifyWeb({'state':'recording','meetingId':meetingId});
+      } else if (action == 'pause') {
+        await recorder.invokeMethod('pause');
+      } else if (action == 'resume') {
+        await recorder.invokeMethod('resume');
+      } else if (action == 'stop') {
+        await recorder.invokeMethod('stop');
+      }
+    } catch (e) {
+      await notifyWeb({'state':'error','message':e.toString()});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(child: Stack(children: [
+      WebViewWidget(controller: web),
+      if (loading) const LinearProgressIndicator(minHeight: 2),
+    ])),
+  );
+}
+).hasMatch(fileName)) {
         throw StateError('اسم ملف التسجيل غير صالح');
       }
       final base = await getApplicationDocumentsDirectory();
