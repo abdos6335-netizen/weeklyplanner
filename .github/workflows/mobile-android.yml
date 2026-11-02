@@ -5,6 +5,7 @@ on:
     paths:
       - 'mobile/**'
       - 'js/app.js'
+      - 'styles.css'
       - '.github/workflows/mobile-android.yml'
   push:
     branches: [main]
