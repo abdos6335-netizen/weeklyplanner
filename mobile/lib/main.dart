@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -89,11 +90,52 @@ class _PlannerWebViewState extends State<PlannerWebView> {
     await web.runJavaScript('window.dispatchEvent(new CustomEvent("weeklyplanner-native-recorder",{detail:$json}));');
   }
 
+  // معرّف عميل الويب لمشروع Firebase (OAuth Web client). يُمرَّر وقت البناء:
+  // --dart-define=GOOGLE_WEB_CLIENT_ID=...  وهو ليس سرًّا لكنه خاص بمشروعك.
+  static const String googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  static const String appHost = 'abdos6335-netizen.github.io';
+  bool googleInitialized = false;
+
+  Future<void> googleSignIn(String? requestId) async {
+    try {
+      // لا نسلّم رمز الدخول إلا لصفحة التطبيق نفسها، وليس لأي موقع يُفتح داخل WebView.
+      final current = await web.currentUrl();
+      if (Uri.tryParse(current ?? '')?.host != appHost) {
+        throw StateError('طلب تسجيل الدخول مرفوض من صفحة غير معتمدة');
+      }
+      if (googleWebClientId.isEmpty) {
+        throw StateError('لم يُضبط معرّف عميل جوجل (GOOGLE_WEB_CLIENT_ID) في بناء هذا التطبيق');
+      }
+      if (!googleInitialized) {
+        await GoogleSignIn.instance.initialize(serverClientId: googleWebClientId);
+        googleInitialized = true;
+      }
+      final account = await GoogleSignIn.instance.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw StateError('لم يرجع جوجل رمز تسجيل الدخول');
+      }
+      await notifyWeb({'state':'google-token','requestId':requestId,'idToken':idToken});
+    } on GoogleSignInException catch (e) {
+      final cancelled = e.code.name == 'canceled';
+      await notifyWeb({
+        'state':'google-error','requestId':requestId,'cancelled':cancelled,
+        'message':'تعذر تسجيل الدخول بجوجل (${e.code.name}). تأكد من إعداد عميل Android وبصمة SHA-1 في Google Cloud.',
+      });
+    } catch (e) {
+      await notifyWeb({'state':'google-error','requestId':requestId,'message':e.toString()});
+    }
+  }
+
   Future<void> handleNativeRequest(JavaScriptMessage message) async {
     try {
       final data = jsonDecode(message.message) as Map<String, dynamic>;
       final action = data['action']?.toString();
       final requestId = data['requestId']?.toString();
+      if (action == 'google-sign-in') {
+        await googleSignIn(requestId);
+        return;
+      }
       final fileName = data['fileName']?.toString() ?? '';
       if (!RegExp(r'^meeting_[0-9]{10,20}\.m4a$').hasMatch(fileName)) {
         throw StateError('اسم ملف التسجيل غير صالح');
