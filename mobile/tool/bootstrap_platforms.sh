@@ -10,6 +10,7 @@ flutter create --platforms=android,ios --org com.weeklyplanner --project-name mo
 cp "$backup/AndroidManifest.xml" android/app/src/main/AndroidManifest.xml
 rm -rf android/app/src/main/kotlin
 cp -R "$backup/kotlin" android/app/src/main/kotlin
+python3 -I tool/patch_release_signing.py android/app/build.gradle.kts
 cat > test/widget_test.dart <<'EOF'
 import 'package:flutter_test/flutter_test.dart';
 
