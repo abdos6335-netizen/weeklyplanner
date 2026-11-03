@@ -32,9 +32,24 @@ jobs:
       - name: Analyze Dart
         working-directory: mobile
         run: flutter analyze
+      - name: Validate Google OAuth client configuration
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then
+            echo "ERROR: Repository variable GOOGLE_WEB_CLIENT_ID is missing or empty."
+            exit 1
+          fi
+          if ! [[ "$GOOGLE_WEB_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]]; then
+            echo "ERROR: GOOGLE_WEB_CLIENT_ID does not look like a Google OAuth client ID."
+            exit 1
+          fi
+          echo "Google OAuth client ID is configured (value hidden)."
       - name: Build Android debug APK
         working-directory: mobile
-        run: flutter build apk --debug --dart-define=GOOGLE_WEB_CLIENT_ID="${{ vars.GOOGLE_WEB_CLIENT_ID }}"
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+        run: flutter build apk --debug --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -66,7 +81,9 @@ jobs:
       - name: Build signed release APK
         if: steps.signing.outputs.available == 'true'
         working-directory: mobile
-        run: flutter build apk --release --dart-define=GOOGLE_WEB_CLIENT_ID="${{ vars.GOOGLE_WEB_CLIENT_ID }}"
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+        run: flutter build apk --release --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
       - name: Show release signing certificate fingerprint
         if: steps.signing.outputs.available == 'true'
         run: |
