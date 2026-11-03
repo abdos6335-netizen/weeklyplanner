@@ -24,8 +24,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate WeeklyPlanner web app JavaScript
         run: |
-          node --check js/app.js
-          node --check js/store.js
+          # ES modules: check as modules, otherwise import-block mistakes pass silently.
+          for f in js/*.js sw.js; do
+            node --input-type=module --check < "$f" || { echo "Syntax error in $f"; exit 1; }
+          done
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

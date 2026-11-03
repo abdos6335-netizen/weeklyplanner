@@ -118,9 +118,12 @@ class _PlannerWebViewState extends State<PlannerWebView> {
       await notifyWeb({'state':'google-token','requestId':requestId,'idToken':idToken});
     } on GoogleSignInException catch (e) {
       final cancelled = e.code.name == 'canceled';
+      final detail = (e.description ?? '').trim();
       await notifyWeb({
         'state':'google-error','requestId':requestId,'cancelled':cancelled,
-        'message':'تعذر تسجيل الدخول بجوجل (${e.code.name}). تأكد من إعداد عميل Android وبصمة SHA-1 في Google Cloud.',
+        'message': cancelled
+            ? 'لم تكتمل نافذة جوجل (canceled${detail.isEmpty ? '' : ': $detail'}). إن أغلقتها بنفسك فحاول مرة أخرى. وإن لم تظهر نافذة اختيار الحساب أصلًا فالأرجح أن عميل Android أو بصمة SHA-1 غير مسجّلين بشكل صحيح في Google Cloud.'
+            : 'تعذر تسجيل الدخول بجوجل (${e.code.name}${detail.isEmpty ? '' : ': $detail'}). تأكد من إعداد عميل Android وبصمة SHA-1 في Google Cloud.',
       });
     } catch (e) {
       await notifyWeb({'state':'google-error','requestId':requestId,'message':e.toString()});

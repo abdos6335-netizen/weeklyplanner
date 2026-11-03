@@ -98,8 +98,8 @@ function requestNativeGoogleToken() {
     const onEvent = (event) => {
       const d = (event && event.detail) || {};
       if (d.requestId !== requestId) return;
-      if (d.state === 'google-token') done(resolve, d.idToken || null);
-      else if (d.cancelled) done(resolve, null);
+      if (d.state === 'google-token') done(resolve, d.idToken ? { idToken: d.idToken } : { cancelled: true, message: 'لم يرجع جوجل رمز تسجيل الدخول.' });
+      else if (d.cancelled) done(resolve, { cancelled: true, message: d.message || '' });
       else if (d.state === 'google-error' || d.state === 'audio-error') {
         // audio-error يعني أن نسخة التطبيق المثبّتة قديمة ولا تعرف طلب تسجيل الدخول.
         const old = d.state === 'audio-error';
@@ -107,7 +107,7 @@ function requestNativeGoogleToken() {
       }
     };
     window.addEventListener('weeklyplanner-native-recorder', onEvent);
-    timer = setTimeout(() => done(reject, new Error('انتهت مهلة تسجيل الدخول بجوجل.')), 120000);
+    timer = setTimeout(() => done(reject, new Error('لم يرد تطبيق أندرويد خلال دقيقة: تسجيل جوجل الأصلي لم يكتمل. تأكد من بصمة SHA-1 وإعداد عميل Android.')), 60000);
     window.WeeklyPlannerNative.postMessage(JSON.stringify({ action: 'google-sign-in', requestId }));
   });
 }
@@ -170,9 +170,21 @@ async function createCloudStore() {
       // داخل تطبيق Android: جوجل تمنع تسجيل الدخول داخل WebView (نافذة منبثقة أو إعادة توجيه)،
       // لذلك نستخدم تسجيل دخول جوجل الأصلي ثم نمرّر الرمز إلى Firebase.
       if (typeof window !== 'undefined' && window.WeeklyPlannerNative) {
-        const idToken = await requestNativeGoogleToken();
-        if (!idToken) return; // أغلق المستخدم نافذة الاختيار
-        await authMod.signInWithCredential(auth, authMod.GoogleAuthProvider.credential(idToken));
+        const note = (m) => { try { const el = document.getElementById('login-err'); if (el) el.textContent = m; } catch { /* تجاهل */ } };
+        note('1/3 جارٍ فتح اختيار حساب جوجل…');
+        const res = await requestNativeGoogleToken();
+        // أغلق المستخدم النافذة، أو أرجعها أندرويد كملغاة (يحدث أيضًا عند نقص إعداد Google).
+        if (!res || res.cancelled || !res.idToken) { note(''); return { cancelled: true, message: (res && res.message) || '' }; }
+        const idToken = res.idToken;
+        note('2/3 تم استلام الرمز من جوجل، جارٍ الدخول إلى Firebase…');
+        let fbTimer;
+        try {
+          await Promise.race([
+            authMod.signInWithCredential(auth, authMod.GoogleAuthProvider.credential(idToken)),
+            new Promise((_, rej) => { fbTimer = setTimeout(() => rej(new Error('لم يرد Firebase خلال 30 ثانية. تحقق من الاتصال بالإنترنت وتفعيل Google في Firebase Authentication.')), 30000); }),
+          ]);
+        } finally { clearTimeout(fbTimer); }
+        note('3/3 تم الدخول، جارٍ تحميل بياناتك…');
         return;
       }
       const provider = new authMod.GoogleAuthProvider();
@@ -183,7 +195,7 @@ async function createCloudStore() {
         if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
           await authMod.signInWithRedirect(auth, provider);
         } else if (e && (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request')) {
-          return;
+          return { cancelled: true, message: '' };
         } else {
           throw e;
         }

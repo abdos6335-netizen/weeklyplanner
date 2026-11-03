@@ -9,6 +9,7 @@ import {
 } from './theme.js';
 
 const VERSION = '3.0.0';
+const BUILD_ID = '3.1.1';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -91,7 +92,8 @@ async function boot() {
   $('#app').innerHTML = `<div class="center muted">${t('loading')}</div>`;
   bindEvents();
   try {
-    S.store = await createStore();
+    // لا ننتظر تحميل Firebase إلى ما لا نهاية: بعد 25 ثانية تظهر رسالة وزر إعادة المحاولة.
+    S.store = await Promise.race([createStore(), new Promise((_, rej) => setTimeout(() => rej(new Error('store timeout')), 25000))]);
   } catch (e) {
     console.error(e);
     $('#app').innerHTML = `<div class="login"><div class="card login-card"><p>${esc(t('cloud_failed'))}</p><button class="btn primary" data-action="reload">↻</button></div></div>`;
@@ -247,6 +249,7 @@ function renderLogin(err) {
       </form>
       <div class="auth-links"><button class="btn ghost" data-action="auth-toggle">${S.authMode==='signup'?'لديك حساب؟ تسجيل الدخول':'إنشاء حساب جديد'}</button><button class="btn ghost" data-action="auth-reset">نسيت كلمة المرور؟</button></div>` : ''}
       <p class="note">${cloud ? t('cloud_note') : t('local_note')}</p>
+      <p class="note" dir="ltr" style="opacity:.6;font-size:.75rem">build ${BUILD_ID} · android bridge: ${window.WeeklyPlannerNative ? 'yes' : 'no'}</p>
       <div class="err" id="login-err">${err ? esc(err) : ''}</div>
       <button class="btn ghost" data-action="login-lang">${lang() === 'ar' ? 'English' : 'العربية'}</button>
     </div>
@@ -985,7 +988,11 @@ async function onClick(e) {
     case 'login': {
       const btn = $('#login-btn');
       btn.disabled = true; btn.textContent = t('signing_in');
-      try { await S.store.signIn(); }
+      try {
+        const r = await S.store.signIn();
+        // إلغاء أو عدم اكتمال الدخول: نعيد الزر لوضعه الطبيعي بدل تركه معلّقًا على «جارٍ الدخول…».
+        if (r && r.cancelled) renderLogin(r.message || 'لم يكتمل تسجيل الدخول. حاول مرة أخرى.');
+      }
       catch (err) { console.error(err); renderLogin(`${t('signin_failed')}: ${err.code || err.message || err}`); }
       break;
     }
