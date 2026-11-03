@@ -88,6 +88,30 @@ function createLocalStore() {
   };
 }
 
+// طلب رمز تسجيل الدخول من تطبيق Android الأصلي (الرد يصل عبر حدث weeklyplanner-native-recorder).
+// يرجع null إذا ألغى المستخدم، ويرمي خطأً واضحًا في باقي الحالات.
+function requestNativeGoogleToken() {
+  return new Promise((resolve, reject) => {
+    const requestId = 'google_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    let timer;
+    const done = (fn, value) => { clearTimeout(timer); window.removeEventListener('weeklyplanner-native-recorder', onEvent); fn(value); };
+    const onEvent = (event) => {
+      const d = (event && event.detail) || {};
+      if (d.requestId !== requestId) return;
+      if (d.state === 'google-token') done(resolve, d.idToken || null);
+      else if (d.cancelled) done(resolve, null);
+      else if (d.state === 'google-error' || d.state === 'audio-error') {
+        // audio-error يعني أن نسخة التطبيق المثبّتة قديمة ولا تعرف طلب تسجيل الدخول.
+        const old = d.state === 'audio-error';
+        done(reject, new Error(old ? 'حدّث تطبيق Android إلى آخر إصدار لتسجيل الدخول بجوجل.' : (d.message || 'تعذر تسجيل الدخول بجوجل.')));
+      }
+    };
+    window.addEventListener('weeklyplanner-native-recorder', onEvent);
+    timer = setTimeout(() => done(reject, new Error('انتهت مهلة تسجيل الدخول بجوجل.')), 120000);
+    window.WeeklyPlannerNative.postMessage(JSON.stringify({ action: 'google-sign-in', requestId }));
+  });
+}
+
 // ================================================================== سحابي
 async function createCloudStore() {
   const [appMod, authMod, fs] = await Promise.all([
@@ -97,9 +121,17 @@ async function createCloudStore() {
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   const auth = authMod.getAuth(app);
-  const db = fs.initializeFirestore(app, {
-    localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
-  });
+  // Android WebView may not support persistent IndexedDB in every environment.
+  // Fall back to memory cache rather than aborting application startup.
+  let db;
+  try {
+    db = fs.initializeFirestore(app, {
+      localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
+    });
+  } catch (cacheError) {
+    console.warn('Persistent Firestore cache unavailable; using memory cache.', cacheError);
+    db = fs.getFirestore(app);
+  }
 
   let user = null;
   const authCbs = new Set();
@@ -117,7 +149,10 @@ async function createCloudStore() {
     authCbs.forEach((cb) => cb(user));
   });
   // نتيجة تسجيل الدخول عبر إعادة التوجيه (بديل النافذة المنبثقة)
-  authMod.getRedirectResult(auth).catch(() => {});
+  authMod.getRedirectResult(auth).catch((error) => {
+    console.error('Google sign-in redirect result failed:', error);
+    emitStatus('auth-error', 'تعذر استكمال تسجيل الدخول: ' + (error.code || error.message || error));
+  });
 
   const colRef = (n) => fs.collection(db, 'users', user.uid, n);
 
@@ -132,6 +167,14 @@ async function createCloudStore() {
       return () => authCbs.delete(cb);
     },
     async signIn() {
+      // داخل تطبيق Android: جوجل تمنع تسجيل الدخول داخل WebView (نافذة منبثقة أو إعادة توجيه)،
+      // لذلك نستخدم تسجيل دخول جوجل الأصلي ثم نمرّر الرمز إلى Firebase.
+      if (typeof window !== 'undefined' && window.WeeklyPlannerNative) {
+        const idToken = await requestNativeGoogleToken();
+        if (!idToken) return; // أغلق المستخدم نافذة الاختيار
+        await authMod.signInWithCredential(auth, authMod.GoogleAuthProvider.credential(idToken));
+        return;
+      }
       const provider = new authMod.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       try {

@@ -57,8 +57,11 @@ class MeetingRecordingService : Service() {
             recorder = r
             paused = false
             updateNotification("جارٍ تسجيل الاجتماع", true)
+            publishState("recording")
         } catch (e: Exception) {
-            recorder?.release(); recorder = null
+            try { recorder?.release() } catch (_: Exception) {}
+            recorder = null
+            publishState("error", e.message ?: "تعذر بدء التسجيل")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
@@ -66,19 +69,22 @@ class MeetingRecordingService : Service() {
 
     private fun pauseRecording() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            try { recorder?.pause(); paused = true; updateNotification("التسجيل متوقف مؤقتًا", false) } catch (_: Exception) {}
+            try { recorder?.pause(); paused = true; updateNotification("التسجيل متوقف مؤقتًا", false); publishState("paused") } catch (e: Exception) { publishState("error", e.message ?: "تعذر إيقاف التسجيل مؤقتًا") }
         }
     }
 
     private fun resumeRecording() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            try { recorder?.resume(); paused = false; updateNotification("جارٍ تسجيل الاجتماع", true) } catch (_: Exception) {}
+            try { recorder?.resume(); paused = false; updateNotification("جارٍ تسجيل الاجتماع", true); publishState("recording") } catch (e: Exception) { publishState("error", e.message ?: "تعذر استكمال التسجيل") }
         }
     }
 
     private fun stopRecording() {
-        try { recorder?.stop() } catch (_: Exception) {}
-        recorder?.release(); recorder = null
+        var failure: String? = null
+        try { recorder?.stop() } catch (e: Exception) { failure = e.message ?: "تعذر إنهاء ملف التسجيل" }
+        try { recorder?.release() } catch (_: Exception) {}
+        recorder = null
+        if (failure == null) publishState("stopped") else publishState("error", failure)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -110,10 +116,17 @@ class MeetingRecordingService : Service() {
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(text, recording))
     }
 
+    private fun publishState(state: String, message: String? = null) {
+        val event = Intent(ACTION_SERVICE_EVENT).setPackage(packageName)
+            .putExtra("state", state).putExtra("message", message).putExtra("path", outputPath)
+        sendBroadcast(event)
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() { try { recorder?.release() } catch (_: Exception) {}; recorder = null; super.onDestroy() }
 
     companion object {
+        const val ACTION_SERVICE_EVENT = "com.weeklyplanner.mobile.RECORDER_EVENT"
         const val ACTION_START = "com.weeklyplanner.mobile.START"
         const val ACTION_PAUSE = "com.weeklyplanner.mobile.PAUSE"
         const val ACTION_RESUME = "com.weeklyplanner.mobile.RESUME"
