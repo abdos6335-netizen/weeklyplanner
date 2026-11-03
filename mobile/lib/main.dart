@@ -29,6 +29,7 @@ class _PlannerWebViewState extends State<PlannerWebView> {
   static const MethodChannel recorder = MethodChannel('weeklyplanner/meeting_recorder');
   late final WebViewController web;
   bool loading = true;
+  String? pageError;
   String? activePath, meetingId, projectId;
 
   @override
@@ -60,10 +61,27 @@ class _PlannerWebViewState extends State<PlannerWebView> {
       ..addJavaScriptChannel('WeeklyPlannerRecorder', onMessageReceived: handleMessage)
       ..addJavaScriptChannel('WeeklyPlannerNative', onMessageReceived: handleNativeRequest)
       ..setNavigationDelegate(NavigationDelegate(
-        onPageStarted: (_) => setState(() => loading = true),
-        onPageFinished: (_) => setState(() => loading = false),
+        onPageStarted: (_) { if (!mounted) return; setState(() { loading = true; pageError = null; }); },
+        onPageFinished: (_) { if (mounted) setState(() => loading = false); },
+        onWebResourceError: (error) {
+          if (error.isForMainFrame == false || !mounted) return;
+          setState(() { loading = false; pageError = 'تعذر تحميل التطبيق: ${error.description}'; });
+        },
+        onHttpError: (error) {
+          if (!mounted) return;
+          final code = error.response?.statusCode;
+          if (error.request.uri.toString() == 'https://abdos6335-netizen.github.io/weeklyplanner/' && code != null && code >= 400) {
+            setState(() { loading = false; pageError = 'خطأ من الخادم: HTTP $code'; });
+          }
+        },
       ))
       ..loadRequest(Uri.parse('https://abdos6335-netizen.github.io/weeklyplanner/'));
+  }
+
+  Future<void> reloadPage() async {
+    if (!mounted) return;
+    setState(() { pageError = null; loading = true; });
+    await web.loadRequest(Uri.parse('https://abdos6335-netizen.github.io/weeklyplanner/'));
   }
 
   Future<void> notifyWeb(Map<String, dynamic> data) async {
@@ -132,6 +150,18 @@ class _PlannerWebViewState extends State<PlannerWebView> {
     body: SafeArea(child: Stack(children: [
       WebViewWidget(controller: web),
       if (loading) const LinearProgressIndicator(minHeight: 2),
+      if (pageError != null) ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off, size: 44),
+          const SizedBox(height: 16),
+          const Text('تعذر فتح WeeklyPlanner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(pageError!, textAlign: TextAlign.center),
+          const SizedBox(height: 20),
+          FilledButton.icon(onPressed: reloadPage, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة')),
+        ]))),
+      ),
     ])),
   );
 }
