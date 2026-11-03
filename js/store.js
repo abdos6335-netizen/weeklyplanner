@@ -97,9 +97,17 @@ async function createCloudStore() {
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   const auth = authMod.getAuth(app);
-  const db = fs.initializeFirestore(app, {
-    localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
-  });
+  // Android WebView may not support persistent IndexedDB in every environment.
+  // Fall back to memory cache rather than aborting application startup.
+  let db;
+  try {
+    db = fs.initializeFirestore(app, {
+      localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
+    });
+  } catch (cacheError) {
+    console.warn('Persistent Firestore cache unavailable; using memory cache.', cacheError);
+    db = fs.getFirestore(app);
+  }
 
   let user = null;
   const authCbs = new Set();
@@ -117,7 +125,10 @@ async function createCloudStore() {
     authCbs.forEach((cb) => cb(user));
   });
   // نتيجة تسجيل الدخول عبر إعادة التوجيه (بديل النافذة المنبثقة)
-  authMod.getRedirectResult(auth).catch(() => {});
+  authMod.getRedirectResult(auth).catch((error) => {
+    console.error('Google sign-in redirect result failed:', error);
+    emitStatus('auth-error', 'تعذر استكمال تسجيل الدخول: ' + (error.code || error.message || error));
+  });
 
   const colRef = (n) => fs.collection(db, 'users', user.uid, n);
 
