@@ -5,6 +5,7 @@ on:
     paths:
       - 'mobile/**'
       - 'js/app.js'
+      - 'js/store.js'
       - 'styles.css'
       - '.github/workflows/mobile-android.yml'
   push:
@@ -12,6 +13,8 @@ on:
     paths:
       - 'mobile/**'
       - 'js/app.js'
+      - 'js/store.js'
+      - 'styles.css'
       - '.github/workflows/mobile-android.yml'
 
 jobs:
@@ -44,7 +47,7 @@ jobs:
             echo "ERROR: GOOGLE_WEB_CLIENT_ID does not look like a Google OAuth client ID."
             exit 1
           fi
-          echo "Google OAuth client ID is configured (value hidden)."
+          echo "Google OAuth client ID is configured."
       - name: Build Android debug APK
         working-directory: mobile
         env:
