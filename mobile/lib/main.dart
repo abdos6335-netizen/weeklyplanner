@@ -70,7 +70,7 @@ class _PlannerWebViewState extends State<PlannerWebView> {
         onHttpError: (error) {
           if (!mounted) return;
           final code = error.response?.statusCode;
-          if (error.request.uri?.toString() == 'https://abdos6335-netizen.github.io/weeklyplanner/' && code != null && code >= 400) {
+          if (code != null && code >= 400) {
             setState(() { loading = false; pageError = 'خطأ من الخادم: HTTP $code'; });
           }
         },
