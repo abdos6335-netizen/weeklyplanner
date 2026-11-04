@@ -1274,6 +1274,7 @@ async function onClick(e) {
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
     case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
+    case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
     case 'meeting-ai-endpoint-save': { let value=$('#meeting-ai-endpoint')?.value.trim()||'';while(value.endsWith('/'))value=value.slice(0,-1); if(!value.startsWith('https://')){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }
     case 'meeting-ai-transcribe': try{await transcribeMeetingAudio(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر تفريغ التسجيل.');} break;
     case 'meeting-ai-minutes': try{await generateMeetingMinutes(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر إنشاء المحضر.');} break;
