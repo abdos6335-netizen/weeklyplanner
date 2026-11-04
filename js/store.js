@@ -226,7 +226,7 @@ async function createCloudStore() {
     async signOut() { await authMod.signOut(auth); },
     watch(n, cb) {
       if (!user) return () => {};
-      return fs.onSnapshot(
+      const unsubscribe = fs.onSnapshot(
         colRef(n),
         { includeMetadataChanges: true },
         (snap) => {
@@ -242,8 +242,13 @@ async function createCloudStore() {
         },
         (err) => { console.error('firestore watch error', n, err); emitStatus('error', `تعذر تحميل ${n}: ${err.message || err}`); }
       );
+      return () => {
+        unsubscribe();
+        pendingCollections.delete(n);
+        refreshSyncStatus();
+      };
     },
-    // لا ننتظر تأكيد السيرفر (يعمل أوفلاين)؛ الأخطاء تُرمى لمن ينتظر الوعد
+    // ننتظر تأكيد الخادم؛ ويُظهر مؤشر الحالة ما إذا كان Firestore يستخدم ذاكرة دائمة أو مؤقتة عند انقطاع الاتصال.
     async save(n, doc) {
       if (!user) throw new Error('يجب تسجيل الدخول قبل الحفظ');
       const { id, ...rest } = clean(doc);
