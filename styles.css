@@ -439,3 +439,11 @@ button, .btn, .tab, .nav-item { max-width: 100%; }
 .dashboard-finance b{font-size:.9rem;overflow-wrap:anywhere}
 @media(max-width:850px){.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.dashboard-columns{grid-template-columns:minmax(0,1fr)}.dashboard-intro{align-items:flex-start}.dashboard-finance{grid-template-columns:1fr 1fr}.dashboard-stat{padding:.75rem}}
+
+/* P3: local manager insights and priority queue */
+.manager-insights{border-inline-start:3px solid var(--accent)}
+.manager-insight-row{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem 0;border-bottom:1px solid var(--btn-ring)}
+.manager-insight-row:last-child{border-bottom:0}
+.manager-insight-row>div{display:grid;gap:.2rem;min-width:0}
+.manager-insight-row b{font-size:.88rem}
+.manager-insight-row small{font-size:.78rem;color:var(--text-2);line-height:1.5}
