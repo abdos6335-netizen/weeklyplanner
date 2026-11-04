@@ -15,6 +15,7 @@ const ar = {
 
   nav_dashboard: 'لوحة التحكم',
   dashboard_title: 'نظرة عامة على العمل', dashboard_subtitle: 'ملخص اليوم ومتابعة ما يحتاج إلى انتباه', active_projects: 'المشروعات النشطة', late_tasks: 'المهام المتأخرة', today_tasks: 'مهام اليوم', outstanding: 'مستحقات التحصيل', dashboard_open_projects: 'مشروعات قيد التنفيذ', dashboard_needs_attention: 'تحتاج إلى متابعة', dashboard_due_today: 'مطلوب إنجازها اليوم', dashboard_not_profit: 'المستحق للتحصيل ليس ربحًا محصلًا', all_tasks: 'كل المهام', dashboard_no_today_tasks: 'لا توجد مهام مطلوبة اليوم.', dashboard_no_late_tasks: 'لا توجد مهام متأخرة.', dashboard_no_active_projects: 'لا توجد مشروعات نشطة حاليًا.', dashboard_no_overdue_deliverables: 'لا توجد تسليمات متأخرة.', recent_meetings: 'أحدث الاجتماعات', dashboard_no_meetings: 'لا توجد اجتماعات مسجلة.', finance_overview: 'ملخص التدفقات المالية',
+  task_project: 'المشروع المرتبط', no_project: 'بدون مشروع',
   nav_tasks: 'المهام',
   nav_projects: 'المشروعات',
   nav_finance: 'الماليات', nav_meetings: 'Meeting',
@@ -158,6 +159,7 @@ const en = {
 
   nav_dashboard: 'Dashboard',
   dashboard_title: 'Work overview', dashboard_subtitle: 'Today’s summary and items that need attention', active_projects: 'Active projects', late_tasks: 'Overdue tasks', today_tasks: 'Today’s tasks', outstanding: 'Outstanding collections', dashboard_open_projects: 'Projects in progress', dashboard_needs_attention: 'Needs follow-up', dashboard_due_today: 'Due to be completed today', dashboard_not_profit: 'Outstanding collections are not collected profit', all_tasks: 'All tasks', dashboard_no_today_tasks: 'No tasks due today.', dashboard_no_late_tasks: 'No overdue tasks.', dashboard_no_active_projects: 'No active projects right now.', dashboard_no_overdue_deliverables: 'No overdue deliverables.', recent_meetings: 'Recent meetings', dashboard_no_meetings: 'No meetings recorded.', finance_overview: 'Cash-flow overview',
+  task_project: 'Linked project', no_project: 'No project',
   nav_tasks: 'Tasks',
   nav_projects: 'Projects',
   nav_finance: 'Finance', nav_meetings: 'Meetings',
