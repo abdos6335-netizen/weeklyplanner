@@ -939,25 +939,60 @@ function exportData() {
 }
 
 async function importData(file) {
+  let data;
   try {
-    const data = JSON.parse(await file.text());
-    if (!data || data.app !== 'weeklyplanner' || !Array.isArray(data.tasks)) throw new Error('bad');
-    let n = 0;
-    for (const raw of data.tasks.slice(0, 5000)) {
-      if (!raw || typeof raw !== 'object') continue;
-      const task = normalizeTask(raw, false);
-      if (!task.title) continue;
-      persistTask(task); n++;
-    }
-    for (const key of ['projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets', 'meetings']) { if (Array.isArray(data[key])) for (const raw of data[key].slice(0, 10000)) { if (raw && typeof raw === 'object' && raw.id) { await S.store.save(key, raw); n++; } } }
-    if (data.settings && typeof data.settings === 'object') {
-      S.settings = mergeSettings(data.settings);
-      applySettings(false); persistSettings();
-    }
-    toast(t('import_ok', { n }));
-    render();
+    data = JSON.parse(await file.text());
   } catch {
     toast(t('import_bad'));
+    return;
+  }
+
+  const collections = ['projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets', 'meetings'];
+  if (!data || data.app !== 'weeklyplanner' || !Array.isArray(data.tasks) ||
+      collections.some((key) => data[key] !== undefined && !Array.isArray(data[key])) ||
+      (data.settings !== undefined && (!data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)))) {
+    toast(t('import_bad'));
+    return;
+  }
+  if (data.tasks.length > 5000 || collections.some((key) => (data[key]?.length || 0) > 10000)) {
+    toast('ملف النسخة الاحتياطية أكبر من الحد المسموح للاستيراد.');
+    return;
+  }
+  for (const key of collections) {
+    const rows = data[key] || [];
+    if (rows.some((raw) => !raw || typeof raw !== 'object' || Array.isArray(raw) ||
+        typeof raw.id !== 'string' || !raw.id.trim() || raw.id.includes('/'))) {
+      toast('ملف النسخة الاحتياطية يحتوي على سجل غير صالح في قسم ' + key + '. لم يتم استيراد أي بيانات.');
+      return;
+    }
+  }
+  if (!confirm('سيتم دمج بيانات النسخة الاحتياطية مع البيانات الحالية. السجلات التي لها نفس المعرّف سيتم تحديثها، ولن يتم حذف أي سجل غير موجود في الملف. هل تريد المتابعة؟')) return;
+
+  let imported = 0;
+  try {
+    // Sequential awaited writes prevent the UI from reporting success while task writes are still pending.
+    for (const raw of data.tasks) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const task = normalizeTask(raw, false);
+      if (!task.title) continue;
+      await S.store.save('tasks', task);
+      imported++;
+    }
+    for (const key of collections) {
+      for (const raw of (data[key] || [])) {
+        await S.store.save(key, raw);
+        imported++;
+      }
+    }
+    if (data.settings && typeof data.settings === 'object') {
+      S.settings = mergeSettings(data.settings);
+      applySettings(false);
+      await S.store.save('settings', S.settings);
+    }
+    toast(t('import_ok', { n: imported }));
+    render();
+  } catch (err) {
+    toast(`تم استيراد ${imported} سجل قبل توقف العملية. لم يتم حذف البيانات الحالية. سبب التوقف: ${err.message || err}`);
   }
 }
 
