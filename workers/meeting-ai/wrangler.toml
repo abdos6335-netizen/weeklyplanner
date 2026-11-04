@@ -2,3 +2,6 @@ name = "weeklyplanner-meeting-ai"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
 workers_dev = true
+
+[secrets]
+required = ["GROQ_API_KEY", "ALLOWED_FIREBASE_UID"]
