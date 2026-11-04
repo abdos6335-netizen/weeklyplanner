@@ -50,6 +50,7 @@ function createLocalStore() {
     mode: 'local',
     onStatus(cb) { statusCbs.add(cb); cb({ state: 'local', message: 'البيانات محفوظة على هذا الجهاز فقط' }); return () => statusCbs.delete(cb); },
     get user() { return user; },
+    async getIdToken() { return null; },
     ready: Promise.resolve(),
     onAuth(cb) {
       authCbs.add(cb);
@@ -179,6 +180,7 @@ async function createCloudStore() {
     mode: 'cloud',
     onStatus(cb) { statusCbs.add(cb); cb(syncState); return () => statusCbs.delete(cb); },
     get user() { return user; },
+    async getIdToken() { if (!auth.currentUser) throw new Error('يجب تسجيل الدخول أولًا.'); return auth.currentUser.getIdToken(); },
     ready,
     onAuth(cb) {
       authCbs.add(cb);
