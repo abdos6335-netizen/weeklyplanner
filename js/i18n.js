@@ -1,8 +1,8 @@
 // الترجمة: عربي (افتراضي) وإنجليزي. أضف لغة جديدة بإضافة كائن جديد هنا.
 
 const ar = {
-  app: 'WeeklyPlanner',
-  tagline: 'مساحة عملك الأسبوعية، هادئة ومنظمة',
+  app: 'Freelance Manager',
+  tagline: 'إدارة شغلك الحر ومشروعات التصميم الداخلي من مكان واحد',
   signin_google: 'الدخول بحساب Google',
   start_local: 'ابدأ على هذا الجهاز',
   local_note: 'وضع تجريبي: البيانات محفوظة على هذا الجهاز فقط. اربط Firebase للمزامنة بين أجهزتك (الخطوات في README).',
@@ -146,8 +146,8 @@ const ar = {
 };
 
 const en = {
-  app: 'WeeklyPlanner',
-  tagline: 'Your weekly workspace, calm and organized',
+  app: 'Freelance Manager',
+  tagline: 'Your freelance work and interior design projects, organized in one place',
   signin_google: 'Sign in with Google',
   start_local: 'Start on this device',
   local_note: 'Trial mode: data stays on this device only. Connect Firebase to sync across devices (steps in README).',
