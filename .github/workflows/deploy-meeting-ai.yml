@@ -15,7 +15,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy workers/meeting-ai/src/index.js --name weeklyplanner-meeting-ai --compatibility-date 2026-10-01
+          command: deploy --config workers/meeting-ai/wrangler.toml
           secrets: |
             GROQ_API_KEY
             ALLOWED_FIREBASE_UID
