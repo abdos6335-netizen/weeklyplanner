@@ -15,23 +15,24 @@ function cors(origin) {
 }
 function json(data,status=200,origin=ALLOWED_ORIGIN){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json; charset=utf-8",...cors(origin)}});}
 function b64url(input){return Uint8Array.from(atob(input.replace(/-/g,"+").replace(/_/g,"/").padEnd(Math.ceil(input.length/4)*4,"=")),c=>c.charCodeAt(0));}
-let certCache=null,certExpiry=0;
+let jwkCache=null,jwkExpiry=0;
 async function verifyFirebaseToken(token){
   const parts=String(token||"").split(".");
   if(parts.length!==3)throw new Error("رمز تسجيل الدخول غير صالح.");
-  const header=JSON.parse(new TextDecoder().decode(b64url(parts[0])));
-  const claims=JSON.parse(new TextDecoder().decode(b64url(parts[1])));
+  const decode=s=>JSON.parse(new TextDecoder().decode(b64url(s)));
+  const header=decode(parts[0]),claims=decode(parts[1]);
   const now=Math.floor(Date.now()/1000);
   if(header.alg!=="RS256"||!header.kid)throw new Error("توقيع رمز الدخول غير مدعوم.");
   if(claims.aud!==PROJECT_ID||claims.iss!=="https://securetoken.google.com/"+PROJECT_ID||!claims.sub||claims.exp<=now||claims.iat>now+60)throw new Error("انتهت صلاحية الدخول أو أن الحساب غير معتمد.");
-  if(!certCache||Date.now()>certExpiry){
-    const r=await fetch("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com");
-    if(!r.ok)throw new Error("تعذر التحقق من جلسة Firebase.");
-    const jwks=await r.json();certCache=Object.fromEntries((jwks.keys||[]).map(k=>[k.kid,k]));certExpiry=Date.now()+3600000;
+  if(!jwkCache||Date.now()>jwkExpiry){
+    const response=await fetch("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com");
+    if(!response.ok)throw new Error("تعذر التحقق من جلسة Firebase.");
+    const payload=await response.json();jwkCache=payload.keys||[];jwkExpiry=Date.now()+3600000;
   }
-  const jwk=certCache[header.kid];if(!jwk)throw new Error("توقيع جلسة Firebase غير معروف.");
-  const publicKey=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
-  const valid=await crypto.subtle.verify("RSASSA-PKCS1-v1_5",publicKey,b64url(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]));
+  const jwk=jwkCache.find(k=>k.kid===header.kid&&k.kty==="RSA");
+  if(!jwk)throw new Error("مفتاح توقيع جلسة Firebase غير معروف.");
+  const key=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
+  const valid=await crypto.subtle.verify("RSASSA-PKCS1-v1_5",key,b64url(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]));
   if(!valid)throw new Error("جلسة الدخول غير موثوقة.");
   return claims;
 }
