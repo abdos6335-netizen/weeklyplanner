@@ -31,6 +31,7 @@ const S = {
   nativeMeetingRecording: false,
   nativeMeetingDraftId: null,
   nativeMeetingFileName: null,
+  autoProcessMeetingAfterSave: false,
   financeView: 'projects',
   expenseMonth: D.todayISO().slice(0,7),
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
@@ -700,11 +701,17 @@ async function handleVoiceCommand(c) {
      const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(x=>MediaRecorder.isTypeSupported(x));
      S.meetingMediaRecorder=new MediaRecorder(stream,mime?{mimeType:mime}:{});
      S.meetingMediaRecorder.ondataavailable=e=>{if(e.data?.size)S.meetingAudioChunks.push(e.data);};
-     S.meetingMediaRecorder.onstop=()=>{S.pendingMeetingAudio=new Blob(S.meetingAudioChunks,{type:S.meetingMediaRecorder?.mimeType||'audio/webm'});stream.getTracks().forEach(t=>t.stop());S.meetingMediaRecorder=null;S.meetingAudioChunks=[];const status=$('#meeting-audio-status');if(status)status.textContent='تم إنهاء التسجيل — سيُحفظ مع الاجتماع عند الضغط على حفظ الاجتماع.';toast('تم تجهيز التسجيل الصوتي للحفظ مع الاجتماع.');};
+     S.meetingMediaRecorder.onstop=()=>{S.pendingMeetingAudio=new Blob(S.meetingAudioChunks,{type:S.meetingMediaRecorder?.mimeType||'audio/webm'});stream.getTracks().forEach(t=>t.stop());S.meetingMediaRecorder=null;S.meetingAudioChunks=[];const status=$('#meeting-audio-status');if(status)status.textContent='تم إنهاء التسجيل — جارٍ حفظ الاجتماع والتجهيز للتفريغ.';autoSaveMeetingAfterRecording();};
      S.meetingMediaRecorder.start(1000);
      const status=$('#meeting-audio-status');if(status)status.textContent='● جارٍ تسجيل صوت الاجتماع.';
      const start=$('[data-action="meeting-audio-start"]'),stop=$('[data-action="meeting-audio-stop"]');if(start)start.disabled=true;if(stop)stop.disabled=false;
    }catch(e){console.error(e);toast('تعذر بدء التسجيل. تحقق من صلاحية الميكروفون.');}
+ }
+ function autoSaveMeetingAfterRecording(){
+   const form=$('form[data-action="save-meeting"]');if(!form)return;
+   const project=$('#meeting-project')?.value||'',newProject=$('#meeting-new-project')?.value.trim()||'';
+   if(!project&&!newProject){const status=$('#meeting-audio-status');if(status)status.textContent='تم حفظ التسجيل على الجهاز. اختر المشروع ثم اضغط «حفظ محضر الاجتماع» لإضافته إلى السجل.';toast('التسجيل محفوظ. اختر المشروع ثم احفظ الاجتماع لإرفاق التسجيل.');return;}
+   S.autoProcessMeetingAfterSave=true;const status=$('#meeting-audio-status');if(status)status.textContent='تم التسجيل. جارٍ حفظ الاجتماع ثم تفريغ الصوت وإنشاء MOM تلقائيًا…';form.requestSubmit();
  }
  function stopMeetingAudioCapture(){
    if(S.nativeMeetingRecording && window.WeeklyPlannerRecorder){window.WeeklyPlannerRecorder.postMessage(JSON.stringify({action:'stop'}));return;}
@@ -720,7 +727,7 @@ async function handleVoiceCommand(c) {
    }
    if(d.state==='recording'){if(status)status.textContent='● التسجيل الأصلي يعمل في الخلفية؛ يمكنك تصغير التطبيق.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=true;if(b)b.disabled=false;}
    else if(d.state==='paused'){if(status)status.textContent='التسجيل متوقف مؤقتًا من إشعار Android.';}
-   else if(d.state==='stopped'){S.nativeMeetingRecording=false;S.nativeMeetingFileName=d.fileName||null;if(status)status.textContent='انتهى التسجيل. احفظ الاجتماع لإرفاق اسم ملف الصوت به.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=false;if(b)b.disabled=true;}
+   else if(d.state==='stopped'){S.nativeMeetingRecording=false;S.nativeMeetingFileName=d.fileName||null;if(status)status.textContent='انتهى التسجيل — جارٍ حفظ الاجتماع والتجهيز للتفريغ.';const a=$('[data-action="meeting-audio-start"]'),b=$('[data-action="meeting-audio-stop"]');if(a)a.disabled=false;if(b)b.disabled=true;autoSaveMeetingAfterRecording();}
    else if(d.state==='error'){S.nativeMeetingRecording=false;if(status)status.textContent=d.message||'حدث خطأ في التسجيل';toast(d.message||'تعذر التسجيل.');}
  });
 
@@ -1409,9 +1416,14 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
       const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript,minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-language')?.value||'ar-EG').startsWith('en')?'en':'ar',audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
-      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;await S.store.save('meetings',{...meeting,hasAudio:true,updatedAt:Date.now()});} S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
+      let savedMeeting=meeting;
+      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;savedMeeting={...meeting,hasAudio:true,updatedAt:Date.now()};await S.store.save('meetings',savedMeeting);}
+      S.meetings=[...S.meetings.filter(m=>m.id!==savedMeeting.id),savedMeeting];
+      const autoProcess=S.autoProcessMeetingAfterSave;S.autoProcessMeetingAfterSave=false;
+      S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
+      if(autoProcess){try{await transcribeMeetingAudio(savedMeeting.id);await generateMeetingMinutes(savedMeeting.id);}catch(aiError){toast('تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إنشاء MOM: '+(aiError.message||aiError));}}
     }
     else if (a === 'save-personal-budget') { const amount=Number($('#personal-budget').value); if(amount<0||!Number.isFinite(amount)) throw new Error('أدخل ميزانية صحيحة'); const month=S.expenseMonth; await S.store.save('personalBudgets',{id:month,amount,updatedAt:Date.now()}); toast('تم حفظ الميزانية.'); }
     else if (a === 'add-personal-expense') { const x={id:uid(),amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast('تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
