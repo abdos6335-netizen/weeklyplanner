@@ -289,6 +289,8 @@ function renderTasks() {
   const row = (x, ctx = {}) => {
     const lateNow = !isDone(x) && x.date && x.date < today;
     const chips = [];
+    const linkedProject = S.projects.find((p) => p.id === x.projectId);
+    if (linkedProject) chips.push(`<span class="chip">${badge('projects',13)}${esc(linkedProject.name)}</span>`);
     if (x.priority === 3) chips.push(`<span class="chip p3">${icon('flag', 13)}${t('p_high')}</span>`);
     if (x.priority === 1) chips.push(`<span class="chip p1">${icon('flag', 13)}${t('p_low')}</span>`);
     if (x.status === 'doing') chips.push(`<span class="chip doing">${icon('play', 13)}${t('in_progress')}</span>`);
@@ -788,6 +790,12 @@ function openSheet(id, presetDate) {
       <input id="f-title" class="input" maxlength="300" placeholder="${esc(t('title_ph'))}" value="${esc(prev ? prev.title : '')}" autocomplete="off">
       <label class="lab" for="f-notes">${t('notes')}</label>
       <textarea id="f-notes" class="textarea" rows="3" maxlength="5000" placeholder="${esc(t('notes_ph'))}">${esc(prev ? prev.notes : '')}</textarea>
+      <label class="lab" for="f-project">${t('task_project')}</label>
+      <select id="f-project" class="input">
+        <option value="">${t('no_project')}</option>
+        ${prev?.projectId && !S.projects.some((p) => p.id === prev.projectId) ? `<option value="${esc(prev.projectId)}" selected>${t('project_deleted')}</option>` : ''}
+        ${S.projects.map((p) => `<option value="${esc(p.id)}" ${prev?.projectId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+      </select>
       <label class="lab" for="f-date">${t('date')}</label>
       <div class="datefield">
         <input id="f-date" type="date" class="input" value="${date || ''}">
@@ -831,6 +839,7 @@ function saveSheet() {
     id: prev ? prev.id : uid(),
     title,
     notes: $('#f-notes').value.trim(),
+    projectId: $('#f-project')?.value || null,
     date,
     weekRef: date || (prev && prev.weekRef) || S.week,
     priority: Number(segValue('priority')) || 2,
