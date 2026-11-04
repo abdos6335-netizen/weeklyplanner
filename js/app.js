@@ -735,7 +735,7 @@ function renderMeetings() {
   const categoryLabel=(value)=>categories.find(x=>x[0]===value)?.[1]||value||'General Meeting';
   const currentUser=S.user?.displayName||S.user?.name||S.user?.email||'اسم المستخدم غير متاح';
   return `
-    <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">Firebase UID لهذا الحساب: <code>${esc(S.user?.uid||"غير متاح")}</code>. انسخه إلى سر ALLOWED_FIREBASE_UID على Cloudflare. مفتاح Groq لا يُحفظ في التطبيق.</p></div><span class="chip">${rows.length} Meetings</span></div>
+    <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">Firebase UID لهذا الحساب: <code>${esc(S.user?.uid||"غير متاح")}</code> <button class="btn sm" type="button" data-action="meeting-copy-uid">نسخ UID</button>. انسخه إلى سر ALLOWED_FIREBASE_UID. عند التفريغ يُرسل الصوت إلى Groq عبر الخادم.</p></div><span class="chip">${rows.length} Meetings</span></div>
     <section class="card glass">
       <div class="dhead"><div><h2>تسجيل اجتماع جديد</h2><p class="muted small">اربط الاجتماع بالمشروع وحدد موضوعه، ثم أضف النص والمحضر قبل الحفظ.</p></div></div>
       <form data-action="save-meeting" class="entry-form">
@@ -1273,6 +1273,7 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
+    case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
     case 'meeting-ai-endpoint-save': { let value=$('#meeting-ai-endpoint')?.value.trim()||'';while(value.endsWith('/'))value=value.slice(0,-1); if(!value.startsWith('https://')){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }
     case 'meeting-ai-transcribe': try{await transcribeMeetingAudio(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر تفريغ التسجيل.');} break;
     case 'meeting-ai-minutes': try{await generateMeetingMinutes(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر إنشاء المحضر.');} break;
