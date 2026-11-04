@@ -410,3 +410,32 @@ button, .btn, .tab, .nav-item { max-width: 100%; }
   .topbar { min-width: 0; gap: .5rem; }
   .topbar h1 { min-width: 0; overflow-wrap: anywhere; }
 }
+
+/* P2: management dashboard */
+.dashboard-intro{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:.35rem 0 1rem}
+.dashboard-intro h2{font-size:1.25rem;margin:0 0 .25rem}
+.dashboard-intro p{margin:0}
+.dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;margin-bottom:.8rem}
+.dashboard-stat{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.35rem .65rem;text-align:start;cursor:pointer;color:var(--text)}
+.dashboard-stat-icon{grid-row:span 2}
+.dashboard-stat-label{color:var(--text-2);font-size:.82rem}
+.dashboard-stat strong{grid-column:2;font-size:1.25rem;overflow-wrap:anywhere}
+.dashboard-stat small{grid-column:2;color:var(--text-2);font-size:.72rem}
+.dashboard-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.dashboard-panel{min-width:0}
+.dashboard-panel h2{font-size:1rem;margin:0}
+.dashboard-row{display:flex;align-items:center;gap:.7rem;padding:.65rem 0;border-bottom:1px solid var(--btn-ring);min-width:0}
+.dashboard-row:last-child{border-bottom:0}
+.dashboard-row>div{display:grid;gap:.15rem;min-width:0;flex:1}
+.dashboard-row b{font-size:.88rem;overflow-wrap:anywhere}
+.dashboard-row small{color:var(--text-2);font-size:.76rem}
+.dashboard-row>strong{font-size:.78rem;white-space:nowrap}
+.dashboard-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:var(--accent)}
+.dashboard-dot.high{background:#b5473c}.dashboard-dot.late{background:#c58a1a}
+.dashboard-link{width:100%;border:0;background:transparent;color:inherit;text-align:start;cursor:pointer;font:inherit}
+.dashboard-finance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
+.dashboard-finance>div{display:grid;gap:.3rem;min-width:0}
+.dashboard-finance small{color:var(--text-2);font-size:.75rem}
+.dashboard-finance b{font-size:.9rem;overflow-wrap:anywhere}
+@media(max-width:850px){.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.dashboard-columns{grid-template-columns:minmax(0,1fr)}.dashboard-intro{align-items:flex-start}.dashboard-finance{grid-template-columns:1fr 1fr}.dashboard-stat{padding:.75rem}}
