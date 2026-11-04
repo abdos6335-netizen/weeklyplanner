@@ -1,7 +1,7 @@
 name: weeklyplanner_mobile
-description: WeeklyPlanner Android app with native meeting recording
+description: Freelance Manager Android app with native meeting recording
 publish_to: "none"
-version: 1.1.0+2
+version: 1.2.0+3
 environment:
   sdk: ">=3.4.0 <4.0.0"
 dependencies:
