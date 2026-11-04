@@ -648,7 +648,7 @@ async function handleVoiceCommand(c) {
    const validCategories=['design','shop-drawings','site','materials','client-review','general'];
    const projectMatch=S.projects.find(p=>p.name.trim().toLocaleLowerCase()===String(report.projectName||'').trim().toLocaleLowerCase());
    const confidence=Number(report.confidence)||0;
-   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[] ,updatedAt:Date.now()};
+   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId)||!!(meeting.projectId&&report.projectName&&!projectMatch),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[],participants:Array.isArray(report.attendees)?report.attendees.map(x=>String(x).slice(0,100)).slice(0,12).join('، '):meeting.participants,updatedAt:Date.now()};
    if(projectMatch&&!meeting.projectId)updated.projectId=projectMatch.id;
    if(report.clientName&&confidence>=0.75&&!meeting.client){updated.client=String(report.clientName).slice(0,120);updated.secondParty=updated.client;}
    await S.store.save('meetings',updated);
@@ -799,6 +799,7 @@ function renderMeetings() {
           ${m.decisions? `<div><b>Agreements & Decisions</b><p>${esc(m.decisions).replace(/\n/g,'<br>')}</p></div>`:''}
           ${m.aiReviewRequired?'<p class="chip late">يحتاج مراجعة بيانات المشروع أو العميل قبل الاعتماد</p>':''}
           <details><summary>مراجعة وتعديل المحضر والنص</summary>
+            ${m.aiReviewNotes?.length?`<p class="muted small">ملاحظات المراجعة: ${esc(m.aiReviewNotes.join(" · "))}</p>`:""}
             <form data-action="update-meeting" data-id="${esc(m.id)}" class="entry-form">
               <label class="lab">عنوان الاجتماع</label><input class="input" name="title" value="${esc(m.title||'')}">
               <label class="lab">اسم العميل / الطرف الثاني</label><input class="input" name="client" value="${esc(m.client||m.secondParty||'')}">
