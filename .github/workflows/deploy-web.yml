@@ -28,7 +28,7 @@ jobs:
 
       - name: Validate web JavaScript
         run: |
-          for f in js/*.js sw.js; do
+          for f in js/*.js sw.js workers/meeting-ai/src/index.js; do
             node --input-type=module --check < "$f" || exit 1
           done
 
