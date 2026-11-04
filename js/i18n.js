@@ -1,8 +1,8 @@
 // الترجمة: عربي (افتراضي) وإنجليزي. أضف لغة جديدة بإضافة كائن جديد هنا.
 
 const ar = {
-  app: 'WeeklyPlanner',
-  tagline: 'مساحة عملك الأسبوعية، هادئة ومنظمة',
+  app: 'Freelance Manager',
+  tagline: 'إدارة شغلك الحر ومشروعات التصميم الداخلي من مكان واحد',
   signin_google: 'الدخول بحساب Google',
   start_local: 'ابدأ على هذا الجهاز',
   local_note: 'وضع تجريبي: البيانات محفوظة على هذا الجهاز فقط. اربط Firebase للمزامنة بين أجهزتك (الخطوات في README).',
@@ -13,6 +13,7 @@ const ar = {
   loading: 'جارٍ التحميل…',
   voice_entry: 'إدخال صوتي', voice_help: 'تحدث بالعربية، راجع النص والبيانات المستخرجة قبل الحفظ. قد يختلف دعم الصوت حسب المتصفح.', start_recording: 'ابدأ التسجيل', voice_ready: 'جاهز للتسجيل', transcript: 'النص الذي تم فهمه', voice_placeholder: 'يمكنك الكتابة هنا أيضًا…', save_as: 'احفظ الكلام كـ', voice_task: 'مهمة', voice_finance: 'حركة مالية', review_save: 'مراجعة وحفظ', voice_unsupported: 'المتصفح لا يدعم التعرف الصوتي. جرّب Chrome مع السماح بالميكروفون.', voice_listening: 'أستمع إليك الآن…', voice_error: 'تعذر استخدام الميكروفون. راجع إذن الميكروفون والاتصال.', voice_done: 'انتهى التسجيل؛ راجع النص قبل الحفظ.', voice_empty: 'سجّل أو اكتب الكلام أولًا.', voice_finance_required: 'اختر المشروع وتأكد من إدخال مبلغ صحيح.', print_project: 'طباعة التقرير', project_status_report: 'موقف المشروع والتسليمات', finance_report: 'الملخص المالي', print_choose: 'اختر نوع التقرير الذي تريد طباعته.', print_popup_blocked: 'اسمح بالنوافذ المنبثقة لهذا الموقع حتى تتم الطباعة.' ,
 
+  manager_insights: 'ملاحظات المدير', manager_insights_intro: 'اقتراحات متابعة مبنية على بيانات مشروعاتك ومواعيدك الحالية', manager_no_insights: 'لا توجد تنبيهات أو اقتراحات عاجلة حاليًا.', priority_queue: 'أولوية التنفيذ المقترحة', priority_queue_empty: 'لا توجد مهام مفتوحة في قائمة الأولويات.', insight_overdue_tasks: 'ابدأ بالمهام المتأخرة', insight_overdue_tasks_detail: 'لديك {count} مهام متأخرة؛ راجع مواعيدها وحدد ما يجب إنجازه أولًا.', insight_overdue_deliverables: 'تابع التسليمات المتأخرة', insight_overdue_deliverables_detail: 'هناك {count} تسليمات تجاوزت موعدها ولم تحصل على اعتماد.', insight_collections: 'راجع المستحقات المالية', insight_collections_detail: 'المتبقي للتحصيل من التعاقدات الحالية {amount} ج.م؛ راجع مواعيد الدفعات مع العملاء.', insight_unplanned_projects: 'حدد تسليمات المشروعات النشطة', insight_unplanned_projects_detail: 'هناك {count} مشروعات نشطة دون تسليمات مسجلة؛ أضف مراحل العمل والمواعيد.', insight_clear_day: 'استغل وقت اليوم في التخطيط', insight_clear_day_detail: 'لا توجد مهام مستحقة أو متأخرة؛ راجع تقدم المشروعات وخطط للأسبوع.',
   nav_dashboard: 'لوحة التحكم',
   dashboard_title: 'نظرة عامة على العمل', dashboard_subtitle: 'ملخص اليوم ومتابعة ما يحتاج إلى انتباه', active_projects: 'المشروعات النشطة', late_tasks: 'المهام المتأخرة', today_tasks: 'مهام اليوم', outstanding: 'مستحقات التحصيل', dashboard_open_projects: 'مشروعات قيد التنفيذ', dashboard_needs_attention: 'تحتاج إلى متابعة', dashboard_due_today: 'مطلوب إنجازها اليوم', dashboard_not_profit: 'المستحق للتحصيل ليس ربحًا محصلًا', all_tasks: 'كل المهام', dashboard_no_today_tasks: 'لا توجد مهام مطلوبة اليوم.', dashboard_no_late_tasks: 'لا توجد مهام متأخرة.', dashboard_no_active_projects: 'لا توجد مشروعات نشطة حاليًا.', dashboard_no_overdue_deliverables: 'لا توجد تسليمات متأخرة.', recent_meetings: 'أحدث الاجتماعات', dashboard_no_meetings: 'لا توجد اجتماعات مسجلة.', finance_overview: 'ملخص التدفقات المالية',
   task_project: 'المشروع المرتبط', no_project: 'بدون مشروع',
@@ -145,8 +146,8 @@ const ar = {
 };
 
 const en = {
-  app: 'WeeklyPlanner',
-  tagline: 'Your weekly workspace, calm and organized',
+  app: 'Freelance Manager',
+  tagline: 'Your freelance work and interior design projects, organized in one place',
   signin_google: 'Sign in with Google',
   start_local: 'Start on this device',
   local_note: 'Trial mode: data stays on this device only. Connect Firebase to sync across devices (steps in README).',
@@ -157,6 +158,7 @@ const en = {
   loading: 'Loading…',
   voice_entry: 'Voice entry', voice_help: 'Speak, then review the transcript and extracted fields before saving. Speech support depends on your browser.', start_recording: 'Start recording', voice_ready: 'Ready to record', transcript: 'Recognized text', voice_placeholder: 'You can type here too…', save_as: 'Save speech as', voice_task: 'Task', voice_finance: 'Financial entry', review_save: 'Review and save', voice_unsupported: 'Speech recognition is not supported here. Try Chrome and allow microphone access.', voice_listening: 'Listening…', voice_error: 'Microphone unavailable. Check permissions and connection.', voice_done: 'Recording ended; review the text before saving.', voice_empty: 'Record or type something first.', voice_finance_required: 'Choose a project and enter a valid amount.', print_project: 'Print report', project_status_report: 'Project and deliverables status', finance_report: 'Financial summary', print_choose: 'Choose which report you want to print.', print_popup_blocked: 'Allow pop-ups for this site to print the report.',
 
+  manager_insights: 'Manager insights', manager_insights_intro: 'Follow-up suggestions based on your current projects and dates', manager_no_insights: 'No urgent alerts or suggestions right now.', priority_queue: 'Suggested work priorities', priority_queue_empty: 'There are no open tasks in the priority queue.', insight_overdue_tasks: 'Start with overdue tasks', insight_overdue_tasks_detail: 'You have {count} overdue tasks; review their dates and decide what comes first.', insight_overdue_deliverables: 'Follow up on overdue deliverables', insight_overdue_deliverables_detail: '{count} deliverables are past due and still awaiting approval.', insight_collections: 'Review outstanding collections', insight_collections_detail: '{amount} EGP remains to be collected from current contracts; review payment dates with clients.', insight_unplanned_projects: 'Define deliverables for active projects', insight_unplanned_projects_detail: '{count} active projects have no recorded deliverables; add work stages and due dates.', insight_clear_day: 'Use today for planning', insight_clear_day_detail: 'No tasks are due or overdue; review project progress and plan the week.',
   nav_dashboard: 'Dashboard',
   dashboard_title: 'Work overview', dashboard_subtitle: 'Today’s summary and items that need attention', active_projects: 'Active projects', late_tasks: 'Overdue tasks', today_tasks: 'Today’s tasks', outstanding: 'Outstanding collections', dashboard_open_projects: 'Projects in progress', dashboard_needs_attention: 'Needs follow-up', dashboard_due_today: 'Due to be completed today', dashboard_not_profit: 'Outstanding collections are not collected profit', all_tasks: 'All tasks', dashboard_no_today_tasks: 'No tasks due today.', dashboard_no_late_tasks: 'No overdue tasks.', dashboard_no_active_projects: 'No active projects right now.', dashboard_no_overdue_deliverables: 'No overdue deliverables.', recent_meetings: 'Recent meetings', dashboard_no_meetings: 'No meetings recorded.', finance_overview: 'Cash-flow overview',
   task_project: 'Linked project', no_project: 'No project',
