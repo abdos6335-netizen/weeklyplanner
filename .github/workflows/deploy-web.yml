@@ -1,5 +1,7 @@
 name: Deploy Freelance Manager Web
 
+# Deployment is triggered by every push to main.
+
 on:
   push:
     branches: [main]
