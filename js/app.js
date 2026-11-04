@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.7';
-const BUILD_ID = '3.1.7';
+const VERSION = '3.1.8';
+const BUILD_ID = '3.1.8';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -608,6 +608,52 @@ async function handleVoiceCommand(c) {
      setTimeout(()=>{const p=nativeAudioRequests.get(requestId);if(p){nativeAudioRequests.delete(requestId);p.reject(new Error('انتهت مهلة الوصول إلى ملف التسجيل.'));}},20000);
    });
  }
+ async function getMeetingAudioBlob(meeting){
+   if(meeting?.audioFileName && window.WeeklyPlannerNative){
+     const result=await requestNativeAudio('read',meeting.audioFileName);
+     const raw=atob(result.base64),bytes=new Uint8Array(raw.length);
+     for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+     return new Blob([bytes],{type:'audio/mp4'});
+   }
+   const db=await meetingAudioDb();
+   try{return await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(meeting.id);req.onsuccess=()=>resolve(req.result?.blob||null);req.onerror=()=>reject(req.error);});}
+   finally{db.close();}
+ }
+ async function meetingAiRequest(path,body,isForm=false){
+   const endpoint=(localStorage.getItem('wp1:meeting-ai-endpoint')||'').replace(/\\/+$/,'');
+   if(!endpoint)throw new Error('احفظ رابط خدمة الذكاء الاصطناعي أولًا في أعلى صفحة الاجتماعات.');
+   if(!S.store?.getIdToken)throw new Error('تسجيل الدخول السحابي مطلوب لاستخدام الذكاء الاصطناعي.');
+   const token=await S.store.getIdToken();
+   const response=await fetch(endpoint+path,{method:'POST',headers:{Authorization:'Bearer '+token,...(isForm?{}:{'Content-Type':'application/json'})},body:isForm?body:JSON.stringify(body)});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'فشلت خدمة الذكاء الاصطناعي (HTTP '+response.status+').');
+   return data;
+ }
+ async function transcribeMeetingAudio(meetingId){
+   const meeting=S.meetings.find(m=>m.id===meetingId);if(!meeting)throw new Error('الاجتماع غير موجود.');
+   const blob=await getMeetingAudioBlob(meeting);if(!blob)throw new Error('التسجيل غير موجود على هذا الجهاز. افتح التطبيق على الجهاز الذي تم عليه التسجيل.');
+   if(blob.size>24*1024*1024)throw new Error('حجم التسجيل أكبر من 24 ميجابايت. قسّم التسجيل إلى أجزاء أقصر ثم أعد المحاولة.');
+   const form=new FormData();form.append('audio',blob,meeting.audioFileName||('meeting-'+meeting.id+(blob.type.includes('mp4')?'.m4a':'.webm')));form.append('language',meeting.language||'ar');
+   toast('جارٍ إرسال التسجيل للتفريغ الصوتي…');
+   const result=await meetingAiRequest('/transcribe',form,true);
+   const transcript=String(result.text||'').trim();if(!transcript)throw new Error('لم يُرجع التفريغ أي نص واضح.');
+   await S.store.save('meetings',{...meeting,transcript,transcriptionModel:result.model||'whisper-large-v3-turbo',transcribedAt:Date.now(),updatedAt:Date.now()});
+   toast('تم تفريغ التسجيل وحفظ النص. راجعه ثم أنشئ محضر الاجتماع.');render();
+ }
+ async function generateMeetingMinutes(meetingId){
+   const meeting=S.meetings.find(m=>m.id===meetingId);if(!meeting)throw new Error('الاجتماع غير موجود.');
+   if(!meeting.transcript?.trim())throw new Error('لا يوجد نص للاجتماع. فرّغ التسجيل أولًا أو أضف النص يدويًا.');
+   const result=await meetingAiRequest('/minutes',{transcript:meeting.transcript,projects:S.projects.map(p=>({id:p.id,name:p.name,client:p.client||''})),currentProjectId:meeting.projectId||null,existingClient:meeting.client||'',language:'ar'});
+   const report=result.minutes||{};
+   const validCategories=['design','shop-drawings','site','materials','client-review','general'];
+   const projectMatch=S.projects.find(p=>p.name.trim().toLocaleLowerCase()===String(report.projectName||'').trim().toLocaleLowerCase());
+   const confidence=Number(report.confidence)||0;
+   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[] ,updatedAt:Date.now()};
+   if(projectMatch&&!meeting.projectId)updated.projectId=projectMatch.id;
+   if(report.clientName&&confidence>=0.75&&!meeting.client){updated.client=String(report.clientName).slice(0,120);updated.secondParty=updated.client;}
+   await S.store.save('meetings',updated);
+   toast(updated.aiReviewRequired?'تم إنشاء المحضر. راجع بيانات المشروع والعميل قبل الاعتماد.':'تم إنشاء المحضر وحفظه — راجعه قبل الطباعة.');render();
+ }
  async function openMeetingAudio(meetingId, download=false){
    const meeting=S.meetings.find(m=>m.id===meetingId);
    const player=download?null:window.open('','_blank');
@@ -689,7 +735,7 @@ function renderMeetings() {
   const categoryLabel=(value)=>categories.find(x=>x[0]===value)?.[1]||value||'General Meeting';
   const currentUser=S.user?.displayName||S.user?.name||S.user?.email||'اسم المستخدم غير متاح';
   return `
-    <div class="page-tools"><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><span class="chip">${rows.length} Meetings</span></div>
+    <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">يُضبط مرة واحدة بعد نشر خدمة المعالجة. مفتاح Groq يبقى على الخادم ولا يُحفظ هنا.</p></div><span class="chip">${rows.length} Meetings</span></div>
     <section class="card glass">
       <div class="dhead"><div><h2>تسجيل اجتماع جديد</h2><p class="muted small">اربط الاجتماع بالمشروع وحدد موضوعه، ثم أضف النص والمحضر قبل الحفظ.</p></div></div>
       <form data-action="save-meeting" class="entry-form">
@@ -741,6 +787,8 @@ function renderMeetings() {
               <div class="chips"><span class="chip">${esc(cat)}</span><span class="chip">${esc(m.client||m.secondParty||p?.client||'العميل غير محدد')}</span></div>
             </div>
             <div class="meeting-record-row">
+              ${m.audioFileName||m.hasAudio?`<button class="btn sm" data-action="meeting-ai-transcribe" data-id="${esc(m.id)}">تفريغ التسجيل</button>`:''}
+              ${m.transcript?`<button class="btn sm primary" data-action="meeting-ai-minutes" data-id="${esc(m.id)}">إنشاء MOM بالذكاء الاصطناعي</button>`:''}
               <button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button>
               <button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button>
               <button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button>
@@ -1213,6 +1261,9 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
+    case 'meeting-ai-endpoint-save': { const value=$('#meeting-ai-endpoint')?.value.trim().replace(/\\/+$/,''); if(!value||!/^https:\\/\\//i.test(value)){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }
+    case 'meeting-ai-transcribe': try{await transcribeMeetingAudio(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر تفريغ التسجيل.');} break;
+    case 'meeting-ai-minutes': try{await generateMeetingMinutes(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر إنشاء المحضر.');} break;
     case 'meeting-audio-start': await startMeetingAudioCapture(); break;
     case 'meeting-audio-stop': stopMeetingAudioCapture(); break;
     case 'meeting-audio-play': try{await openMeetingAudio(el.dataset.id,false);}catch(err){console.error(err);toast(err.message||'تعذر تشغيل التسجيل.');} break;
@@ -1333,9 +1384,9 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const date=$('#meeting-date').value||D.todayISO();
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
-      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript,minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),audioFileName:S.nativeMeetingFileName||null,createdAt:Date.now(),updatedAt:Date.now()};
+      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript,minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-language')?.value||'ar-EG').startsWith('en')?'en':'ar',audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
-      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;} S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
+      if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;await S.store.save('meetings',{...meeting,hasAudio:true,updatedAt:Date.now()});} S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
     }
