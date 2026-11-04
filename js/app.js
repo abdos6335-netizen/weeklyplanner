@@ -9,7 +9,7 @@ import {
 } from './theme.js';
 
 const VERSION = '3.0.0';
-const BUILD_ID = '3.1.4';
+const BUILD_ID = '3.1.5';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -383,6 +383,17 @@ function renderDashboard() {
     return sum + Math.max(0, Number(p.contractValue || 0) - collected);
   }, 0);
   const meetings = [...S.meetings].sort((x,y) => (y.date || '').localeCompare(x.date || '')).slice(0,4);
+  const insights = [];
+  if (lateTasks.length) insights.push({title:t('insight_overdue_tasks'),detail:t('insight_overdue_tasks_detail',{count:lateTasks.length})});
+  if (overdueDeliverables.length) insights.push({title:t('insight_overdue_deliverables'),detail:t('insight_overdue_deliverables_detail',{count:overdueDeliverables.length})});
+  if (outstanding > 0) insights.push({title:t('insight_collections'),detail:t('insight_collections_detail',{amount:money(outstanding)})});
+  const projectsWithoutDeliverables = activeProjects.filter((p) => !S.deliverables.some((x) => x.projectId === p.id));
+  if (projectsWithoutDeliverables.length) insights.push({title:t('insight_unplanned_projects'),detail:t('insight_unplanned_projects_detail',{count:projectsWithoutDeliverables.length})});
+  if (!todayTasks.length && !lateTasks.length) insights.push({title:t('insight_clear_day'),detail:t('insight_clear_day_detail')});
+  const priorityQueue = S.tasks.filter((x) => x.status !== 'done').sort((x,y) => {
+    const overdueX = x.date && x.date < today ? 1 : 0, overdueY = y.date && y.date < today ? 1 : 0;
+    return overdueY-overdueX || y.priority-x.priority || (x.date||'9999-12-31').localeCompare(y.date||'9999-12-31');
+  }).slice(0,5);
   const card = (label,value,detail,section,iconName) => `
     <button class="card glass dashboard-stat" data-action="nav" data-section="${section}">
       <span class="dashboard-stat-icon">${badge(iconName,20)}</span>
@@ -401,6 +412,14 @@ function renderDashboard() {
       ${card(t('today_tasks'),money(todayTasks.length),t('dashboard_due_today'),'tasks','calendar')}
       ${card(t('outstanding'),money(outstanding)+' '+t('currency'),t('dashboard_not_profit'),'finance','wallet')}
     </div>
+    <section class="card glass dashboard-panel manager-insights">
+      <div class="dhead"><div><h2>${t('manager_insights')}</h2><p class="muted small">${t('manager_insights_intro')}</p></div><span class="chip">${insights.length}</span></div>
+      ${insights.length ? insights.slice(0,4).map((x) => `<div class="manager-insight-row"><span class="dashboard-dot late"></span><div><b>${esc(x.title)}</b><small>${esc(x.detail)}</small></div></div>`).join('') : `<p class="muted">${t('manager_no_insights')}</p>`}
+    </section>
+    <section class="card glass dashboard-panel">
+      <div class="dhead"><h2>${t('priority_queue')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
+      ${priorityQueue.length ? priorityQueue.map((x) => `<div class="dashboard-row"><span class="dashboard-dot ${x.date&&x.date<today?'late':x.priority===3?'high':''}"></span><div><b>${esc(x.title)}</b><small>${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${x.date?esc(x.date):t('no_date')}</small></div></div>`).join('') : `<p class="muted">${t('priority_queue_empty')}</p>`}
+    </section>
     <div class="dashboard-columns">
       <section class="card glass dashboard-panel">
         <div class="dhead"><h2>${t('today_tasks')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
