@@ -620,7 +620,7 @@ async function handleVoiceCommand(c) {
    finally{db.close();}
  }
  async function meetingAiRequest(path,body,isForm=false){
-   const endpoint=(localStorage.getItem('wp1:meeting-ai-endpoint')||'').replace(/\\/+$/,'');
+   let endpoint=localStorage.getItem('wp1:meeting-ai-endpoint')||'';while(endpoint.endsWith('/'))endpoint=endpoint.slice(0,-1);
    if(!endpoint)throw new Error('احفظ رابط خدمة الذكاء الاصطناعي أولًا في أعلى صفحة الاجتماعات.');
    if(!S.store?.getIdToken)throw new Error('تسجيل الدخول السحابي مطلوب لاستخدام الذكاء الاصطناعي.');
    const token=await S.store.getIdToken();
@@ -1273,7 +1273,7 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
-    case 'meeting-ai-endpoint-save': { const value=$('#meeting-ai-endpoint')?.value.trim().replace(/\\/+$/,''); if(!value||!/^https:\\/\\//i.test(value)){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }
+    case 'meeting-ai-endpoint-save': { let value=$('#meeting-ai-endpoint')?.value.trim()||'';while(value.endsWith('/'))value=value.slice(0,-1); if(!value.startsWith('https://')){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }
     case 'meeting-ai-transcribe': try{await transcribeMeetingAudio(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر تفريغ التسجيل.');} break;
     case 'meeting-ai-minutes': try{await generateMeetingMinutes(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر إنشاء المحضر.');} break;
     case 'meeting-audio-start': await startMeetingAudioCapture(); break;
