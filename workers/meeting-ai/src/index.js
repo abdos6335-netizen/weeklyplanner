@@ -37,9 +37,12 @@ async function verifyFirebaseToken(token){
 }
 async function authorize(request,env){
   if(!env.GROQ_API_KEY)throw new Error("لم يتم ضبط مفتاح Groq على الخادم.");
+  if(!env.ALLOWED_FIREBASE_UID)throw new Error("لم يتم ضبط Firebase UID المسموح به على الخادم.");
   const auth=request.headers.get("Authorization")||"";
   if(!auth.startsWith("Bearer "))throw new Error("سجّل الدخول إلى التطبيق أولًا.");
-  return verifyFirebaseToken(auth.slice(7));
+  const claims=await verifyFirebaseToken(auth.slice(7));
+  if(claims.sub!==env.ALLOWED_FIREBASE_UID)throw new Error("هذا الحساب غير مصرح له باستخدام خدمة المحاضر.");
+  return claims;
 }
 async function groq(path,options,env){
   const response=await fetch(GROQ_BASE+path,{...options,headers:{Authorization:"Bearer "+env.GROQ_API_KEY,...(options.headers||{})}});
