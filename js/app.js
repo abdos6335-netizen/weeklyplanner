@@ -680,36 +680,77 @@ async function handleVoiceCommand(c) {
 
 
 function renderMeetings() {
-  if(S.activeMeetingProjectId) {
-    const p=S.projects.find(x=>x.id===S.activeMeetingProjectId);
-    if(!p){S.activeMeetingProjectId=null;return renderMeetings();}
-    const rows=S.meetings.filter(m=>m.projectId===p.id).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
-    return `<div class="page-tools"><button class="btn sm" data-action="meeting-back">← كل المشاريع</button><span class="chip">${rows.length} Meetings</span></div>
-      <section class="card glass"><h2>${esc(p.name)}</h2><p class="muted">${esc(p.client||'')}</p></section>
-      ${rows.map(m=>`<section class="card glass meeting-card"><div class="dhead"><div><h2>Meeting ${String(m.sequence||0).padStart(2,'0')} · ${esc(m.title||'')}</h2><p class="muted">${esc(m.date)} ${esc(m.time||'')} · ${m.mode==='online'?'Online':'Offline'}</p></div><button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button><button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button><button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button><button class="btn sm danger" data-action="meeting-audio-delete" data-id="${esc(m.id)}">حذف التسجيل</button></div><p>${esc(m.minutes||m.transcript||'لا يوجد ملخص بعد')}</p></section>`).join('')||'<p class="muted">لا توجد اجتماعات مسجلة لهذا المشروع.</p>'}`;
-  }
   const projects=[...S.projects].sort((a,b)=>a.name.localeCompare(b.name));
-  return `<div class="page-tools"><p class="muted">سجل اجتماعات العملاء ومحاضر الاجتماعات، مرتب حسب المشروع.</p></div>
-    <section class="card glass"><h2>تسجيل اجتماع جديد</h2>
+  const rows=[...S.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||0)-(a.createdAt||0));
+  const categories=[
+    ['design','Design / 3D Design'],['shop-drawings','Shop Drawings'],['site','Site Execution'],
+    ['materials','Colors & Materials'],['client-review','Client Review / Approval'],['general','General Meeting']
+  ];
+  const categoryLabel=(value)=>categories.find(x=>x[0]===value)?.[1]||value||'General Meeting';
+  const currentUser=S.user?.displayName||S.user?.name||S.user?.email||'اسم المستخدم غير متاح';
+  return `
+    <div class="page-tools"><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><span class="chip">${rows.length} Meetings</span></div>
+    <section class="card glass">
+      <div class="dhead"><div><h2>تسجيل اجتماع جديد</h2><p class="muted small">اربط الاجتماع بالمشروع وحدد موضوعه، ثم أضف النص والمحضر قبل الحفظ.</p></div></div>
       <form data-action="save-meeting" class="entry-form">
-        <div class="form-grid"><div><label class="lab" for="meeting-project">المشروع القائم</label><select class="input" id="meeting-project"><option value="">اختر مشروعًا أو أنشئ مشروعًا جديدًا بالأسفل</option>${projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>
-        <div><label class="lab" for="meeting-new-project">أو اسم مشروع جديد</label><input class="input" id="meeting-new-project" placeholder="اسم المشروع الجديد"></div>
-        <div><label class="lab" for="meeting-client">اسم العميل</label><input class="input" id="meeting-client"></div>
-        <div><label class="lab" for="meeting-date">التاريخ</label><input class="input" id="meeting-date" type="date" value="${D.todayISO()}" required></div>
-        <div><label class="lab" for="meeting-time">الوقت</label><input class="input" id="meeting-time" type="time"></div>
-        <div><label class="lab" for="meeting-mode">نوع الاجتماع</label><select class="input" id="meeting-mode"><option value="online">Online</option><option value="offline">Offline</option></select></div></div>
-        <label class="lab" for="meeting-title">عنوان الاجتماع</label><input class="input" id="meeting-title" placeholder="موضوع الاجتماع">
-        <label class="lab" for="meeting-participants">الحضور</label><input class="input" id="meeting-participants">
-        <div class="meeting-record-row"><button class="btn primary" type="button" data-action="meeting-audio-start">● بدء تسجيل الاجتماع كاملًا</button><button class="btn" type="button" data-action="meeting-audio-stop" disabled>إيقاف التسجيل</button><span id="meeting-audio-status" class="muted small">يُحفظ الصوت محليًا على هذا الجهاز مع بيانات الاجتماع.</span></div><div class="meeting-record-row"><select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><button class="btn" type="button" data-action="meeting-record">إملاء صوتي للنص</button><button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button></div>
-        <label class="lab" for="meeting-transcript">نص التسجيل / الملاحظات</label><textarea class="input textarea" id="meeting-transcript" rows="5" placeholder="يمكنك الإملاء أو كتابة النقاط هنا"></textarea>
-        <label class="lab" for="meeting-minutes">Minutes of Meeting</label><textarea class="input textarea" id="meeting-minutes" rows="5" placeholder="الملخص والاتفاقات وطلبات العميل"></textarea>
-        <label class="lab" for="meeting-decisions">القرارات</label><textarea class="input textarea" id="meeting-decisions" rows="3"></textarea>
-        <label class="lab" for="meeting-actions">المهام والمسؤوليات والمواعيد</label><textarea class="input textarea" id="meeting-actions" rows="3"></textarea>
-        <button class="btn primary" type="submit">حفظ الاجتماع</button>
+        <div class="form-grid">
+          <div><label class="lab" for="meeting-project">المشروع</label><select class="input" id="meeting-project"><option value="">اختر المشروع</option>${projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>
+          <div><label class="lab" for="meeting-new-project">أو إنشاء مشروع جديد</label><input class="input" id="meeting-new-project" placeholder="اسم المشروع الجديد"></div>
+          <div><label class="lab" for="meeting-client">اسم العميل / الطرف الثاني</label><input class="input" id="meeting-client" placeholder="يُراجع إذا لم يكن واضحًا من سياق الاجتماع"></div>
+          <div><label class="lab" for="meeting-date">تاريخ الاجتماع</label><input class="input" id="meeting-date" type="date" value="${D.todayISO()}" required></div>
+          <div><label class="lab" for="meeting-time">الوقت</label><input class="input" id="meeting-time" type="time"></div>
+          <div><label class="lab" for="meeting-category">تصنيف الاجتماع</label><select class="input" id="meeting-category"><option value="general">General Meeting</option><option value="design">Design / 3D Design</option><option value="shop-drawings">Shop Drawings</option><option value="site">Site Execution</option><option value="materials">Colors & Materials</option><option value="client-review">Client Review / Approval</option></select></div>
+        </div>
+        <label class="lab" for="meeting-title">عنوان الاجتماع</label><input class="input" id="meeting-title" placeholder="مثال: مراجعة الشوب دروينج والتعديلات">
+        <div class="form-grid">
+          <div><label class="lab" for="meeting-first-party">الطرف الأول — المستخدم الحالي</label><input class="input" id="meeting-first-party" value="${esc(currentUser)}" readonly></div>
+          <div><label class="lab" for="meeting-participants">الحضور الآخرون</label><input class="input" id="meeting-participants" placeholder="اسم العميل أو الحضور الآخرين"></div>
+        </div>
+        <div class="meeting-record-row">
+          <button class="btn primary" type="button" data-action="meeting-audio-start">● بدء تسجيل الاجتماع</button>
+          <button class="btn" type="button" data-action="meeting-audio-stop" disabled>إيقاف التسجيل</button>
+          <span id="meeting-audio-status" class="muted small">يُحفظ التسجيل محليًا على الجهاز ويرتبط بالاجتماع بعد الحفظ.</span>
+        </div>
+        <div class="meeting-record-row">
+          <select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select>
+          <button class="btn" type="button" data-action="meeting-record">إملاء صوتي للنص</button>
+          <button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button>
+        </div>
+        <label class="lab" for="meeting-transcript">Transcript — نص الاجتماع</label>
+        <textarea class="input textarea" id="meeting-transcript" rows="6" placeholder="أضف النص المستخرج أو الملاحظات بعد الاجتماع"></textarea>
+        <label class="lab" for="meeting-minutes">Minutes of Meeting — موضوعات المناقشة</label>
+        <textarea class="input textarea" id="meeting-minutes" rows="6" placeholder="01. Shop Drawings Review&#10;النقاط التي تمت مناقشتها...&#10;&#10;02. Colors & Materials&#10;النقاط التي تمت مناقشتها..."></textarea>
+        <label class="lab" for="meeting-decisions">Agreements & Decisions — تم الاتفاق على</label>
+        <textarea class="input textarea" id="meeting-decisions" rows="4" placeholder="1. ...&#10;2. ...&#10;3. ..."></textarea>
+        <label class="lab" for="meeting-actions">Action Items — المهام والمسؤوليات والمواعيد</label>
+        <textarea class="input textarea" id="meeting-actions" rows="3" placeholder="المهمة — المسؤول — الموعد (إن ذُكر)"></textarea>
+        <button class="btn primary" type="submit">حفظ محضر الاجتماع</button>
       </form>
     </section>
-    <section class="card glass"><h2>المشاريع والاجتماعات</h2>
-      ${projects.map(p=>{const n=S.meetings.filter(m=>m.projectId===p.id).length;return `<button class="meeting-project" data-action="meeting-project" data-id="${esc(p.id)}"><span><b>${esc(p.name)}</b><small>${esc(p.client||'')}</small></span><span class="chip">${n} Meetings →</span></button>`}).join('')||'<p class="muted">لا توجد مشاريع بعد. يمكنك إنشاء أول مشروع من نموذج الاجتماع.</p>'}
+    <section class="card glass">
+      <div class="dhead"><div><h2>سجل Minutes of Meeting</h2><p class="muted small">جميع الاجتماعات من كل المشروعات في صفحة واحدة.</p></div></div>
+      ${rows.length?rows.map(m=>{
+        const p=projects.find(x=>x.id===m.projectId);
+        const cat=categoryLabel(m.category);
+        return `<article class="meeting-card" style="padding:14px 0;border-top:1px solid var(--btn-ring)">
+          <div class="dhead" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div style="min-width:180px;flex:1">
+              <h3 style="margin:0">${esc(m.title||'Meeting')}</h3>
+              <p class="muted small">${esc(p?.name||'مشروع غير محدد')} · ${esc(m.date||'—')} ${esc(m.time||'')}</p>
+              <div class="chips"><span class="chip">${esc(cat)}</span><span class="chip">${esc(m.client||m.secondParty||p?.client||'العميل غير محدد')}</span></div>
+            </div>
+            <div class="meeting-record-row">
+              <button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button>
+              <button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button>
+              <button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button>
+              <button class="btn sm danger" data-action="meeting-audio-delete" data-id="${esc(m.id)}">حذف التسجيل</button>
+            </div>
+          </div>
+          ${m.minutes? `<div><b>Minutes of Meeting</b><p>${esc(m.minutes).replace(/\n/g,'<br>')}</p></div>`:''}
+          ${m.decisions? `<div><b>Agreements & Decisions</b><p>${esc(m.decisions).replace(/\n/g,'<br>')}</p></div>`:''}
+          <details><summary>عرض Transcript والتفاصيل</summary><p><b>First Party:</b> ${esc(m.firstParty||currentUser)}</p><p><b>Second Party:</b> ${esc(m.secondParty||m.client||'—')}</p><p>${esc(m.transcript||'لا يوجد نص محفوظ.')}</p>${m.actions? `<p><b>Action Items:</b><br>${esc(m.actions).replace(/\n/g,'<br>')}</p>`:''}</details>
+        </article>`;
+      }).join(''):'<p class="muted">لا توجد محاضر اجتماعات حتى الآن. سجّل أول اجتماع من النموذج أعلاه.</p>'}
     </section>`;
 }
 function startMeetingRecognition(){
@@ -725,8 +766,39 @@ function startMeetingRecognition(){
 function printMeetingReport(id){
   const m=S.meetings.find(x=>x.id===id),p=m&&S.projects.find(x=>x.id===m.projectId);if(!m||!p)return;
   const w=window.open('','_blank');if(!w){toast(t('print_popup_blocked'));return;}
-  const block=(label,value)=>value?`<h3>${label}</h3><p>${esc(value).replace(/\\n/g,'<br>')}</p>`:'';
-  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>Minutes of Meeting</title><style>body{font-family:Arial;padding:28px;line-height:1.7;color:#222}h1{font-size:24px}h2{font-size:18px}.meta{color:#666;border-bottom:1px solid #ddd;padding-bottom:12px}@media print{button{display:none}}</style><h1>Minutes of Meeting</h1><h2>${esc(p.name)} · Meeting ${String(m.sequence||0).padStart(2,'0')}</h2><div class="meta">العميل: ${esc(m.client||p.client||'—')} · التاريخ: ${esc(m.date)} · الوقت: ${esc(m.time||'—')} · ${m.mode==='online'?'Online':'Offline'}</div>${block('الحضور',m.participants)}${block('ملخص الاجتماع',m.minutes)}${block('نص التسجيل',m.transcript)}${block('القرارات',m.decisions)}${block('المهام والمسؤوليات',m.actions)}<p class="meta">Generated by WeeklyPlanner</p><script>window.onload=()=>setTimeout(()=>window.print(),250)<\\/script></html>`);w.document.close();
+  const textBlock=(label,value)=>value?'<section><h2>'+label+'</h2><div class="body-text">'+esc(value).replace(/\n/g,'<br>')+'</div></section>':'';
+  const client=m.secondParty||m.client||p.client||'—';
+  const first=m.firstParty||S.user?.displayName||S.user?.name||S.user?.email||'—';
+  const cat=({design:'Design / 3D Design','shop-drawings':'Shop Drawings',site:'Site Execution',materials:'Colors & Materials','client-review':'Client Review / Approval',general:'General Meeting'})[m.category]||m.category||'General Meeting';
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>Minutes of Meeting</title><style>
+    @page{size:A4;margin:18mm}*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;padding:0;line-height:1.8;color:#202124;font-size:13px}
+    header{text-align:center;border-bottom:2px solid #333;padding-bottom:14px;margin-bottom:18px}h1{font-size:25px;margin:0 0 4px}header p{margin:0;color:#666}
+    h2{font-size:16px;margin:18px 0 7px;border-bottom:1px solid #ddd;padding-bottom:5px}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;background:#f5f5f5;padding:12px;border-radius:6px}
+    .meta div{padding:2px}.meta b{display:block;color:#555;font-size:11px}.body-text{white-space:normal}
+    .attendees{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}.attendee{border:1px solid #ddd;padding:12px;border-radius:5px}
+    footer{border-top:1px solid #ddd;margin-top:28px;padding-top:8px;text-align:center;color:#777;font-size:10px}
+    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+  </style></head><body>
+  <header><h1>MINUTES OF MEETING</h1><p>محضر اجتماع</p></header>
+  <div class="meta">
+    <div><b>Meeting Title | عنوان الاجتماع</b>${esc(m.title||'—')}</div>
+    <div><b>Project | المشروع</b>${esc(p.name)}</div>
+    <div><b>Client | العميل</b>${esc(client)}</div>
+    <div><b>Date | التاريخ</b>${esc(m.date||'—')} ${esc(m.time||'')}</div>
+    <div><b>Meeting Category | تصنيف الاجتماع</b>${esc(cat)}</div>
+    <div><b>Meeting Type | نوع الاجتماع</b>${m.mode==='online'?'Online':'Offline'}</div>
+  </div>
+  ${textBlock('Minutes of Meeting | موضوعات المناقشة',m.minutes)}
+  ${textBlock('Agreements & Decisions | تم الاتفاق على',m.decisions)}
+  ${textBlock('Action Items | المهام والمسؤوليات والمواعيد',m.actions)}
+  <section><h2>Meeting Attendees | أطراف الاجتماع</h2><div class="attendees">
+    <div class="attendee"><b>First Party | الطرف الأول</b><br>${esc(first)}</div>
+    <div class="attendee"><b>Second Party | الطرف الثاني</b><br>${esc(client)}</div>
+  </div></section>
+  ${textBlock('Transcript | النص الكامل للاجتماع',m.transcript)}
+  <footer>Generated by Freelance Manager · ${esc(m.date||'')}</footer>
+  <script>window.onload=()=>setTimeout(()=>window.print(),250)<\\/script></body></html>`);w.document.close();
 }
 
 function renderFinance() {
@@ -1260,7 +1332,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const date=$('#meeting-date').value||D.todayISO();
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
-      const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:$('#meeting-title').value.trim()||`Meeting ${String(sequence).padStart(2,'0')}`,client:$('#meeting-client').value.trim()||project.client||'',date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript:$('#meeting-transcript').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),audioFileName:S.nativeMeetingFileName||null,createdAt:Date.now(),updatedAt:Date.now()};
+      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); const category=$('#meeting-category')?.value||'general'; const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript,minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),audioFileName:S.nativeMeetingFileName||null,createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
       if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;} S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
