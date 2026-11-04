@@ -54,6 +54,7 @@ async function groq(path,options,env){
 export default {
  async fetch(request,env){
   const origin=request.headers.get("Origin")||"";
+  if(origin && origin!==ALLOWED_ORIGIN)return new Response("Forbidden origin",{status:403});
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});
   const url=new URL(request.url);
   if(request.method!=="POST"||!["/transcribe","/minutes"].includes(url.pathname))return json({error:"Not found"},404,origin);
