@@ -638,7 +638,8 @@ async function handleVoiceCommand(c) {
    toast('جارٍ إرسال التسجيل للتفريغ الصوتي…');
    const result=await meetingAiRequest('/transcribe',form,true);
    const transcript=String(result.text||'').trim();if(!transcript)throw new Error('لم يُرجع التفريغ أي نص واضح.');
-   await S.store.save('meetings',{...meeting,transcript,transcriptionModel:result.model||'whisper-large-v3-turbo',transcribedAt:Date.now(),updatedAt:Date.now()});
+   const updatedMeeting={...meeting,transcript,transcriptionModel:result.model||'whisper-large-v3-turbo',transcribedAt:Date.now(),updatedAt:Date.now()};
+   await S.store.save('meetings',updatedMeeting);S.meetings=[...S.meetings.filter(m=>m.id!==meetingId),updatedMeeting];
    toast('تم تفريغ التسجيل وحفظ النص. راجعه ثم أنشئ محضر الاجتماع.');render();
  }
  async function generateMeetingMinutes(meetingId){
@@ -652,7 +653,7 @@ async function handleVoiceCommand(c) {
    const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId)||!!(meeting.projectId&&report.projectName&&!projectMatch),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[],participants:Array.isArray(report.attendees)?report.attendees.map(x=>String(x).slice(0,100)).slice(0,12).join('، '):meeting.participants,updatedAt:Date.now()};
    if(projectMatch&&!meeting.projectId)updated.projectId=projectMatch.id;
    if(report.clientName&&confidence>=0.75&&!meeting.client){updated.client=String(report.clientName).slice(0,120);updated.secondParty=updated.client;}
-   await S.store.save('meetings',updated);
+   await S.store.save('meetings',updated);S.meetings=[...S.meetings.filter(m=>m.id!==meetingId),updated];
    toast(updated.aiReviewRequired?'تم إنشاء المحضر. راجع بيانات المشروع والعميل قبل الاعتماد.':'تم إنشاء المحضر وحفظه — راجعه قبل الطباعة.');render();
  }
  async function openMeetingAudio(meetingId, download=false){
@@ -1430,7 +1431,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
     else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast('تم تسجيل بيانات التسليم بنجاح.'); }
     else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast('تم تسجيل الحركة المالية بنجاح.'); }
-  } catch(err) { toast(t('save_failed',{msg:err.message||err})); }
+  } catch(err) { S.autoProcessMeetingAfterSave=false;toast(t('save_failed',{msg:err.message||err})); }
   finally { if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=submitBtn.dataset.oldText||'حفظ';} }
 }
 
