@@ -9,7 +9,7 @@ import {
 } from './theme.js';
 
 const VERSION = '3.0.0';
-const BUILD_ID = '3.1.3';
+const BUILD_ID = '3.1.4';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -124,13 +124,13 @@ function onAuth(user) {
       applySettings(true);
     }
   }));
-  S.unsubs.push(S.store.watch('tasks', (docs) => { S.tasks = docs.map((d) => normalizeTask(d, true)); if (S.section === 'tasks') render(); }));
-  S.unsubs.push(S.store.watch('projects', (docs) => { S.projects = docs; if (S.section === 'projects' || S.section === 'finance') render(); }));
-  S.unsubs.push(S.store.watch('deliverables', (docs) => { S.deliverables = docs; if (S.section === 'projects') render(); }));
-  S.unsubs.push(S.store.watch('financeEntries', (docs) => { S.financeEntries = docs; if (S.section === 'finance' || S.section === 'projects') render(); }));
+  S.unsubs.push(S.store.watch('tasks', (docs) => { S.tasks = docs.map((d) => normalizeTask(d, true)); if (S.section === 'tasks' || S.section === 'dashboard') render(); }));
+  S.unsubs.push(S.store.watch('projects', (docs) => { S.projects = docs; if (S.section === 'projects' || S.section === 'finance' || S.section === 'dashboard') render(); }));
+  S.unsubs.push(S.store.watch('deliverables', (docs) => { S.deliverables = docs; if (S.section === 'projects' || S.section === 'dashboard') render(); }));
+  S.unsubs.push(S.store.watch('financeEntries', (docs) => { S.financeEntries = docs; if (S.section === 'finance' || S.section === 'projects' || S.section === 'dashboard') render(); }));
   S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance') render(); }));
   S.unsubs.push(S.store.watch('personalBudgets', (docs) => { S.personalBudgets = docs; if (S.section === 'finance') render(); }));
-  S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings') render(); }));
+  S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
   render();
   const q = new URLSearchParams(location.search);
@@ -188,7 +188,7 @@ function render() {
 }
 
 function navList() {
-  return [['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings']];
+  return [['dashboard', 'nav_dashboard'], ['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings']];
 }
 
 function shell() {
@@ -196,7 +196,7 @@ function shell() {
   const rtl = dir() === 'rtl';
   const nav = navList();
   const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : t('nav_' + sec);
-  const content = sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
+  const content = sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
   return `
   <div class="shell">
     <nav class="rail glass" aria-label="main">
@@ -289,6 +289,8 @@ function renderTasks() {
   const row = (x, ctx = {}) => {
     const lateNow = !isDone(x) && x.date && x.date < today;
     const chips = [];
+    const linkedProject = S.projects.find((p) => p.id === x.projectId);
+    if (linkedProject) chips.push(`<span class="chip">${badge('projects',13)}${esc(linkedProject.name)}</span>`);
     if (x.priority === 3) chips.push(`<span class="chip p3">${icon('flag', 13)}${t('p_high')}</span>`);
     if (x.priority === 1) chips.push(`<span class="chip p1">${icon('flag', 13)}${t('p_low')}</span>`);
     if (x.status === 'doing') chips.push(`<span class="chip doing">${icon('play', 13)}${t('in_progress')}</span>`);
@@ -365,6 +367,67 @@ function renderTasks() {
     ${days.map((d) => section(d, inWeek.filter((x) => x.date === d), d === S.sel)).join('')}
     ${section('', inWeek.filter((x) => !x.date), false)}
   </div>`;
+}
+
+function renderDashboard() {
+  const today = D.todayISO();
+  const activeProjects = S.projects.filter((p) => p.status === 'active');
+  const lateTasks = S.tasks.filter((x) => x.status !== 'done' && x.date && x.date < today).sort((x,y) => x.date.localeCompare(y.date));
+  const todayTasks = S.tasks.filter((x) => x.status !== 'done' && x.date === today).sort((x,y) => y.priority-x.priority);
+  const openDeliverables = S.deliverables.filter((x) => x.status !== 'approved');
+  const overdueDeliverables = openDeliverables.filter((x) => x.dueDate && x.dueDate < today);
+  const income = S.financeEntries.filter((x) => x.kind === 'income').reduce((n,x) => n + Number(x.amount || 0), 0);
+  const expenses = S.financeEntries.filter((x) => x.kind === 'expense').reduce((n,x) => n + Number(x.amount || 0), 0);
+  const outstanding = S.projects.reduce((sum,p) => {
+    const collected = S.financeEntries.filter((x) => x.projectId === p.id && x.kind === 'income').reduce((n,x) => n + Number(x.amount || 0), 0);
+    return sum + Math.max(0, Number(p.contractValue || 0) - collected);
+  }, 0);
+  const meetings = [...S.meetings].sort((x,y) => (y.date || '').localeCompare(x.date || '')).slice(0,4);
+  const card = (label,value,detail,section,iconName) => `
+    <button class="card glass dashboard-stat" data-action="nav" data-section="${section}">
+      <span class="dashboard-stat-icon">${badge(iconName,20)}</span>
+      <span class="dashboard-stat-label">${label}</span>
+      <strong>${value}</strong>
+      <small>${detail}</small>
+    </button>`;
+  return `
+    <div class="dashboard-intro">
+      <div><h2>${t('dashboard_title')}</h2><p class="muted">${t('dashboard_subtitle')} · ${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
+      <button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button>
+    </div>
+    <div class="dashboard-grid">
+      ${card(t('active_projects'),money(activeProjects.length),t('dashboard_open_projects'),'projects','projects')}
+      ${card(t('late_tasks'),money(lateTasks.length),t('dashboard_needs_attention'),'tasks','clock')}
+      ${card(t('today_tasks'),money(todayTasks.length),t('dashboard_due_today'),'tasks','calendar')}
+      ${card(t('outstanding'),money(outstanding)+' '+t('currency'),t('dashboard_not_profit'),'finance','wallet')}
+    </div>
+    <div class="dashboard-columns">
+      <section class="card glass dashboard-panel">
+        <div class="dhead"><h2>${t('today_tasks')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
+        ${todayTasks.length ? todayTasks.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot ${x.priority===3?'high':''}"></span><div><b>${esc(x.title)}</b><small>${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_today_tasks')}</p>`}
+      </section>
+      <section class="card glass dashboard-panel">
+        <div class="dhead"><h2>${t('late_tasks')}</h2><span class="chip">${lateTasks.length}</span></div>
+        ${lateTasks.length ? lateTasks.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>${esc(x.title)}</b><small>${esc(x.date)}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_late_tasks')}</p>`}
+      </section>
+      <section class="card glass dashboard-panel">
+        <div class="dhead"><h2>${t('active_projects')}</h2><button class="btn sm" data-action="nav" data-section="projects">${t('all_projects')}</button></div>
+        ${activeProjects.length ? activeProjects.slice(0,5).map(p => `<button class="dashboard-row dashboard-link" data-action="open-project" data-id="${esc(p.id)}"><span class="dashboard-dot"></span><div><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>`).join('') : `<p class="muted">${t('dashboard_no_active_projects')}</p>`}
+      </section>
+      <section class="card glass dashboard-panel">
+        <div class="dhead"><h2>${t('deliverables')}</h2><span class="chip">${overdueDeliverables.length} ${t('late')}</span></div>
+        ${overdueDeliverables.length ? overdueDeliverables.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>${esc(x.name)}</b><small>${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${esc(x.dueDate)}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_overdue_deliverables')}</p>`}
+      </section>
+      <section class="card glass dashboard-panel">
+        <div class="dhead"><h2>${t('recent_meetings')}</h2><button class="btn sm" data-action="nav" data-section="meetings">${t('nav_meetings')}</button></div>
+        ${meetings.length ? meetings.map(m => `<div class="dashboard-row"><span class="dashboard-dot"></span><div><b>${esc(m.title||('Meeting '+String(m.sequence||'')))}</b><small>${esc(S.projects.find(p=>p.id===m.projectId)?.name||'')} · ${esc(m.date||'')}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_meetings')}</p>`}
+      </section>
+      <section class="card glass dashboard-panel">
+        <div class="dhead"><h2>${t('finance_overview')}</h2><button class="btn sm" data-action="nav" data-section="finance">${t('nav_finance')}</button></div>
+        <div class="dashboard-finance"><div><small>${t('collected')}</small><b>${money(income)} ${t('currency')}</b></div><div><small>${t('expenses')}</small><b>${money(expenses)} ${t('currency')}</b></div><div><small>${t('net_cash')}</small><b>${money(income-expenses)} ${t('currency')}</b></div></div>
+        <p class="muted small">${t('dashboard_not_profit')}</p>
+      </section>
+    </div>`;
 }
 
 function money(value) { return new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(Number(value) || 0); }
@@ -727,6 +790,12 @@ function openSheet(id, presetDate) {
       <input id="f-title" class="input" maxlength="300" placeholder="${esc(t('title_ph'))}" value="${esc(prev ? prev.title : '')}" autocomplete="off">
       <label class="lab" for="f-notes">${t('notes')}</label>
       <textarea id="f-notes" class="textarea" rows="3" maxlength="5000" placeholder="${esc(t('notes_ph'))}">${esc(prev ? prev.notes : '')}</textarea>
+      <label class="lab" for="f-project">${t('task_project')}</label>
+      <select id="f-project" class="input">
+        <option value="">${t('no_project')}</option>
+        ${prev?.projectId && !S.projects.some((p) => p.id === prev.projectId) ? `<option value="${esc(prev.projectId)}" selected>${t('project_deleted')}</option>` : ''}
+        ${S.projects.map((p) => `<option value="${esc(p.id)}" ${prev?.projectId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+      </select>
       <label class="lab" for="f-date">${t('date')}</label>
       <div class="datefield">
         <input id="f-date" type="date" class="input" value="${date || ''}">
@@ -770,6 +839,7 @@ function saveSheet() {
     id: prev ? prev.id : uid(),
     title,
     notes: $('#f-notes').value.trim(),
+    projectId: $('#f-project')?.value || null,
     date,
     weekRef: date || (prev && prev.weekRef) || S.week,
     priority: Number(segValue('priority')) || 2,
