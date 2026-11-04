@@ -15,7 +15,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: |
-            echo "$GROQ_API_KEY" | npx wrangler secret put GROQ_API_KEY --name weeklyplanner-meeting-ai
-            echo "$ALLOWED_FIREBASE_UID" | npx wrangler secret put ALLOWED_FIREBASE_UID --name weeklyplanner-meeting-ai
-            npx wrangler deploy workers/meeting-ai/src/index.js --name weeklyplanner-meeting-ai --compatibility-date 2026-10-01
+          command: deploy workers/meeting-ai/src/index.js --name weeklyplanner-meeting-ai --compatibility-date 2026-10-01
+          secrets: |
+            GROQ_API_KEY
+            ALLOWED_FIREBASE_UID
