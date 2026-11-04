@@ -30,13 +30,20 @@ jobs:
             node --input-type=module --check < "$f" || exit 1
           done
 
+      - name: Prepare static website
+        run: |
+          mkdir -p site
+          cp index.html styles.css manifest.webmanifest sw.js site/
+          cp -R js icons site/
+          touch site/.nojekyll
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload website
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
 
       - name: Deploy website
         id: deployment
