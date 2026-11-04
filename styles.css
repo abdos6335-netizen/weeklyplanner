@@ -367,6 +367,8 @@ input, select, textarea { font-size: max(16px, 1em); }
 /* v3.0: sync feedback, personal expense ledger and accessible mobile controls */
 .sync-indicator { display:inline-flex; align-items:center; max-width:48%; padding:.28rem .6rem; border-radius:999px; background:var(--surface-2); color:var(--text-2); font-size:.72rem; line-height:1.35; overflow-wrap:anywhere; }
 .sync-indicator[data-state="syncing"] { color:var(--accent); }
+.sync-indicator[data-state="offline"],
+.sync-indicator[data-state="offline-memory"] { color:#9a6700; background:color-mix(in srgb,#d69e2e 14%,transparent); }
 .sync-indicator[data-state="error"] { color:#b5473c; background:color-mix(in srgb,#b5473c 10%,transparent); }
 .sync-indicator[data-state="synced"] { color:#16834a; }
 .finance-switch,.auth-links { display:flex; flex-wrap:wrap; gap:.55rem; margin-bottom:.85rem; }

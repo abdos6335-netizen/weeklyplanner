@@ -46,6 +46,8 @@ class MeetingRecordingService : Service() {
         try {
             File(path).parentFile?.mkdirs()
             val r = createRecorder()
+            // Keep a reference before prepare/start so every failure path can release it.
+            recorder = r
             r.setAudioSource(MediaRecorder.AudioSource.MIC)
             r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
