@@ -1,6 +1,11 @@
 name: Deploy Meeting AI Worker
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'workers/meeting-ai/**'
+      - '.github/workflows/deploy-meeting-ai.yml'
 permissions:
   contents: read
 jobs:
