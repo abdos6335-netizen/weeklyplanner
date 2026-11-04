@@ -124,10 +124,12 @@ async function createCloudStore() {
   // Android WebView may not support persistent IndexedDB in every environment.
   // Fall back to memory cache rather than aborting application startup.
   let db;
+  let persistentCacheEnabled = false;
   try {
     db = fs.initializeFirestore(app, {
       localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
     });
+    persistentCacheEnabled = true;
   } catch (cacheError) {
     console.warn('Persistent Firestore cache unavailable; using memory cache.', cacheError);
     db = fs.getFirestore(app);
@@ -136,9 +138,26 @@ async function createCloudStore() {
   let user = null;
   const authCbs = new Set();
   const statusCbs = new Set();
-  let syncState = { state: 'idle', message: 'متصل' };
+  const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  let syncState = { state: 'idle', message: 'جارٍ التحقق من الاتصال…' };
   const emitStatus = (state, message) => { syncState = { state, message }; statusCbs.forEach((cb) => cb(syncState)); };
-  if (typeof window !== 'undefined') { window.addEventListener('offline', () => emitStatus('offline', 'لا يوجد اتصال — ستُحفظ التغييرات محليًا للمزامنة لاحقًا')); window.addEventListener('online', () => emitStatus('syncing', 'عاد الاتصال — جارٍ استكمال المزامنة…')); }
+  const pendingCollections = new Set();
+  const reportOffline = () => {
+    if (persistentCacheEnabled) {
+      emitStatus('offline', 'غير متصل — يدعم هذا الجهاز حفظ تغييرات Firestore محليًا ومزامنتها عند عودة الاتصال');
+    } else {
+      emitStatus('offline-memory', 'غير متصل — التخزين المحلي الدائم غير متاح؛ لا تغلق التطبيق قبل عودة الاتصال وتأكيد الحفظ');
+    }
+  };
+  const refreshSyncStatus = () => {
+    if (pendingCollections.size) emitStatus('syncing', 'جارٍ مزامنة التغييرات مع السحابة…');
+    else if (!isOnline()) reportOffline();
+  };
+  if (!isOnline()) reportOffline();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('offline', reportOffline);
+    window.addEventListener('online', () => emitStatus('syncing', 'عاد الاتصال — جارٍ التحقق من مزامنة البيانات…'));
+  }
   const lastData = {};
   let resolveReady;
   const ready = new Promise((r) => (resolveReady = r));
@@ -209,10 +228,16 @@ async function createCloudStore() {
       if (!user) return () => {};
       return fs.onSnapshot(
         colRef(n),
+        { includeMetadataChanges: true },
         (snap) => {
           const arr = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           lastData[n] = arr;
-          emitStatus('synced', 'تمت المزامنة');
+          if (snap.metadata?.hasPendingWrites) pendingCollections.add(n);
+          else pendingCollections.delete(n);
+          if (pendingCollections.size) emitStatus('syncing', 'جارٍ مزامنة التغييرات مع السحابة…');
+          else if (!isOnline()) reportOffline();
+          else if (snap.metadata?.fromCache) emitStatus('cached', 'نعرض البيانات المحلية مؤقتًا — جارٍ التحقق من اتصال السحابة…');
+          else emitStatus('synced', 'تمت مزامنة البيانات مع السحابة');
           cb(arr);
         },
         (err) => { console.error('firestore watch error', n, err); emitStatus('error', `تعذر تحميل ${n}: ${err.message || err}`); }
@@ -227,7 +252,8 @@ async function createCloudStore() {
       try {
         // انتظر نتيجة Firestore الفعلية حتى لا تعرض الواجهة نجاحًا قبل تأكيد الكتابة.
         await fs.setDoc(fs.doc(db, 'users', user.uid, n, id), rest, { merge: true });
-        emitStatus('synced', 'تم تأكيد حفظ التغييرات');
+        refreshSyncStatus();
+        if (isOnline() && !pendingCollections.size) emitStatus('synced', 'تم تأكيد حفظ التغييرات على السحابة');
       } catch (err) {
         emitStatus('error', `فشل الحفظ أو المزامنة: ${err.message || err}`);
         console.error('firestore save error', n, err);
@@ -240,7 +266,8 @@ async function createCloudStore() {
       emitStatus('syncing', 'جارٍ تحديث البيانات…');
       try {
         await fs.deleteDoc(fs.doc(db, 'users', user.uid, n, id));
-        emitStatus('synced', 'تم تأكيد تحديث البيانات');
+        refreshSyncStatus();
+        if (isOnline() && !pendingCollections.size) emitStatus('synced', 'تم تأكيد تحديث البيانات على السحابة');
       } catch (err) {
         emitStatus('error', `فشل الحذف أو المزامنة: ${err.message || err}`);
         console.error('firestore delete error', n, err);
