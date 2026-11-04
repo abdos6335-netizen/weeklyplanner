@@ -797,7 +797,19 @@ function renderMeetings() {
           </div>
           ${m.minutes? `<div><b>Minutes of Meeting</b><p>${esc(m.minutes).replace(/\n/g,'<br>')}</p></div>`:''}
           ${m.decisions? `<div><b>Agreements & Decisions</b><p>${esc(m.decisions).replace(/\n/g,'<br>')}</p></div>`:''}
-          <details><summary>عرض Transcript والتفاصيل</summary><p><b>First Party:</b> ${esc(m.firstParty||currentUser)}</p><p><b>Second Party:</b> ${esc(m.secondParty||m.client||'—')}</p><p>${esc(m.transcript||'لا يوجد نص محفوظ.')}</p>${m.actions? `<p><b>Action Items:</b><br>${esc(m.actions).replace(/\n/g,'<br>')}</p>`:''}</details>
+          ${m.aiReviewRequired?'<p class="chip late">يحتاج مراجعة بيانات المشروع أو العميل قبل الاعتماد</p>':''}
+          <details><summary>مراجعة وتعديل المحضر والنص</summary>
+            <form data-action="update-meeting" data-id="${esc(m.id)}" class="entry-form">
+              <label class="lab">عنوان الاجتماع</label><input class="input" name="title" value="${esc(m.title||'')}">
+              <label class="lab">اسم العميل / الطرف الثاني</label><input class="input" name="client" value="${esc(m.client||m.secondParty||'')}">
+              <label class="lab">Transcript — النص الكامل</label><textarea class="input textarea" name="transcript" rows="5">${esc(m.transcript||'')}</textarea>
+              <label class="lab">Minutes of Meeting — موضوعات المناقشة</label><textarea class="input textarea" name="minutes" rows="5">${esc(m.minutes||'')}</textarea>
+              <label class="lab">Agreements & Decisions — الاتفاقات والقرارات</label><textarea class="input textarea" name="decisions" rows="4">${esc(m.decisions||'')}</textarea>
+              <label class="lab">Action Items — المهام</label><textarea class="input textarea" name="actions" rows="3">${esc(m.actions||'')}</textarea>
+              <p class="muted small"><b>First Party:</b> ${esc(m.firstParty||currentUser)} · <b>Second Party:</b> ${esc(m.secondParty||m.client||'—')}</p>
+              <button class="btn primary" type="submit">حفظ التعديلات</button>
+            </form>
+          </details>
         </article>`;
       }).join(''):'<p class="muted">لا توجد محاضر اجتماعات حتى الآن. سجّل أول اجتماع من النموذج أعلاه.</p>'}
     </section>`;
@@ -1358,7 +1370,7 @@ async function onClick(e) {
 
 
 async function onSubmit(e) {
-const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
+const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting','update-meeting'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
     if (a === 'auth-email') { const email=$('#auth-email').value.trim(), password=$('#auth-password').value; if(S.authMode==='signup') await S.store.signUpEmail(email,password); else await S.store.signInEmail(email,password); toast(S.authMode==='signup'?'تم إنشاء الحساب.':'تم تسجيل الدخول.'); }
     else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
       if(duplicate) {
@@ -1367,6 +1379,13 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
         if(!confirm('هل تريد رغم ذلك إنشاء مشروع آخر بنفس الاسم؟')){toast('تم إلغاء الحفظ لتجنب التكرار.');return;}
       }
       await S.store.save('projects',p); S.activeProjectId=p.id; closeSheet(); toast(old?'تم تحديث المشروع بنجاح.':'تم إنشاء المشروع بنجاح.'); render(); }
+    else if (a === 'update-meeting') {
+      const old=S.meetings.find(m=>m.id===el.dataset.id);if(!old)throw new Error('الاجتماع غير موجود.');
+      const field=name=>el.querySelector('[name="'+name+'"]')?.value.trim()||'';
+      const client=field('client');
+      await S.store.save('meetings',{...old,title:field('title')||old.title,client,secondParty:client||old.secondParty||'',transcript:field('transcript'),minutes:field('minutes'),decisions:field('decisions'),actions:field('actions'),aiReviewRequired:false,updatedAt:Date.now()});
+      toast('تم حفظ تعديلات محضر الاجتماع.');render();
+    }
     else if (a === 'save-meeting') {
       const existingProjectId=$('#meeting-project').value;
       const newProjectName=$('#meeting-new-project').value.trim();
