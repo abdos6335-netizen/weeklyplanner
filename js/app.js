@@ -394,59 +394,59 @@ function renderDashboard() {
     const overdueX = x.date && x.date < today ? 1 : 0, overdueY = y.date && y.date < today ? 1 : 0;
     return overdueY-overdueX || y.priority-x.priority || (x.date||'9999-12-31').localeCompare(y.date||'9999-12-31');
   }).slice(0,5);
-  const card = (label,value,detail,section,iconName) => \`
-    <button class="card glass dashboard-stat" data-action="nav" data-section="\${section}">
-      <span class="dashboard-stat-icon">\${badge(iconName,20)}</span>
-      <span class="dashboard-stat-label">\${label}</span>
-      <strong>\${value}</strong>
-      <small>\${detail}</small>
-    </button>\`;
-  return \`
+  const card = (label,value,detail,section,iconName) => `
+    <button class="card glass dashboard-stat" data-action="nav" data-section="${section}">
+      <span class="dashboard-stat-icon">${badge(iconName,20)}</span>
+      <span class="dashboard-stat-label">${label}</span>
+      <strong>${value}</strong>
+      <small>${detail}</small>
+    </button>`;
+  return `
     <div class="dashboard-intro">
-      <div><h2>\${t('dashboard_title')}</h2><p class="muted">\${t('dashboard_subtitle')} · \${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
-      <button class="btn primary" data-action="nav" data-section="tasks">\${icon('plus',17)} \${t('add_task_day')}</button>
+      <div><h2>${t('dashboard_title')}</h2><p class="muted">${t('dashboard_subtitle')} · ${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
+      <button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button>
     </div>
     <div class="dashboard-grid">
-      \${card(t('active_projects'),money(activeProjects.length),t('dashboard_open_projects'),'projects','projects')}
-      \${card(t('late_tasks'),money(lateTasks.length),t('dashboard_needs_attention'),'tasks','clock')}
-      \${card(t('today_tasks'),money(todayTasks.length),t('dashboard_due_today'),'tasks','calendar')}
-      \${card(t('outstanding'),money(outstanding)+' '+t('currency'),t('dashboard_not_profit'),'finance','wallet')}
+      ${card(t('active_projects'),money(activeProjects.length),t('dashboard_open_projects'),'projects','projects')}
+      ${card(t('late_tasks'),money(lateTasks.length),t('dashboard_needs_attention'),'tasks','clock')}
+      ${card(t('today_tasks'),money(todayTasks.length),t('dashboard_due_today'),'tasks','calendar')}
+      ${card(t('outstanding'),money(outstanding)+' '+t('currency'),t('dashboard_not_profit'),'finance','wallet')}
     </div>
     <section class="card glass dashboard-panel manager-insights">
-      <div class="dhead"><div><h2>\${t('manager_insights')}</h2><p class="muted small">\${t('manager_insights_intro')}</p></div><span class="chip">\${insights.length}</span></div>
-      \${insights.length ? insights.slice(0,4).map((x) => \`<div class="manager-insight-row"><span class="dashboard-dot late"></span><div><b>\${esc(x.title)}</b><small>\${esc(x.detail)}</small></div></div>\`).join('') : \`<p class="muted">\${t('manager_no_insights')}</p>\`}
+      <div class="dhead"><div><h2>${t('manager_insights')}</h2><p class="muted small">${t('manager_insights_intro')}</p></div><span class="chip">${insights.length}</span></div>
+      ${insights.length ? insights.slice(0,4).map((x) => `<div class="manager-insight-row"><span class="dashboard-dot late"></span><div><b>${esc(x.title)}</b><small>${esc(x.detail)}</small></div></div>`).join('') : `<p class="muted">${t('manager_no_insights')}</p>`}
     </section>
     <section class="card glass dashboard-panel">
-      <div class="dhead"><h2>\${t('priority_queue')}</h2><button class="btn sm" data-action="nav" data-section="tasks">\${t('all_tasks')}</button></div>
-      \${priorityQueue.length ? priorityQueue.map((x) => \`<div class="dashboard-row"><span class="dashboard-dot \${x.date&&x.date<today?'late':x.priority===3?'high':''}"></span><div><b>\${esc(x.title)}</b><small>\${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · \${x.date?esc(x.date):t('no_date')}</small></div></div>\`).join('') : \`<p class="muted">\${t('priority_queue_empty')}</p>\`}
+      <div class="dhead"><h2>${t('priority_queue')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
+      ${priorityQueue.length ? priorityQueue.map((x) => `<div class="dashboard-row"><span class="dashboard-dot ${x.date&&x.date<today?'late':x.priority===3?'high':''}"></span><div><b>${esc(x.title)}</b><small>${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${x.date?esc(x.date):t('no_date')}</small></div></div>`).join('') : `<p class="muted">${t('priority_queue_empty')}</p>`}
     </section>
     <div class="dashboard-columns">
       <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>\${t('today_tasks')}</h2><button class="btn sm" data-action="nav" data-section="tasks">\${t('all_tasks')}</button></div>
-        \${todayTasks.length ? todayTasks.slice(0,5).map(x => \`<div class="dashboard-row"><span class="dashboard-dot \${x.priority===3?'high':''}"></span><div><b>\${esc(x.title)}</b><small>\${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}</small></div></div>\`).join('') : \`<p class="muted">\${t('dashboard_no_today_tasks')}</p>\`}
+        <div class="dhead"><h2>${t('today_tasks')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
+        ${todayTasks.length ? todayTasks.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot ${x.priority===3?'high':''}"></span><div><b>${esc(x.title)}</b><small>${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_today_tasks')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>\${t('late_tasks')}</h2><span class="chip">\${lateTasks.length}</span></div>
-        \${lateTasks.length ? lateTasks.slice(0,5).map(x => \`<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>\${esc(x.title)}</b><small>\${esc(x.date)}</small></div></div>\`).join('') : \`<p class="muted">\${t('dashboard_no_late_tasks')}</p>\`}
+        <div class="dhead"><h2>${t('late_tasks')}</h2><span class="chip">${lateTasks.length}</span></div>
+        ${lateTasks.length ? lateTasks.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>${esc(x.title)}</b><small>${esc(x.date)}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_late_tasks')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>\${t('active_projects')}</h2><button class="btn sm" data-action="nav" data-section="projects">\${t('all_projects')}</button></div>
-        \${activeProjects.length ? activeProjects.slice(0,5).map(p => \`<button class="dashboard-row dashboard-link" data-action="open-project" data-id="\${esc(p.id)}"><span class="dashboard-dot"></span><div><b>\${esc(p.name)}</b><small>\${esc(p.client||projectTypeLabel(p.type))}</small></div><strong>\${money(p.contractValue)} \${t('currency')}</strong></button>\`).join('') : \`<p class="muted">\${t('dashboard_no_active_projects')}</p>\`}
+        <div class="dhead"><h2>${t('active_projects')}</h2><button class="btn sm" data-action="nav" data-section="projects">${t('all_projects')}</button></div>
+        ${activeProjects.length ? activeProjects.slice(0,5).map(p => `<button class="dashboard-row dashboard-link" data-action="open-project" data-id="${esc(p.id)}"><span class="dashboard-dot"></span><div><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>`).join('') : `<p class="muted">${t('dashboard_no_active_projects')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>\${t('deliverables')}</h2><span class="chip">\${overdueDeliverables.length} \${t('late')}</span></div>
-        \${overdueDeliverables.length ? overdueDeliverables.slice(0,5).map(x => \`<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>\${esc(x.name)}</b><small>\${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · \${esc(x.dueDate)}</small></div></div>\`).join('') : \`<p class="muted">\${t('dashboard_no_overdue_deliverables')}</p>\`}
+        <div class="dhead"><h2>${t('deliverables')}</h2><span class="chip">${overdueDeliverables.length} ${t('late')}</span></div>
+        ${overdueDeliverables.length ? overdueDeliverables.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>${esc(x.name)}</b><small>${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${esc(x.dueDate)}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_overdue_deliverables')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>\${t('recent_meetings')}</h2><button class="btn sm" data-action="nav" data-section="meetings">\${t('nav_meetings')}</button></div>
-        \${meetings.length ? meetings.map(m => \`<div class="dashboard-row"><span class="dashboard-dot"></span><div><b>\${esc(m.title||('Meeting '+String(m.sequence||'')))}</b><small>\${esc(S.projects.find(p=>p.id===m.projectId)?.name||'')} · \${esc(m.date||'')}</small></div></div>\`).join('') : \`<p class="muted">\${t('dashboard_no_meetings')}</p>\`}
+        <div class="dhead"><h2>${t('recent_meetings')}</h2><button class="btn sm" data-action="nav" data-section="meetings">${t('nav_meetings')}</button></div>
+        ${meetings.length ? meetings.map(m => `<div class="dashboard-row"><span class="dashboard-dot"></span><div><b>${esc(m.title||('Meeting '+String(m.sequence||'')))}</b><small>${esc(S.projects.find(p=>p.id===m.projectId)?.name||'')} · ${esc(m.date||'')}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_meetings')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>\${t('finance_overview')}</h2><button class="btn sm" data-action="nav" data-section="finance">\${t('nav_finance')}</button></div>
-        <div class="dashboard-finance"><div><small>\${t('collected')}</small><b>\${money(income)} \${t('currency')}</b></div><div><small>\${t('expenses')}</small><b>\${money(expenses)} \${t('currency')}</b></div><div><small>\${t('net_cash')}</small><b>\${money(income-expenses)} \${t('currency')}</b></div></div>
-        <p class="muted small">\${t('dashboard_not_profit')}</p>
+        <div class="dhead"><h2>${t('finance_overview')}</h2><button class="btn sm" data-action="nav" data-section="finance">${t('nav_finance')}</button></div>
+        <div class="dashboard-finance"><div><small>${t('collected')}</small><b>${money(income)} ${t('currency')}</b></div><div><small>${t('expenses')}</small><b>${money(expenses)} ${t('currency')}</b></div><div><small>${t('net_cash')}</small><b>${money(income-expenses)} ${t('currency')}</b></div></div>
+        <p class="muted small">${t('dashboard_not_profit')}</p>
       </section>
-    </div>\`;
+    </div>`;
 }
 
 function money(value) { return new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(Number(value) || 0); }
