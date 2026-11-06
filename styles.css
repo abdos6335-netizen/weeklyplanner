@@ -575,3 +575,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .meeting-new-content{padding:.8rem 1rem 1rem}
 
 .meeting-new-details>summary::after{content:'⌄';font-size:1rem;color:var(--text-2);transition:transform .18s ease}.meeting-new-details[open]>summary::after{transform:rotate(180deg)}
+
+
+/* Keep the desktop grid track in sync with the collapsed sidebar width. */
+@media(min-width:768px){.shell:has(>.rail.collapsed){grid-template-columns:78px minmax(0,1fr)}.rail.collapsed{width:78px;min-width:78px}}
