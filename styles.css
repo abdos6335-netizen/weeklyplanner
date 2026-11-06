@@ -508,3 +508,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .dashboard-done { flex: 0 0 auto; min-width: 58px; border-color: color-mix(in srgb, var(--success, #24865a) 32%, var(--btn-ring)); color: var(--success, #24865a); font-weight: 700; }
 .dashboard-done:active { transform: scale(.95); }
 @media (max-width: 420px) { .dashboard-task-row { gap: .4rem; } .dashboard-task-row>div { min-width: 0; } .dashboard-done { padding-inline: .55rem; min-width: 52px; } }
+
+
+/* Dashboard: keep daily tasks and projects visually independent */
+.dashboard-tasks-panel,.dashboard-projects-panel{margin-top:.85rem}
+.dashboard-section-heading{align-items:center;margin-bottom:.25rem}
+.dashboard-section-heading>div{display:grid;gap:.15rem;min-width:0}
+.dashboard-section-heading p{margin:0}
+.dashboard-task-groups{display:grid;gap:.65rem}
+.dashboard-task-group{padding-top:.7rem;border-top:1px solid var(--btn-ring)}
+.dashboard-task-group:first-child{border-top:0;padding-top:.25rem}
+.dashboard-task-group .dhead{margin-bottom:.15rem}
+.dashboard-task-group h3{font-size:.92rem;margin:0}
+.dashboard-task-group .dashboard-row{padding:.55rem 0}
+.dashboard-empty{margin:.45rem 0 .2rem}
+.dashboard-view-all{margin-top:.35rem}
+.dashboard-projects-panel .dashboard-row{padding:.7rem 0}
+@media(max-width:560px){
+  .dashboard-section-heading{align-items:flex-start}
+  .dashboard-section-heading>.btn{flex:0 0 auto}
+}
