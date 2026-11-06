@@ -8,12 +8,12 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.22';
+const VERSION = '3.1.24';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 
-const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, motion: { style: 'apple', speed: 'normal' } };
+const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 } };
 
 const S = {
   store: null,
@@ -59,6 +59,11 @@ function mergeSettings(saved) {
   const s = { ...DEFAULT_SETTINGS, ...(saved || {}) };
   s.theme = mergeTheme(saved && saved.theme);
   s.motion = { ...DEFAULT_SETTINGS.motion, ...(saved?.motion || {}) };
+  s.financeTargets = { ...DEFAULT_SETTINGS.financeTargets, ...(saved?.financeTargets || {}) };
+  for (const key of ['collection', 'profit']) {
+    const target = Number(s.financeTargets[key]);
+    s.financeTargets[key] = Number.isFinite(target) ? Math.min(100, Math.max(1, Math.round(target))) : DEFAULT_SETTINGS.financeTargets[key];
+  }
   if (!['apple','smooth','subtle','reduced'].includes(s.motion.style)) s.motion.style = 'apple';
   if (!['slow','normal','fast'].includes(s.motion.speed)) s.motion.speed = 'normal';
   s.id = 'prefs';
@@ -490,19 +495,22 @@ function projectFinanceTotals(project, entries = S.financeEntries) {
   };
 }
 
-function financeRing(value, label, size = 'large', metric = 'collection') {
+function financeRing(value, label, size = 'large', metric = 'collection', target = 100) {
+  const safeTarget = Number.isFinite(Number(target)) ? Math.min(100, Math.max(1, Number(target))) : 100;
+  const targetLabel = lang() === 'ar' ? `الهدف ${safeTarget}%` : `Target ${safeTarget}%`;
   if (value === null || !Number.isFinite(value)) {
-    return `<div class="finance-ring-wrap ${size}"><div class="finance-ring empty ${metric}"><span>—</span></div><small>${esc(label)}</small><em>لا توجد بيانات</em></div>`;
+    return `<div class="finance-ring-wrap ${size}"><div class="finance-ring empty ${metric}"><span>—</span></div><small>${esc(label)}</small><em>${lang() === 'ar' ? 'لا توجد بيانات' : 'No data'} · ${targetLabel}</em></div>`;
   }
   const rounded = Math.round(value);
-  const amount = Math.min(100, Math.abs(value));
+  const amount = Math.min(100, Math.abs(value) / safeTarget * 100);
   const tone = value < 0 ? 'loss' : 'gain';
-  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone} ${metric}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small></div>`;
+  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone} ${metric}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small><em>${targetLabel}</em></div>`;
 }
 
 function renderProjectFinanceMetrics(project, entries = S.financeEntries, compact = false) {
   const m = projectFinanceTotals(project, entries);
-  const rings = `<div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large', 'collection')}${financeRing(m.profitPct, 'هامش صافي الربح', 'small', 'profit')}</div>`;
+  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
+  const rings = `<div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large', 'collection', targets.collection)}${financeRing(m.profitPct, 'هامش صافي الربح', 'small', 'profit', targets.profit)}</div>`;
   if (compact) return `<div class="finance-project-metrics compact">${rings}<div class="finance-net-compact"><span>صافي الربح</span><strong class="${m.net < 0 ? 'negative' : 'positive'}">${m.net < 0 ? '−' : ''}${money(Math.abs(m.net))} ${t('currency')}</strong><small>${m.net < 0 ? 'خسارة' : 'بعد خصم المصروفات'}</small></div></div>`;
   return `<div class="finance-project-metrics">
     ${rings}
@@ -966,12 +974,13 @@ function renderFinance() {
   const totalNet = totalIncome - totalExpense;
   const collectionPct = contracts > 0 ? totalIncome / contracts * 100 : null;
   const profitPct = totalIncome > 0 ? totalNet / totalIncome * 100 : null;
+  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const projectCards = [...S.projects].sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
   <section class="card glass finance-overview"><div class="dhead"><div><h2>ملخص ماليات كل المشروعات</h2><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
-    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit')}</div>
+    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large','collection',targets.collection)}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit',targets.profit)}</div>
   </section>
   <section class="finance-project-list"><div class="dhead"><div><h2>مؤشرات كل مشروع</h2><p class="muted small">كل مشروع له نسبة تحصيل وهامش ربح مستقلان.</p></div><span class="chip">${projectCards.length} مشروع</span></div>
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
@@ -1218,6 +1227,18 @@ function renderSettings() {
     <div class="lab">${t('font_size')}</div>
     ${range('scale', 90, 120, th.scale, '%')}`;
 
+  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
+  const financeLabels = lang() === 'ar'
+    ? { hint: 'تظل النسب الفعلية محسوبة من المبالغ المسجلة. يحدد الهدف امتلاء الحلقة فقط.', collection: 'هدف نسبة التحصيل', profit: 'هدف هامش صافي الربح' }
+    : { hint: 'Actual ratios still use recorded amounts. Targets only set how quickly each ring fills.', collection: 'Collection ratio target', profit: 'Net profit margin target' };
+  const financeTargetSettings = `
+    <p class="muted small">${financeLabels.hint}</p>
+    <div class="ratio-target-grid">
+      <label>${financeLabels.collection}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.collection}" data-change="finance-target" data-key="collection" aria-label="${financeLabels.collection}"><b>%</b></span></label>
+      <label>${financeLabels.profit}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.profit}" data-change="finance-target" data-key="profit" aria-label="${financeLabels.profit}"><b>%</b></span></label>
+    </div>`;
+
+
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
   const motionLabels = lang() === 'ar'
     ? { title: 'أسلوب الحركة', apple: 'Apple Smooth', smooth: 'ناعم', subtle: 'هادئ', reduced: 'تقليل الحركة', speed: 'سرعة الحركة', slow: 'بطيئة', normal: 'متوازنة', fast: 'سريعة', hint: 'تتحكم هذه الاختيارات في انتقالات الصفحات والقوائم والنوافذ والتفاعلات.' }
@@ -1258,6 +1279,7 @@ function renderSettings() {
 
   return `<div class="settings">
     ${group('appearance', 'palette', 'g_appearance', appearance)}
+    ${group('finance-targets', 'finance', lang() === 'ar' ? 'تخصيص النسب المالية' : 'Finance ratio targets', financeTargetSettings)}
     ${group('motion', 'sparkles', lang() === 'ar' ? 'الحركة والانتقالات' : 'Motion & transitions', motionSettings)}
     ${group('colors', 'layers', 'g_colors', colors)}
     ${group('icons', 'type', 'g_icons_fonts', iconsFonts)}
@@ -1701,7 +1723,14 @@ function onChange(e) {
   const changed = el.closest('[data-change]');
   if (!changed) return;
   const k = changed.dataset.change;
-  if (k === 'requirement-status') { const r=S.requirements.find(x=>x.id===el.dataset.id); if(r) S.store.save('requirements',{...r,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
+  if (k === 'finance-target') {
+    const key = el.dataset.key;
+    if (!['collection', 'profit'].includes(key)) return;
+    const raw = Number(el.value);
+    if (!Number.isFinite(raw)) return;
+    const financeTargets = { ...(S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets), [key]: Math.min(100, Math.max(1, Math.round(raw))) };
+    updateSettings({ financeTargets });
+  } else if (k === 'requirement-status') { const r=S.requirements.find(x=>x.id===el.dataset.id); if(r) S.store.save('requirements',{...r,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
   else if (k === 'deliverable-status') { const d=S.deliverables.find(x=>x.id===el.dataset.id); if(d) S.store.save('deliverables',{...d,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
   else if (k === 'glass') updateTheme((x) => { x.glass = el.checked; }, { render: true });
   else if (k === 'text-auto') {
