@@ -582,3 +582,32 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 /* Project scope and shared client requirements */
 .scope-fieldset{border:1px solid var(--btn-ring);border-radius:14px;padding:.8rem;margin:.8rem 0 1rem;min-width:0}.scope-fieldset legend{padding:0 .35rem}.scope-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.scope-option{display:flex;align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid var(--btn-ring);border-radius:12px;background:var(--surface);font-size:.86rem;font-weight:650}.scope-option input{accent-color:var(--accent);width:17px;height:17px}.requirements-list{display:grid;gap:.55rem;margin-top:.9rem}.requirement-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.75rem;border:1px solid var(--btn-ring);border-radius:13px;background:var(--surface)}.requirement-row>div{min-width:0;flex:1}.requirement-row p{margin:0 0 .25rem;overflow-wrap:anywhere}.requirement-row small{font-size:.74rem;color:var(--text-2)}.requirement-row select{max-width:130px;flex:0 0 120px}@media(max-width:480px){.scope-options{grid-template-columns:1fr}.requirement-row{align-items:flex-start;flex-direction:column}.requirement-row select{max-width:100%;width:100%;flex:auto}}
+
+
+/* Finance project collection and net-profit indicators */
+.finance-overview{margin-top:.8rem}
+.finance-overview-rings{justify-content:flex-start;margin-top:1rem;padding:.5rem .2rem}
+.finance-project-list{margin:1rem 0}
+.finance-project-list>.dhead{margin:0 0 .7rem}
+.finance-project-card{padding:1rem;margin-bottom:.7rem}
+.finance-project-card h3{font-size:1rem;margin:0}
+.finance-project-metrics{display:grid;grid-template-columns:minmax(190px,.8fr) minmax(0,1.2fr);align-items:center;gap:1rem;margin-top:.8rem;padding-top:.8rem;border-top:1px solid color-mix(in srgb,var(--btn-ring) 65%,transparent)}
+.finance-rings{display:flex;align-items:center;justify-content:center;gap:1.1rem;flex-wrap:wrap}
+.finance-ring-wrap{display:flex;flex-direction:column;align-items:center;gap:.35rem;text-align:center;min-width:76px}
+.finance-ring-wrap>small{font-size:.76rem;font-weight:700;color:var(--text)}
+.finance-ring-wrap>em{font-size:.68rem;color:var(--text-2);font-style:normal}
+.finance-ring{--ring-pct:0%;width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%);position:relative}
+.finance-ring::before{content:'';position:absolute;inset:7px;border-radius:50%;background:var(--surface)}
+.finance-ring>span{position:relative;font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums}
+.finance-ring.small{width:68px;height:68px;background:conic-gradient(var(--accent) var(--ring-pct),var(--surface-2) 0)}
+.finance-ring.small::before{inset:6px}
+.finance-ring.small>span{font-size:.88rem}
+.finance-ring.loss{background:conic-gradient(#d45b52 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%)}
+.finance-ring.empty{background:var(--surface-2)}
+.finance-ring.empty>span{color:var(--text-2)}
+.finance-amounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem}
+.finance-amounts>div{display:flex;flex-direction:column;gap:.12rem;min-width:0}
+.finance-amounts span,.finance-amounts small{font-size:.72rem;color:var(--text-2)}
+.finance-amounts strong{font-size:.9rem;overflow-wrap:anywhere}
+.finance-amounts small{font-size:.66rem}
+@media(max-width:600px){.finance-project-metrics{grid-template-columns:1fr}.finance-rings{justify-content:flex-start}.finance-amounts{grid-template-columns:repeat(2,minmax(0,1fr))}.finance-overview-rings{justify-content:flex-start}}
