@@ -164,17 +164,6 @@ function applySettings(rerender) {
 
 function applyMotionSettings() {
   const root = document.documentElement;
-  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
-  const financeLabels = lang() === 'ar'
-    ? { hint: 'تظل النسب الفعلية محسوبة من المبالغ المسجلة. يحدد الهدف امتلاء الحلقة فقط.', collection: 'هدف نسبة التحصيل', profit: 'هدف هامش صافي الربح' }
-    : { hint: 'Actual ratios still use recorded amounts. Targets only set how quickly each ring fills.', collection: 'Collection ratio target', profit: 'Net profit margin target' };
-  const financeTargetSettings = `
-    <p class="muted small">${financeLabels.hint}</p>
-    <div class="ratio-target-grid">
-      <label>${financeLabels.collection}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.collection}" data-change="finance-target" data-key="collection" aria-label="${financeLabels.collection}"><b>%</b></span></label>
-      <label>${financeLabels.profit}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.profit}" data-change="finance-target" data-key="profit" aria-label="${financeLabels.profit}"><b>%</b></span></label>
-    </div>`;
-
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
   root.dataset.motion = motion.style;
   root.dataset.motionSpeed = motion.speed;
@@ -515,7 +504,7 @@ function financeRing(value, label, size = 'large', metric = 'collection', target
   const rounded = Math.round(value);
   const amount = Math.min(100, Math.abs(value) / safeTarget * 100);
   const tone = value < 0 ? 'loss' : 'gain';
-  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone} ${metric}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small></div>`;
+  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone} ${metric}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small><em>${targetLabel}</em></div>`;
 }
 
 function renderProjectFinanceMetrics(project, entries = S.financeEntries, compact = false) {
@@ -1237,6 +1226,18 @@ function renderSettings() {
         <b>${f.label}</b><small>${t('font_preview')}</small></button>`).join('')}</div>
     <div class="lab">${t('font_size')}</div>
     ${range('scale', 90, 120, th.scale, '%')}`;
+
+  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
+  const financeLabels = lang() === 'ar'
+    ? { hint: 'تظل النسب الفعلية محسوبة من المبالغ المسجلة. يحدد الهدف امتلاء الحلقة فقط.', collection: 'هدف نسبة التحصيل', profit: 'هدف هامش صافي الربح' }
+    : { hint: 'Actual ratios still use recorded amounts. Targets only set how quickly each ring fills.', collection: 'Collection ratio target', profit: 'Net profit margin target' };
+  const financeTargetSettings = `
+    <p class="muted small">${financeLabels.hint}</p>
+    <div class="ratio-target-grid">
+      <label>${financeLabels.collection}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.collection}" data-change="finance-target" data-key="collection" aria-label="${financeLabels.collection}"><b>%</b></span></label>
+      <label>${financeLabels.profit}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.profit}" data-change="finance-target" data-key="profit" aria-label="${financeLabels.profit}"><b>%</b></span></label>
+    </div>`;
+
 
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
   const motionLabels = lang() === 'ar'
