@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.19';
+const VERSION = '3.1.20';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -39,8 +39,8 @@ const S = {
   authMode: 'signin',
   activeProjectId: null,
   settings: mergeSettings(null),
-  section: 'tasks',
-  prevSection: 'tasks',
+  section: 'dashboard',
+  prevSection: 'dashboard',
   week: null,
   sel: null,
   openGroups: new Set(['appearance']),
@@ -51,7 +51,7 @@ const S = {
   taskDropPending: null,
   animateNextRender: false,
   navExpanded: localStorage.getItem('wp1:nav-expanded') !== '0',
-  navOpenSection: 'tasks',
+  navOpenSection: 'dashboard',
 };
 
 function mergeSettings(saved) {
@@ -1451,7 +1451,7 @@ async function onClick(e) {
     case 'delete-deliverable': if(confirm(t('confirm_delete'))) { await S.store.remove('deliverables',el.dataset.id); toast(t('deleted')); } break;
     case 'delete-finance': if(confirm(t('confirm_delete'))) { await S.store.remove('financeEntries',el.dataset.id); toast(t('deleted')); } break;
     case 'open-settings': S.prevSection = S.section; S.section = 'settings'; render(); window.scrollTo(0, 0); break;
-    case 'back': S.section = S.prevSection || 'tasks'; render(); break;
+    case 'back': S.section = S.prevSection || 'dashboard'; render(); break;
 
     case 'week-prev': S.week = D.addDays(S.week, -7); S.sel = S.week; render(); break;
     case 'week-next': S.week = D.addDays(S.week, 7); S.sel = S.week; render(); break;
@@ -1530,7 +1530,7 @@ async function onClick(e) {
     }
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
-    case 'signout': S.section = 'tasks'; await S.store.signOut(); break;
+    case 'signout': S.section = 'dashboard'; await S.store.signOut(); break;
     default: break;
   }
 }
