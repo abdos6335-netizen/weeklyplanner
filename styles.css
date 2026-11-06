@@ -501,3 +501,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 :root[data-motion="reduced"] .motion-preview-dot { animation:none; }
 @media(prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
 :root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+
+
+/* Dashboard quick-complete action */
+.dashboard-task-row { gap: .55rem; }
+.dashboard-done { flex: 0 0 auto; min-width: 58px; border-color: color-mix(in srgb, var(--success, #24865a) 32%, var(--btn-ring)); color: var(--success, #24865a); font-weight: 700; }
+.dashboard-done:active { transform: scale(.95); }
+@media (max-width: 420px) { .dashboard-task-row { gap: .4rem; } .dashboard-task-row>div { min-width: 0; } .dashboard-done { padding-inline: .55rem; min-width: 52px; } }
