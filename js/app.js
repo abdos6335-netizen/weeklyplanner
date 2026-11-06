@@ -754,7 +754,7 @@ function renderMeetings() {
     ${meetingTabs}
     ${meetingCalendar}
     <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'https://weeklyplanner-meeting-ai.abdos6335.workers.dev')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">Firebase UID لهذا الحساب: <code>${esc(S.user?.uid||"غير متاح")}</code> <button class="btn sm" type="button" data-action="meeting-copy-uid">نسخ UID</button>. انسخه إلى سر ALLOWED_FIREBASE_UID. عند التفريغ يُرسل الصوت إلى Groq عبر الخادم.</p></div><span class="chip">${rows.length} Meetings</span></div>
-    <button class="btn primary" type="button" data-action="meeting-new">${icon('plus',18)} اجتماع جديد</button></div>
+    <button class="btn primary" type="button" data-action="meeting-new">${icon('plus',18)} اجتماع جديد</button>
     <section class="card glass" id="meeting-new-form">
       <div class="dhead"><div><h2>تسجيل اجتماع جديد</h2><p class="muted small">اربط الاجتماع بالمشروع وحدد موضوعه، ثم أضف النص والمحضر قبل الحفظ.</p></div></div>
       <form data-action="save-meeting" class="entry-form">
