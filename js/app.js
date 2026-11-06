@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.21';
+const VERSION = '3.1.22';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -445,12 +445,14 @@ function renderDashboard() {
         <div><h2>${t('dashboard_my_projects')}</h2><p class="muted small">${t('dashboard_projects_hint')}</p></div>
         <button class="btn sm" data-action="nav" data-section="projects">${t('all_projects')}</button>
       </div>
-      ${activeProjects.length ? activeProjects.slice(0,3).map(p => `
-        <button class="dashboard-row dashboard-link" data-action="open-project" data-id="${esc(p.id)}">
-          <span class="dashboard-dot"></span>
-          <div><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></div>
-          <span class="chip">${projectStatusLabel(p.status)}</span>
-        </button>`).join('') : `<p class="muted small dashboard-empty">${t('dashboard_no_active_projects')}</p>`}
+      ${activeProjects.length ? `<div class="dashboard-project-grid">${activeProjects.slice(0,3).map(p => `
+        <article class="dashboard-project-card">
+          <button class="dashboard-project-open" data-action="open-project" data-id="${esc(p.id)}">
+            <span><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
+            <span class="chip">${projectStatusLabel(p.status)}</span>
+          </button>
+          ${renderProjectFinanceMetrics(p, S.financeEntries, true)}
+        </article>`).join('')}</div>` : `<p class="muted small dashboard-empty">${t('dashboard_no_active_projects')}</p>`}
     </section>`;
 }
 
@@ -488,20 +490,22 @@ function projectFinanceTotals(project, entries = S.financeEntries) {
   };
 }
 
-function financeRing(value, label, size = 'large') {
+function financeRing(value, label, size = 'large', metric = 'collection') {
   if (value === null || !Number.isFinite(value)) {
-    return `<div class="finance-ring-wrap ${size}"><div class="finance-ring empty"><span>—</span></div><small>${esc(label)}</small><em>لا توجد بيانات</em></div>`;
+    return `<div class="finance-ring-wrap ${size}"><div class="finance-ring empty ${metric}"><span>—</span></div><small>${esc(label)}</small><em>لا توجد بيانات</em></div>`;
   }
   const rounded = Math.round(value);
   const amount = Math.min(100, Math.abs(value));
   const tone = value < 0 ? 'loss' : 'gain';
-  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small></div>`;
+  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone} ${metric}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small></div>`;
 }
 
-function renderProjectFinanceMetrics(project, entries = S.financeEntries) {
+function renderProjectFinanceMetrics(project, entries = S.financeEntries, compact = false) {
   const m = projectFinanceTotals(project, entries);
+  const rings = `<div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large', 'collection')}${financeRing(m.profitPct, 'هامش صافي الربح', 'small', 'profit')}</div>`;
+  if (compact) return `<div class="finance-project-metrics compact">${rings}<div class="finance-net-compact"><span>صافي الربح</span><strong class="${m.net < 0 ? 'negative' : 'positive'}">${m.net < 0 ? '−' : ''}${money(Math.abs(m.net))} ${t('currency')}</strong><small>${m.net < 0 ? 'خسارة' : 'بعد خصم المصروفات'}</small></div></div>`;
   return `<div class="finance-project-metrics">
-    <div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large')}${financeRing(m.profitPct, 'هامش صافي الربح', 'small')}</div>
+    ${rings}
     <div class="finance-amounts">
       <div><span>المحصّل</span><strong>${money(m.income)} ${t('currency')}</strong><small>من ${m.contract > 0 ? money(m.contract) + ' ' + t('currency') : 'قيمة تعاقد غير مسجلة'}</small></div>
       <div><span>المصروفات</span><strong>${money(m.expense)} ${t('currency')}</strong></div>
@@ -533,7 +537,7 @@ function renderProjects() {
       ${ds.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('deliverable_name')}</th><th>${t('design_stage')}</th><th>${t('due_date')}</th><th>${t('approval_status')}</th><th></th></tr></thead><tbody>${ds.map(d=>`<tr><td><strong>${esc(d.name)}</strong><small>${esc(d.kind||'')} ${d.notes?'· '+esc(d.notes):''}</small></td><td>${esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage]||d.stage||'—')}</td><td>${esc(d.dueDate||'—')}</td><td><select class="input compact" data-change="deliverable-status" data-id="${esc(d.id)}"><option value="pending" ${d.status==='pending'?'selected':''}>${t('approval_pending')}</option><option value="submitted" ${d.status==='submitted'?'selected':''}>${t('approval_submitted')}</option><option value="approved" ${d.status==='approved'?'selected':''}>${t('approval_approved')}</option><option value="revision" ${d.status==='revision'?'selected':''}>${t('approval_revision')}</option></select></td><td><button class="btn sm danger" data-action="delete-deliverable" data-id="${esc(d.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_deliverables')}</p>`}</section>`;
   }
   const projects = [...S.projects].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><h2>${esc(p.name)}</h2><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}${p.workScope?.length?' · '+esc(projectScopeLabel(p.workScope)):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button><div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(p.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
+  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><h2>${esc(p.name)}</h2><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}${p.workScope?.length?' · '+esc(projectScopeLabel(p.workScope)):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>${renderProjectFinanceMetrics(p, S.financeEntries, true)}<div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(p.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
 }
 function printProjectReport(id, mode) {
   const p = S.projects.find(x => x.id === id); if (!p) return;
@@ -967,7 +971,7 @@ function renderFinance() {
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
   <section class="card glass finance-overview"><div class="dhead"><div><h2>ملخص ماليات كل المشروعات</h2><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
-    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small')}</div>
+    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit')}</div>
   </section>
   <section class="finance-project-list"><div class="dhead"><div><h2>مؤشرات كل مشروع</h2><p class="muted small">كل مشروع له نسبة تحصيل وهامش ربح مستقلان.</p></div><span class="chip">${projectCards.length} مشروع</span></div>
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
