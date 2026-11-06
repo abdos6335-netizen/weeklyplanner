@@ -667,3 +667,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .dashboard-project-card .finance-ring.small{width:48px;height:48px}
 }
 @media(max-width:360px){.finance-project-list,.dashboard-project-grid{grid-template-columns:1fr}}
+
+/* Editable finance ratio goals in settings */
+.ratio-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:.6rem 0}.ratio-target-grid>label{display:grid;gap:.4rem;font-size:.82rem;font-weight:700}.ratio-target-input{display:flex;align-items:center;gap:.45rem}.ratio-target-input .input{max-width:120px}.ratio-target-input b{color:var(--text-2)}@media(max-width:480px){.ratio-target-grid{grid-template-columns:1fr}}
