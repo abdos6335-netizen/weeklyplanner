@@ -8,8 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.18';
-const BUILD_ID = '3.1.18';
+const VERSION = '3.1.19';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -281,7 +280,6 @@ function renderLogin(err) {
       </form>
       <div class="auth-links"><button class="btn ghost" data-action="auth-toggle">${S.authMode==='signup'?'لديك حساب؟ تسجيل الدخول':'إنشاء حساب جديد'}</button><button class="btn ghost" data-action="auth-reset">نسيت كلمة المرور؟</button></div>` : ''}
       <p class="note">${cloud ? t('cloud_note') : t('local_note')}</p>
-      <p class="note" dir="ltr" style="opacity:.6;font-size:.75rem">build ${BUILD_ID} · android bridge: ${window.WeeklyPlannerNative ? 'yes' : 'no'}</p>
       <div class="err" id="login-err">${err ? esc(err) : ''}</div>
       <button class="btn ghost" data-action="login-lang">${lang() === 'ar' ? 'English' : 'العربية'}</button>
     </div>
@@ -626,12 +624,11 @@ async function handleVoiceCommand(c) {
  }
  async function meetingAiRequest(path,body,isForm=false){
    let endpoint=localStorage.getItem('wp1:meeting-ai-endpoint')||'https://weeklyplanner-meeting-ai.abdos6335.workers.dev';while(endpoint.endsWith('/'))endpoint=endpoint.slice(0,-1);
-   if(!endpoint)throw new Error('احفظ رابط خدمة الذكاء الاصطناعي أولًا في أعلى صفحة الاجتماعات.');
-   if(!S.store?.getIdToken)throw new Error('تسجيل الدخول السحابي مطلوب لاستخدام الذكاء الاصطناعي.');
+   if(!S.store?.getIdToken)throw new Error('سجّل الدخول إلى حسابك لاستخدام خدمات المحاضر.');
    const token=await S.store.getIdToken();
    const response=await fetch(endpoint+path,{method:'POST',headers:{Authorization:'Bearer '+token,...(isForm?{}:{'Content-Type':'application/json'})},body:isForm?body:JSON.stringify(body)});
    const data=await response.json().catch(()=>({}));
-   if(!response.ok)throw new Error(data.error||'فشلت خدمة الذكاء الاصطناعي (HTTP '+response.status+').');
+   if(!response.ok)throw new Error(data.error||'تعذر إكمال معالجة الاجتماع. حاول مرة أخرى.');
    return data;
  }
  async function transcribeMeetingAudio(meetingId){
@@ -658,7 +655,7 @@ async function handleVoiceCommand(c) {
    if(projectMatch&&!meeting.projectId)updated.projectId=projectMatch.id;
    if(report.clientName&&confidence>=0.75&&!meeting.client){updated.client=String(report.clientName).slice(0,120);updated.secondParty=updated.client;}
    await S.store.save('meetings',updated);S.meetings=[...S.meetings.filter(m=>m.id!==meetingId),updated];
-   toast(updated.aiReviewRequired?'تم إنشاء المحضر. راجع بيانات المشروع والعميل قبل الاعتماد.':'تم إنشاء المحضر وحفظه — راجعه قبل الطباعة.');render();
+   toast(updated.aiReviewRequired?'تم إعداد المحضر. راجع بيانات المشروع والعميل قبل الاعتماد.':'تم إعداد المحضر وحفظه — راجعه قبل الطباعة.');render();
  }
  async function openMeetingAudio(meetingId, download=false){
    const meeting=S.meetings.find(m=>m.id===meetingId);
@@ -761,7 +758,7 @@ function renderMeetings() {
   return `
     ${meetingTabs}
     ${meetingCalendar}
-    <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'https://weeklyplanner-meeting-ai.abdos6335.workers.dev')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">Firebase UID لهذا الحساب: <code>${esc(S.user?.uid||"غير متاح")}</code> <button class="btn sm" type="button" data-action="meeting-copy-uid">نسخ UID</button>. انسخه إلى سر ALLOWED_FIREBASE_UID. عند التفريغ يُرسل الصوت إلى Groq عبر الخادم.</p></div><span class="chip">${rows.length} Meetings</span></div>
+    <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><p class="muted small">يمكنك تفريغ التسجيل وصياغة محضر الاجتماع بعد الحفظ، ثم مراجعته قبل الاعتماد. عند طلب التفريغ يُرسل الصوت إلى خدمة معالجة خارجية؛ ولا يتم إرساله تلقائيًا.</p></div><span class="chip">${rows.length} Meetings</span></div>
     <details class="meeting-new-details" id="meeting-new-details"><summary><span>${icon('plus',18)} <strong>تسجيل اجتماع جديد</strong></span><small>افتح النموذج عند الحاجة فقط</small></summary><section class="meeting-new-content" id="meeting-new-form">
       <form data-action="save-meeting" class="entry-form">
         <div class="form-grid">
@@ -813,7 +810,7 @@ function renderMeetings() {
             </div>
             <div class="meeting-record-row">
               ${m.audioFileName||m.hasAudio?`<button class="btn sm" data-action="meeting-ai-transcribe" data-id="${esc(m.id)}">تفريغ التسجيل</button>`:''}
-              ${m.transcript?`<button class="btn sm primary" data-action="meeting-ai-minutes" data-id="${esc(m.id)}">إنشاء MOM بالذكاء الاصطناعي</button>`:''}
+              ${m.transcript?`<button class="btn sm primary" data-action="meeting-ai-minutes" data-id="${esc(m.id)}">إنشاء محضر الاجتماع</button>`:''}
               <button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button>
               <button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button>
               <button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button>
@@ -885,7 +882,7 @@ function printMeetingReport(id){
   </div></section>
   ${textBlock('Other Attendees | الحضور الآخرون',m.participants)}
   ${textBlock('Transcript | النص الكامل للاجتماع',m.transcript)}
-  <footer>Generated by Freelance Manager · ${esc(m.date||'')}</footer>
+  <footer>WeeklyPlanner · محضر اجتماع · ${esc(m.date||'')}</footer>
   <script>window.onload=()=>setTimeout(()=>window.print(),250)<\\/script></body></html>`);w.document.close();
 }
 
@@ -1433,9 +1430,6 @@ async function onClick(e) {
     case 'meeting-week-prev': S.meetingWeek=D.addDays(S.meetingWeek,-7); render(); break;
     case 'meeting-week-next': S.meetingWeek=D.addDays(S.meetingWeek,7); render(); break;
     case 'meeting-week-today': S.meetingWeek=D.weekStartOf(D.todayISO(),startDay()); render(); break;
-    case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
-    case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
-    case 'meeting-ai-endpoint-save': { let value=$('#meeting-ai-endpoint')?.value.trim()||'';while(value.endsWith('/'))value=value.slice(0,-1); if(!value.startsWith('https://')){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }
     case 'meeting-ai-transcribe': try{await transcribeMeetingAudio(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر تفريغ التسجيل.');} break;
     case 'meeting-ai-minutes': try{await generateMeetingMinutes(el.dataset.id);}catch(err){console.error(err);toast(err.message||'تعذر إنشاء المحضر.');} break;
     case 'meeting-audio-start': await startMeetingAudioCapture(); break;
@@ -1585,7 +1579,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
-      if(autoProcess){try{await transcribeMeetingAudio(savedMeeting.id);await generateMeetingMinutes(savedMeeting.id);}catch(aiError){toast('تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إنشاء MOM: '+(aiError.message||aiError));}}
+      if(autoProcess){try{await transcribeMeetingAudio(savedMeeting.id);await generateMeetingMinutes(savedMeeting.id);}catch(processError){toast('تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إعداد المحضر: '+(processError.message||processError));}}
     }
     else if (a === 'save-personal-budget') { const amount=Number($('#personal-budget').value); if(amount<0||!Number.isFinite(amount)) throw new Error('أدخل ميزانية صحيحة'); const month=S.expenseMonth; await S.store.save('personalBudgets',{id:month,amount,updatedAt:Date.now()}); toast('تم حفظ الميزانية.'); }
     else if (a === 'add-personal-expense') { const x={id:uid(),amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast('تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
