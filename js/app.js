@@ -1278,7 +1278,7 @@ function renderSettings() {
 
   return `<div class="settings">
     ${group('appearance', 'palette', 'g_appearance', appearance)}
-    ${group('finance-targets', 'chart', lang() === 'ar' ? 'تخصيص النسب المالية' : 'Finance ratio targets', financeTargetSettings)}
+    ${group('finance-targets', 'finance', lang() === 'ar' ? 'تخصيص النسب المالية' : 'Finance ratio targets', financeTargetSettings)}
     ${group('motion', 'sparkles', lang() === 'ar' ? 'الحركة والانتقالات' : 'Motion & transitions', motionSettings)}
     ${group('colors', 'layers', 'g_colors', colors)}
     ${group('icons', 'type', 'g_icons_fonts', iconsFonts)}
