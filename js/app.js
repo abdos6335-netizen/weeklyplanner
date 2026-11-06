@@ -1273,7 +1273,7 @@ function openTaskDropChoice(taskId, date) {
   if (!task || !date || task.date === date) return;
   S.taskDropPending = { taskId, date };
   $('#layer').innerHTML = `
-    <div class="overlay" data-action="task-drop-cancel">
+    <div class="overlay" data-action="task-drop-overlay">
       <section class="sheet glass task-drop-sheet" role="dialog" aria-modal="true" aria-label="نقل أو نسخ المهمة">
         <div class="sheet-head"><h2>نقل المهمة</h2><button class="btn icon-btn" data-action="task-drop-cancel" aria-label="إغلاق">${icon('close',18)}</button></div>
         <p class="muted">«${esc(task.title)}»</p>
@@ -1365,7 +1365,7 @@ async function onClick(e) {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const a = el.dataset.action;
-  if (a === 'overlay' && e.target !== el) return;
+  if ((a === 'overlay' || a === 'task-drop-overlay') && e.target !== el) return;
   if (a === 'edit' && Date.now() < suppressTaskClickUntil) return;
   if (a === 'toast-action') return;
   const v = el.dataset.val;
@@ -1440,6 +1440,7 @@ async function onClick(e) {
 
     case 'task-drop-move': await applyTaskDrop('move'); break;
     case 'task-drop-copy': await applyTaskDrop('copy'); break;
+    case 'task-drop-overlay':
     case 'task-drop-cancel': closeTaskDropChoice(); break;
     case 'sheet-cancel': closeSheet(); break;
     case 'sheet-save': saveSheet(); break;
