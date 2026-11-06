@@ -182,6 +182,14 @@ button { font: inherit; }
 .task.doing .ring-c { border-color: var(--accent); color: var(--accent-text); }
 .task.done .ring-c { background: var(--accent); border-color: var(--accent); }
 .tbody { flex: 1; min-width: 0; cursor: pointer; padding: .3rem 0; }
+/* Long-press task drag */
+.task .tbody { touch-action: none; user-select: none; -webkit-user-select: none; }
+.task-drag-ghost { position: fixed; z-index: 9999; max-width: min(260px,70vw); padding: .65rem .9rem; border-radius: 14px; color: var(--primary-text); background: var(--primary); box-shadow: 0 10px 32px #0003; pointer-events: none; opacity: .94; font-weight: 700; }
+.dpill.drop-target, .day.drop-target .card { outline: 3px solid var(--accent); outline-offset: 2px; background-color: color-mix(in srgb, var(--accent) 10%, transparent); }
+.task-dragging { cursor: grabbing; }
+.task-drop-sheet { max-width: 440px; }
+.task-drop-actions { flex-wrap: wrap; }
+
 .ttl { font-weight: 700; word-break: break-word; }
 .tnote { font-size: .85rem; color: var(--text-2); margin-top: .1rem; white-space: pre-wrap; word-break: break-word;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
