@@ -596,13 +596,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .finance-ring-wrap{display:flex;flex-direction:column;align-items:center;gap:.35rem;text-align:center;min-width:76px}
 .finance-ring-wrap>small{font-size:.76rem;font-weight:700;color:var(--text)}
 .finance-ring-wrap>em{font-size:.68rem;color:var(--text-2);font-style:normal}
-.finance-ring{--ring-pct:0%;width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) var(--ring-pct),var(--surface-2) 0);position:relative}
+.finance-ring{--ring-pct:0%;width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%);position:relative}
 .finance-ring::before{content:'';position:absolute;inset:7px;border-radius:50%;background:var(--surface)}
 .finance-ring>span{position:relative;font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums}
 .finance-ring.small{width:68px;height:68px;background:conic-gradient(var(--accent) var(--ring-pct),var(--surface-2) 0)}
 .finance-ring.small::before{inset:6px}
 .finance-ring.small>span{font-size:.88rem}
-.finance-ring.loss{background:conic-gradient(#d45b52 var(--ring-pct),var(--surface-2) 0)}
+.finance-ring.loss{background:conic-gradient(#d45b52 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%)}
 .finance-ring.empty{background:var(--surface-2)}
 .finance-ring.empty>span{color:var(--text-2)}
 .finance-amounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem}
