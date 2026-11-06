@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.17';
-const BUILD_ID = '3.1.17';
+const VERSION = '3.1.18';
+const BUILD_ID = '3.1.18';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -231,10 +231,10 @@ function shell() {
   return `
   <div class="shell">
     <nav class="rail glass ${S.navExpanded?'expanded':'collapsed'}" aria-label="main">
-      <div class="rail-top"><img class="rail-logo" src="icons/logo.svg" alt="WeeklyPlanner" width="40" height="40"><button class="rail-toggle" data-action="nav-collapse" aria-label="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}" title="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}">${icon(S.navExpanded?'sidebar-simple':'sidebar',20)}</button></div>
+      <div class="rail-top"><img class="rail-logo" src="icons/logo.svg" alt="WeeklyPlanner" width="40" height="40"><button class="rail-toggle" data-action="nav-collapse" aria-label="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}" title="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}">${icon(S.navExpanded?'chevL':'chevR',20)}</button></div>
       ${nav.map(([id,key])=>`
         <div class="nav-entry ${S.navOpenSection===id&&S.navExpanded?'preview-open':''}">
-          <div class="nav-entry-head"><button class="nav-item ${sec===id?'on':''}" data-action="nav" data-section="${id}">${badge(id,21,undefined,sec===id)}<span>${t(key)}</span></button><button class="nav-expand" data-action="nav-expand" data-section="${id}" aria-label="عرض ${t(key)}" title="عرض مختصر">${icon('chevronDown',16)}</button></div>
+          <div class="nav-entry-head"><button class="nav-item ${sec===id?'on':''}" data-action="nav" data-section="${id}">${badge(id,21,undefined,sec===id)}<span>${t(key)}</span></button><button class="nav-expand" data-action="nav-expand" data-section="${id}" aria-label="عرض ${t(key)}" title="عرض مختصر">${icon('chevD',16)}</button></div>
           ${S.navExpanded&&S.navOpenSection===id?`<div class="nav-preview">${navPreview(id)}</div>`:''}
         </div>`).join('')}
     </nav>
