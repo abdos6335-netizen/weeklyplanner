@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.13';
-const BUILD_ID = '3.1.13';
+const VERSION = '3.1.14';
+const BUILD_ID = '3.1.14';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -411,6 +411,12 @@ function renderDashboard() {
     const overdueX = x.date && x.date < today ? 1 : 0, overdueY = y.date && y.date < today ? 1 : 0;
     return overdueY-overdueX || y.priority-x.priority || (x.date||'9999-12-31').localeCompare(y.date||'9999-12-31');
   }).slice(0,5);
+  const dashboardTaskRow = (x, detail) => `
+    <div class="dashboard-row dashboard-task-row">
+      <span class="dashboard-dot ${x.date&&x.date<today?'late':x.priority===3?'high':''}"></span>
+      <div><b>${esc(x.title)}</b><small>${detail}</small></div>
+      <button class="btn sm dashboard-done" data-action="dashboard-task-done" data-id="${esc(x.id)}" aria-label="${lang()==='ar'?'تم إنجاز المهمة':'Mark task done'}">Done</button>
+    </div>`;
   const card = (label,value,detail,section,iconName) => `
     <button class="card glass dashboard-stat" data-action="nav" data-section="${section}">
       <span class="dashboard-stat-icon">${badge(iconName,20)}</span>
@@ -435,16 +441,16 @@ function renderDashboard() {
     </section>
     <section class="card glass dashboard-panel">
       <div class="dhead"><h2>${t('priority_queue')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
-      ${priorityQueue.length ? priorityQueue.map((x) => `<div class="dashboard-row"><span class="dashboard-dot ${x.date&&x.date<today?'late':x.priority===3?'high':''}"></span><div><b>${esc(x.title)}</b><small>${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${x.date?esc(x.date):t('no_date')}</small></div></div>`).join('') : `<p class="muted">${t('priority_queue_empty')}</p>`}
+      ${priorityQueue.length ? priorityQueue.map((x) => dashboardTaskRow(x, `${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${x.date?esc(x.date):t('no_date')}`)).join('') : `<p class="muted">${t('priority_queue_empty')}</p>`}
     </section>
     <div class="dashboard-columns">
       <section class="card glass dashboard-panel">
         <div class="dhead"><h2>${t('today_tasks')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
-        ${todayTasks.length ? todayTasks.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot ${x.priority===3?'high':''}"></span><div><b>${esc(x.title)}</b><small>${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_today_tasks')}</p>`}
+        ${todayTasks.length ? todayTasks.slice(0,5).map(x => dashboardTaskRow(x, `${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}`)).join('') : `<p class="muted">${t('dashboard_no_today_tasks')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
         <div class="dhead"><h2>${t('late_tasks')}</h2><span class="chip">${lateTasks.length}</span></div>
-        ${lateTasks.length ? lateTasks.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>${esc(x.title)}</b><small>${esc(x.date)}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_late_tasks')}</p>`}
+        ${lateTasks.length ? lateTasks.slice(0,5).map(x => dashboardTaskRow(x, esc(x.date))).join('') : `<p class="muted">${t('dashboard_no_late_tasks')}</p>`}
       </section>
       <section class="card glass dashboard-panel">
         <div class="dhead"><h2>${t('active_projects')}</h2><button class="btn sm" data-action="nav" data-section="projects">${t('all_projects')}</button></div>
@@ -1459,6 +1465,11 @@ async function onClick(e) {
     case 'add': openSheet(null, el.dataset.date); break;
     case 'edit': openSheet(el.dataset.id); break;
     case 'toggle': toggleTask(el.dataset.id); break;
+    case 'dashboard-task-done': {
+      const task = S.tasks.find(x => x.id === el.dataset.id);
+      if (task && task.status !== 'done') { toggleTask(task.id); toast(lang()==='ar'?'تم إنجاز المهمة بنجاح.':'Task marked as done.'); }
+      break;
+    }
     case 'carry': carryTask(el.dataset.id); toast(t('carried')); break;
     case 'carry-all': {
       const curWs = D.weekStartOf(D.todayISO(), startDay());
