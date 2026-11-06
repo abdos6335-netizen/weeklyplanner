@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.14';
-const BUILD_ID = '3.1.14';
+const VERSION = '3.1.15';
+const BUILD_ID = '3.1.15';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -388,88 +388,60 @@ function renderTasks() {
 
 function renderDashboard() {
   const today = D.todayISO();
-  const activeProjects = S.projects.filter((p) => p.status === 'active');
-  const lateTasks = S.tasks.filter((x) => x.status !== 'done' && x.date && x.date < today).sort((x,y) => x.date.localeCompare(y.date));
-  const todayTasks = S.tasks.filter((x) => x.status !== 'done' && x.date === today).sort((x,y) => y.priority-x.priority);
-  const openDeliverables = S.deliverables.filter((x) => x.status !== 'approved');
-  const overdueDeliverables = openDeliverables.filter((x) => x.dueDate && x.dueDate < today);
-  const income = S.financeEntries.filter((x) => x.kind === 'income').reduce((n,x) => n + Number(x.amount || 0), 0);
-  const expenses = S.financeEntries.filter((x) => x.kind === 'expense').reduce((n,x) => n + Number(x.amount || 0), 0);
-  const outstanding = S.projects.reduce((sum,p) => {
-    const collected = S.financeEntries.filter((x) => x.projectId === p.id && x.kind === 'income').reduce((n,x) => n + Number(x.amount || 0), 0);
-    return sum + Math.max(0, Number(p.contractValue || 0) - collected);
-  }, 0);
-  const meetings = [...S.meetings].sort((x,y) => (y.date || '').localeCompare(x.date || '')).slice(0,4);
-  const insights = [];
-  if (lateTasks.length) insights.push({title:t('insight_overdue_tasks'),detail:t('insight_overdue_tasks_detail',{count:lateTasks.length})});
-  if (overdueDeliverables.length) insights.push({title:t('insight_overdue_deliverables'),detail:t('insight_overdue_deliverables_detail',{count:overdueDeliverables.length})});
-  if (outstanding > 0) insights.push({title:t('insight_collections'),detail:t('insight_collections_detail',{amount:money(outstanding)})});
-  const projectsWithoutDeliverables = activeProjects.filter((p) => !S.deliverables.some((x) => x.projectId === p.id));
-  if (projectsWithoutDeliverables.length) insights.push({title:t('insight_unplanned_projects'),detail:t('insight_unplanned_projects_detail',{count:projectsWithoutDeliverables.length})});
-  if (!todayTasks.length && !lateTasks.length) insights.push({title:t('insight_clear_day'),detail:t('insight_clear_day_detail')});
-  const priorityQueue = S.tasks.filter((x) => x.status !== 'done').sort((x,y) => {
-    const overdueX = x.date && x.date < today ? 1 : 0, overdueY = y.date && y.date < today ? 1 : 0;
-    return overdueY-overdueX || y.priority-x.priority || (x.date||'9999-12-31').localeCompare(y.date||'9999-12-31');
-  }).slice(0,5);
-  const dashboardTaskRow = (x, detail) => `
-    <div class="dashboard-row dashboard-task-row">
-      <span class="dashboard-dot ${x.date&&x.date<today?'late':x.priority===3?'high':''}"></span>
-      <div><b>${esc(x.title)}</b><small>${detail}</small></div>
-      <button class="btn sm dashboard-done" data-action="dashboard-task-done" data-id="${esc(x.id)}" aria-label="${lang()==='ar'?'تم إنجاز المهمة':'Mark task done'}">Done</button>
-    </div>`;
-  const card = (label,value,detail,section,iconName) => `
-    <button class="card glass dashboard-stat" data-action="nav" data-section="${section}">
-      <span class="dashboard-stat-icon">${badge(iconName,20)}</span>
-      <span class="dashboard-stat-label">${label}</span>
-      <strong>${value}</strong>
-      <small>${detail}</small>
-    </button>`;
+  const activeProjects = S.projects.filter((p) => p.status === 'active')
+    .sort((a,b) => String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+  const openTasks = S.tasks.filter((x) => x.status !== 'done');
+  const lateTasks = openTasks.filter((x) => x.date && x.date < today)
+    .sort((a,b) => a.date.localeCompare(b.date) || b.priority-a.priority);
+  const todayTasks = openTasks.filter((x) => x.date === today)
+    .sort((a,b) => b.priority-a.priority);
+  const upcomingTasks = openTasks.filter((x) => x.date && x.date > today)
+    .sort((a,b) => a.date.localeCompare(b.date) || b.priority-a.priority);
+  const dashboardTaskRow = (x) => {
+    const detail = x.date ? D.fmt(x.date, locale(), { day: 'numeric', month: 'short' }) : t('no_date');
+    return `
+      <div class="dashboard-row dashboard-task-row">
+        <span class="dashboard-dot ${x.date && x.date < today ? 'late' : x.priority === 3 ? 'high' : ''}"></span>
+        <div><b>${esc(x.title)}</b><small>${esc(detail)} · ${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}</small></div>
+        <button class="btn sm dashboard-done" data-action="dashboard-task-done" data-id="${esc(x.id)}" aria-label="${lang()==='ar'?'تم إنجاز المهمة':'Mark task done'}">Done</button>
+      </div>`;
+  };
+  const taskGroup = (title, items, emptyText, kind) => `
+    <section class="dashboard-task-group">
+      <div class="dhead"><h3>${title}</h3><span class="chip ${kind==='overdue'?'late':''}">${items.length}</span></div>
+      ${items.length ? items.slice(0,4).map(dashboardTaskRow).join('') : `<p class="muted small dashboard-empty">${emptyText}</p>`}
+      ${items.length > 4 ? `<button class="btn sm dashboard-view-all" data-action="nav" data-section="tasks">${t('all_tasks')}</button>` : ''}
+    </section>`;
   return `
     <div class="dashboard-intro">
-      <div><h2>${t('dashboard_title')}</h2><p class="muted">${t('dashboard_subtitle')} · ${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
+      <div><h2>${t('dashboard_title')}</h2><p class="muted">${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
       <button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button>
     </div>
-    <div class="dashboard-grid">
-      ${card(t('active_projects'),money(activeProjects.length),t('dashboard_open_projects'),'projects','projects')}
-      ${card(t('late_tasks'),money(lateTasks.length),t('dashboard_needs_attention'),'tasks','clock')}
-      ${card(t('today_tasks'),money(todayTasks.length),t('dashboard_due_today'),'tasks','calendar')}
-      ${card(t('outstanding'),money(outstanding)+' '+t('currency'),t('dashboard_not_profit'),'finance','wallet')}
-    </div>
-    <section class="card glass dashboard-panel manager-insights">
-      <div class="dhead"><div><h2>${t('manager_insights')}</h2><p class="muted small">${t('manager_insights_intro')}</p></div><span class="chip">${insights.length}</span></div>
-      ${insights.length ? insights.slice(0,4).map((x) => `<div class="manager-insight-row"><span class="dashboard-dot late"></span><div><b>${esc(x.title)}</b><small>${esc(x.detail)}</small></div></div>`).join('') : `<p class="muted">${t('manager_no_insights')}</p>`}
+
+    <section class="card glass dashboard-panel dashboard-tasks-panel">
+      <div class="dhead dashboard-section-heading">
+        <div><h2>${t('dashboard_my_tasks')}</h2><p class="muted small">${t('dashboard_tasks_hint')}</p></div>
+        <button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button>
+      </div>
+      <div class="dashboard-task-groups">
+        ${taskGroup(t('late_tasks'),lateTasks,t('dashboard_no_late_tasks'),'overdue')}
+        ${taskGroup(t('today_tasks'),todayTasks,t('dashboard_no_today_tasks'),'today')}
+        ${taskGroup(t('upcoming_tasks'),upcomingTasks,t('dashboard_no_upcoming_tasks'),'upcoming')}
+      </div>
     </section>
-    <section class="card glass dashboard-panel">
-      <div class="dhead"><h2>${t('priority_queue')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
-      ${priorityQueue.length ? priorityQueue.map((x) => dashboardTaskRow(x, `${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${x.date?esc(x.date):t('no_date')}`)).join('') : `<p class="muted">${t('priority_queue_empty')}</p>`}
-    </section>
-    <div class="dashboard-columns">
-      <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>${t('today_tasks')}</h2><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
-        ${todayTasks.length ? todayTasks.slice(0,5).map(x => dashboardTaskRow(x, `${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}`)).join('') : `<p class="muted">${t('dashboard_no_today_tasks')}</p>`}
-      </section>
-      <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>${t('late_tasks')}</h2><span class="chip">${lateTasks.length}</span></div>
-        ${lateTasks.length ? lateTasks.slice(0,5).map(x => dashboardTaskRow(x, esc(x.date))).join('') : `<p class="muted">${t('dashboard_no_late_tasks')}</p>`}
-      </section>
-      <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>${t('active_projects')}</h2><button class="btn sm" data-action="nav" data-section="projects">${t('all_projects')}</button></div>
-        ${activeProjects.length ? activeProjects.slice(0,5).map(p => `<button class="dashboard-row dashboard-link" data-action="open-project" data-id="${esc(p.id)}"><span class="dashboard-dot"></span><div><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>`).join('') : `<p class="muted">${t('dashboard_no_active_projects')}</p>`}
-      </section>
-      <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>${t('deliverables')}</h2><span class="chip">${overdueDeliverables.length} ${t('late')}</span></div>
-        ${overdueDeliverables.length ? overdueDeliverables.slice(0,5).map(x => `<div class="dashboard-row"><span class="dashboard-dot late"></span><div><b>${esc(x.name)}</b><small>${esc(S.projects.find(p=>p.id===x.projectId)?.name||'')} · ${esc(x.dueDate)}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_overdue_deliverables')}</p>`}
-      </section>
-      <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>${t('recent_meetings')}</h2><button class="btn sm" data-action="nav" data-section="meetings">${t('nav_meetings')}</button></div>
-        ${meetings.length ? meetings.map(m => `<div class="dashboard-row"><span class="dashboard-dot"></span><div><b>${esc(m.title||('Meeting '+String(m.sequence||'')))}</b><small>${esc(S.projects.find(p=>p.id===m.projectId)?.name||'')} · ${esc(m.date||'')}</small></div></div>`).join('') : `<p class="muted">${t('dashboard_no_meetings')}</p>`}
-      </section>
-      <section class="card glass dashboard-panel">
-        <div class="dhead"><h2>${t('finance_overview')}</h2><button class="btn sm" data-action="nav" data-section="finance">${t('nav_finance')}</button></div>
-        <div class="dashboard-finance"><div><small>${t('collected')}</small><b>${money(income)} ${t('currency')}</b></div><div><small>${t('expenses')}</small><b>${money(expenses)} ${t('currency')}</b></div><div><small>${t('net_cash')}</small><b>${money(income-expenses)} ${t('currency')}</b></div></div>
-        <p class="muted small">${t('dashboard_not_profit')}</p>
-      </section>
-    </div>`;
+
+    <section class="card glass dashboard-panel dashboard-projects-panel">
+      <div class="dhead dashboard-section-heading">
+        <div><h2>${t('dashboard_my_projects')}</h2><p class="muted small">${t('dashboard_projects_hint')}</p></div>
+        <button class="btn sm" data-action="nav" data-section="projects">${t('all_projects')}</button>
+      </div>
+      ${activeProjects.length ? activeProjects.slice(0,3).map(p => `
+        <button class="dashboard-row dashboard-link" data-action="open-project" data-id="${esc(p.id)}">
+          <span class="dashboard-dot"></span>
+          <div><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></div>
+          <span class="chip">${projectStatusLabel(p.status)}</span>
+        </button>`).join('') : `<p class="muted small dashboard-empty">${t('dashboard_no_active_projects')}</p>`}
+    </section>`;
 }
 
 function money(value) { return new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(Number(value) || 0); }
