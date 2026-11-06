@@ -8,13 +8,13 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.12';
-const BUILD_ID = '3.1.12';
+const VERSION = '3.1.13';
+const BUILD_ID = '3.1.13';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 
-const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME };
+const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, motion: { style: 'apple', speed: 'normal' } };
 
 const S = {
   store: null,
@@ -48,11 +48,15 @@ const S = {
   saveTimer: null,
   sheet: null,
   taskDropPending: null,
+  animateNextRender: false,
 };
 
 function mergeSettings(saved) {
   const s = { ...DEFAULT_SETTINGS, ...(saved || {}) };
   s.theme = mergeTheme(saved && saved.theme);
+  s.motion = { ...DEFAULT_SETTINGS.motion, ...(saved?.motion || {}) };
+  if (!['apple','smooth','subtle','reduced'].includes(s.motion.style)) s.motion.style = 'apple';
+  if (!['slow','normal','fast'].includes(s.motion.speed)) s.motion.speed = 'normal';
   s.id = 'prefs';
   return s;
 }
@@ -142,9 +146,18 @@ function onAuth(user) {
 function applySettings(rerender) {
   setLang(S.settings.lang);
   S.settings.theme = applyTheme(S.settings.theme);
+  applyMotionSettings();
   document.title = t('app');
   cacheSettings();
   if (rerender && S.user) render();
+}
+
+function applyMotionSettings() {
+  const root = document.documentElement;
+  const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
+  root.dataset.motion = motion.style;
+  root.dataset.motionSpeed = motion.speed;
+  root.style.setProperty('--motion-duration', motion.speed === 'slow' ? '420ms' : motion.speed === 'fast' ? '160ms' : '260ms');
 }
 
 function cacheSettings() {
@@ -199,6 +212,8 @@ function shell() {
   const nav = navList();
   const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : t('nav_' + sec);
   const content = sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
+  const animatePage = S.animateNextRender;
+  S.animateNextRender = false;
   return `
   <div class="shell">
     <nav class="rail glass" aria-label="main">
@@ -208,7 +223,7 @@ function shell() {
           ${badge(id, 22)}<span>${t(key)}</span>
         </button>`).join('')}
     </nav>
-    <main class="main">
+    <main class="main ${animatePage ? 'page-transition' : ''}">
       <header class="topbar">
         <div class="tb-start">
           ${sec === 'settings' ? `<button class="btn icon-btn" data-action="back" aria-label="${t('cancel')}">${icon(rtl ? 'chevR' : 'chevL', 20)}</button>` : ''}
@@ -1120,6 +1135,18 @@ function renderSettings() {
     <div class="lab">${t('font_size')}</div>
     ${range('scale', 90, 120, th.scale, '%')}`;
 
+  const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
+  const motionLabels = lang() === 'ar'
+    ? { title: 'أسلوب الحركة', apple: 'Apple Smooth', smooth: 'ناعم', subtle: 'هادئ', reduced: 'تقليل الحركة', speed: 'سرعة الحركة', slow: 'بطيئة', normal: 'متوازنة', fast: 'سريعة', hint: 'تتحكم هذه الاختيارات في انتقالات الصفحات والقوائم والنوافذ والتفاعلات.' }
+    : { title: 'Motion style', apple: 'Apple Smooth', smooth: 'Smooth', subtle: 'Subtle', reduced: 'Reduce motion', speed: 'Motion speed', slow: 'Slow', normal: 'Balanced', fast: 'Fast', hint: 'Controls page, list, sheet and interaction transitions.' };
+  const motionSettings = `
+    <p class="muted small motion-hint">${motionLabels.hint}</p>
+    <div class="lab">${motionLabels.title}</div>
+    ${seg('set-motion-style', [['apple', motionLabels.apple, 'sparkles'], ['smooth', motionLabels.smooth, 'move'], ['subtle', motionLabels.subtle, 'feather'], ['reduced', motionLabels.reduced, 'minus-circle']], motion.style)}
+    <div class="lab">${motionLabels.speed}</div>
+    ${seg('set-motion-speed', [['slow', motionLabels.slow], ['normal', motionLabels.normal], ['fast', motionLabels.fast]], motion.speed)}
+    <div class="motion-preview"><span class="motion-preview-dot"></span><span>${lang() === 'ar' ? 'معاينة الحركة' : 'Motion preview'}</span></div>`;
+
   const language = `
     <div class="lab">${t('language')}</div>
     ${seg('set-lang', [['ar', 'العربية'], ['en', 'English']], S.settings.lang)}
@@ -1148,6 +1175,7 @@ function renderSettings() {
 
   return `<div class="settings">
     ${group('appearance', 'palette', 'g_appearance', appearance)}
+    ${group('motion', 'sparkles', lang() === 'ar' ? 'الحركة والانتقالات' : 'Motion & transitions', motionSettings)}
     ${group('colors', 'layers', 'g_colors', colors)}
     ${group('icons', 'type', 'g_icons_fonts', iconsFonts)}
     ${group('language', 'globe', 'g_language', language)}
@@ -1387,7 +1415,7 @@ async function onClick(e) {
     case 'auth-toggle': S.authMode=S.authMode==='signup'?'signin':'signup'; renderLogin(); break;
     case 'auth-reset': { const email=$('#auth-email')?.value.trim(); if(!email){toast('اكتب بريدك الإلكتروني أولًا.');break;} try{await S.store.resetPassword(email);toast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.');}catch(err){toast(err.message||'تعذر إرسال الرابط.');} break; }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
-    case 'nav': S.section = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; render(); window.scrollTo(0, 0); break;
+    case 'nav': S.section = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'voice-open': openVoiceSheet(); break;
     case 'voice-start': startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
@@ -1463,6 +1491,8 @@ async function onClick(e) {
       else S.openGroups.has(id) ? S.openGroups.delete(id) : S.openGroups.add(id);
       render(); break;
     }
+    case 'set-motion-style': updateSettings({ motion: { ...(S.settings.motion || DEFAULT_SETTINGS.motion), style: v } }); break;
+    case 'set-motion-speed': updateSettings({ motion: { ...(S.settings.motion || DEFAULT_SETTINGS.motion), speed: v } }); break;
     case 'set-mode': updateTheme((x) => { x.mode = v; }, { render: true }); break;
     case 'set-preset': {
       const p = PRESETS[v];
