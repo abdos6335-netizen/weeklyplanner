@@ -611,3 +611,59 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .finance-amounts strong{font-size:.9rem;overflow-wrap:anywhere}
 .finance-amounts small{font-size:.66rem}
 @media(max-width:600px){.finance-project-metrics{grid-template-columns:1fr}.finance-rings{justify-content:flex-start}.finance-amounts{grid-template-columns:repeat(2,minmax(0,1fr))}.finance-overview-rings{justify-content:flex-start}}
+
+
+/* Finance indicators: side-by-side project cards and distinct green rings */
+.finance-project-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;align-items:stretch}
+.finance-project-list>.dhead{grid-column:1/-1;margin:0}
+.finance-project-card{min-width:0;margin:0;padding:.9rem}
+.finance-project-card>.dhead{align-items:flex-start;gap:.5rem}
+.finance-project-card>.dhead>div{min-width:0}
+.finance-project-card .finance-project-metrics{grid-template-columns:1fr;gap:.75rem}
+.finance-project-card .finance-rings{justify-content:flex-start;gap:.8rem;flex-wrap:nowrap}
+.finance-project-card .finance-ring-wrap{min-width:0}
+.finance-project-card .finance-ring{width:78px;height:78px}
+.finance-project-card .finance-ring.small{width:62px;height:62px}
+.finance-ring.collection{background:conic-gradient(#a7e8bd 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%)}
+.finance-ring.profit{background:conic-gradient(#24965b 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%)}
+.finance-ring.loss{background:conic-gradient(#d45b52 0 var(--ring-pct),var(--surface-2) var(--ring-pct) 100%)}
+.finance-ring.empty{background:var(--surface-2)}
+.finance-net-compact{display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap;padding-top:.55rem;border-top:1px solid var(--btn-ring)}
+.finance-net-compact span,.finance-net-compact small{font-size:.72rem;color:var(--text-2)}
+.finance-net-compact strong{font-size:.9rem}
+.finance-project-metrics.compact{display:grid;grid-template-columns:1fr;gap:.55rem;margin-top:.65rem;padding-top:.65rem}
+.finance-project-metrics.compact .finance-rings{justify-content:flex-start;gap:.7rem;flex-wrap:nowrap}
+.finance-project-metrics.compact .finance-ring-wrap{min-width:0}
+.finance-project-metrics.compact .finance-ring{width:72px;height:72px}
+.finance-project-metrics.compact .finance-ring.small{width:58px;height:58px}
+.dashboard-project-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}
+.dashboard-project-card{min-width:0;padding:.8rem;border:1px solid var(--btn-ring);border-radius:var(--r-lg);background:var(--surface)}
+.dashboard-project-open{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:start;font:inherit;cursor:pointer}
+.dashboard-project-open>span:first-child{display:grid;gap:.18rem;min-width:0}
+.dashboard-project-open b{font-size:.88rem;overflow-wrap:anywhere}
+.dashboard-project-open small{font-size:.72rem;color:var(--text-2)}
+.dashboard-project-open .chip{flex:0 0 auto;font-size:.68rem}
+.dashboard-project-card .finance-project-metrics.compact{border-top:1px solid var(--btn-ring)}
+.project-card .finance-project-metrics.compact{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--btn-ring)}
+.project-card .finance-project-metrics.compact .finance-ring{width:66px;height:66px}
+.project-card .finance-project-metrics.compact .finance-ring.small{width:54px;height:54px}
+.project-card .finance-net-compact{padding-top:.4rem}
+@media(max-width:560px){
+ .finance-project-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
+ .finance-project-card{padding:.65rem}
+ .finance-project-card>.dhead{flex-direction:column}
+ .finance-project-card>.dhead .btn{align-self:flex-start;padding:.35rem .5rem;font-size:.68rem}
+ .finance-project-card .finance-ring{width:64px;height:64px}
+ .finance-project-card .finance-ring.small{width:52px;height:52px}
+ .finance-project-card .finance-ring-wrap>small{font-size:.65rem}
+ .finance-project-card .finance-ring-wrap>em{font-size:.6rem}
+ .finance-project-metrics.compact .finance-ring{width:62px;height:62px}
+ .finance-project-metrics.compact .finance-ring.small{width:50px;height:50px}
+ .dashboard-project-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+ .dashboard-project-card{padding:.6rem}
+ .dashboard-project-open{flex-direction:column}
+ .dashboard-project-open .chip{align-self:flex-start}
+ .dashboard-project-card .finance-ring{width:58px;height:58px}
+ .dashboard-project-card .finance-ring.small{width:48px;height:48px}
+}
+@media(max-width:360px){.finance-project-list,.dashboard-project-grid{grid-template-columns:1fr}}
