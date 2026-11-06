@@ -52,7 +52,7 @@ const S = {
   taskDropPending: null,
   animateNextRender: false,
   navExpanded: localStorage.getItem('wp1:nav-expanded') !== '0',
-  navOpenSection: 'dashboard',
+  navOpenSection: 'tasks',
 };
 
 function mergeSettings(saved) {
