@@ -96,7 +96,7 @@ export const DEFAULT_THEME = {
   surface: 'tint',         // tint (بلون مغاير) | same (بنفس لون الخلفية)
   glass: true,
   blur: 16,                // 0..32
-  icons: 'circle',         // circle | squircle | plain
+  icons: 'plain',          // Phosphor icons بدون خلفية أو إطار
   font: 'almarai',
   scale: 100,              // 90..120
 };

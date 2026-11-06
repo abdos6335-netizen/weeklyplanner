@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.15';
-const BUILD_ID = '3.1.15';
+const VERSION = '3.1.16';
+const BUILD_ID = '3.1.16';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -220,7 +220,7 @@ function shell() {
       <img class="rail-logo" src="icons/logo.svg" alt="WeeklyPlanner" width="44" height="44">
       ${nav.map(([id, key]) => `
         <button class="nav-item ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}">
-          ${badge(id, 22)}<span>${t(key)}</span>
+          ${badge(id, 22, undefined, sec === id)}<span>${t(key)}</span>
         </button>`).join('')}
     </nav>
     <main class="main ${animatePage ? 'page-transition' : ''}">
@@ -237,7 +237,7 @@ function shell() {
     <nav class="tabbar glass" aria-label="main">
       ${nav.map(([id, key]) => `
         <button class="tab ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}">
-          ${badge(id, 21)}<span>${t(key)}</span>
+          ${badge(id, 21, undefined, sec === id)}<span>${t(key)}</span>
         </button>`).join('')}
     </nav>
     ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>` : ''}
@@ -1103,9 +1103,9 @@ function renderSettings() {
     <button class="btn" data-action="reset-colors">${t('reset_colors')}</button>`;
 
   const iconsFonts = `
-    <div class="lab">${t('icon_style')}</div>
-    ${seg('set-icons', [['circle', t('i_circle')], ['squircle', t('i_squircle')], ['plain', t('i_plain')]], th.icons)}
-    <div class="icon-preview">${['tasks', 'projects', 'finance', 'settings', 'palette', 'globe'].map((n) => badge(n, 22)).join('')}</div>
+    <div class="lab">${lang() === 'ar' ? 'نظام الأيقونات' : 'Icon system'}</div>
+    <p class="muted small">${lang() === 'ar' ? 'Phosphor Icons — Regular للأيقونات العادية وFill للحالة النشطة، بدون دوائر أو خلفيات.' : 'Phosphor Icons — Regular by default, Fill for active states, with no icon circles or backgrounds.'}</p>
+    <div class="icon-preview">${['tasks', 'projects', 'finance', 'settings', 'palette', 'globe'].map((n) => badge(n, 24)).join('')}${badge('check', 24, undefined, true)}</div>
     <div class="lab">${t('font')}</div>
     <div class="fonts">${Object.entries(FONTS).map(([id, f]) =>
       `<button class="fontbtn" data-action="set-font" data-val="${id}" aria-pressed="${th.font === id}" style="font-family:${f.stack},system-ui">
