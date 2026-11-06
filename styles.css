@@ -64,13 +64,10 @@ button { font: inherit; }
 
 /* ------------------------------------------------ شارة الأيقونة */
 .badge {
-  display: inline-grid; place-items: center; flex: none; width: 2.35rem; height: 2.35rem;
-  border-radius: var(--icon-radius);
-  background: hsl(var(--h) calc(70% * var(--satk)) 52% / var(--icon-bg-a));
-  color: hsl(var(--h) calc(62% * var(--satk)) var(--ic-l));
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: auto; height: auto; border-radius: 0; background: transparent; color: inherit;
 }
-.icon-btn .badge { background: transparent; width: auto; height: auto; }
-.btn.icon-btn:has(.badge) { background: var(--btn); }
+.icon-btn .badge { width: auto; height: auto; }
 
 /* ------------------------------------------------ الهيكل */
 .shell { display: grid; grid-template-columns: 1fr; min-height: 100dvh; }
@@ -87,8 +84,7 @@ button { font: inherit; }
   font-size: .7rem; font-weight: 700; padding: .25rem .9rem; border-radius: 999px; cursor: pointer; min-width: 4.6rem;
 }
 .tab.on, .nav-item.on { color: var(--text); background: var(--accent-soft); }
-.tab .badge { width: 1.9rem; height: 1.9rem; background: transparent; }
-.tab.on .badge { background: hsl(var(--h) calc(70% * var(--satk)) 52% / calc(var(--icon-bg-a) + .06)); }
+.tab .badge { width: auto; height: auto; background: transparent; }
 
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: 1rem; }
 .tb-start { display: flex; align-items: center; gap: .7rem; min-width: 0; }
