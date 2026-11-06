@@ -48,7 +48,7 @@ async function authorize(request,env){
 async function groq(path,options,env){
   const response=await fetch(GROQ_BASE+path,{...options,headers:{Authorization:"Bearer "+env.GROQ_API_KEY,...(options.headers||{})}});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error?.message||"تعذر الاتصال بخدمة معالجة المحاضر.");
+  if(!response.ok)throw new Error("تعذر إكمال معالجة المحضر. حاول مرة أخرى لاحقًا.");
   return data;
 }
 export default {
