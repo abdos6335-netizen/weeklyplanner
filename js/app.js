@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.16';
-const BUILD_ID = '3.1.16';
+const VERSION = '3.1.17';
+const BUILD_ID = '3.1.17';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -26,6 +26,8 @@ const S = {
   personalExpenses: [],
   personalBudgets: [],
   meetings: [],
+  meetingView: 'calendar',
+  meetingWeek: null,
   activeMeetingProjectId: null,
   meetingRecognition: null,
   nativeMeetingRecording: false,
@@ -729,16 +731,31 @@ async function handleVoiceCommand(c) {
 
 function renderMeetings() {
   const projects=[...S.projects].sort((a,b)=>a.name.localeCompare(b.name));
-  const rows=[...S.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||0)-(a.createdAt||0));
+  const allRows=[...S.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||0)-(a.createdAt||0));
+  const today=D.todayISO();
+  if(!S.meetingWeek) S.meetingWeek=D.weekStartOf(today,startDay());
+  const weekDays=D.weekDays(S.meetingWeek);
+  const upcomingRows=allRows.filter(m=>(m.date||'')>=today);
+  const pastRows=allRows.filter(m=>(m.date||'')<today);
+  const rows=S.meetingView==='upcoming'?upcomingRows:S.meetingView==='past'?pastRows:allRows.filter(m=>weekDays.includes(m.date));
   const categories=[
     ['design','Design / 3D Design'],['shop-drawings','Shop Drawings'],['site','Site Execution'],
     ['materials','Colors & Materials'],['client-review','Client Review / Approval'],['general','General Meeting']
   ];
   const categoryLabel=(value)=>categories.find(x=>x[0]===value)?.[1]||value||'General Meeting';
   const currentUser=S.user?.displayName||S.user?.name||S.user?.email||'اسم المستخدم غير متاح';
+  const meetingTabs=`<div class="meeting-tabs" role="tablist" aria-label="عرض الاجتماعات">
+    <button class="meeting-tab ${S.meetingView==='calendar'?'active':''}" role="tab" aria-selected="${S.meetingView==='calendar'}" data-action="meeting-view" data-val="calendar">${icon('calendar',17)}<span>التقويم الأسبوعي</span></button>
+    <button class="meeting-tab ${S.meetingView==='upcoming'?'active':''}" role="tab" aria-selected="${S.meetingView==='upcoming'}" data-action="meeting-view" data-val="upcoming">${icon('clock',17)}<span>الاجتماعات القادمة <small>${upcomingRows.length}</small></span></button>
+    <button class="meeting-tab ${S.meetingView==='past'?'active':''}" role="tab" aria-selected="${S.meetingView==='past'}" data-action="meeting-view" data-val="past">${icon('calendar-check',17)}<span>الاجتماعات السابقة <small>${pastRows.length}</small></span></button>
+  </div>`;
+  const meetingCalendar=S.meetingView==='calendar'?`<section class="meeting-calendar"><div class="meeting-weekbar"><button class="btn icon-btn" data-action="meeting-week-prev" aria-label="الأسبوع السابق">${icon('chevL',18)}</button><strong>${esc(D.fmt(weekDays[0],locale(),{day:'numeric',month:'short'}))} — ${esc(D.fmt(weekDays[6],locale(),{day:'numeric',month:'short',year:'numeric'}))}</strong><button class="btn icon-btn" data-action="meeting-week-next" aria-label="الأسبوع التالي">${icon('chevR',18)}</button><button class="btn sm" data-action="meeting-week-today">هذا الأسبوع</button></div><div class="meeting-week-grid">${weekDays.map(d=>{const dayRows=allRows.filter(m=>m.date===d);return `<div class="meeting-day ${d===today?'is-today':''}"><div class="meeting-day-heading"><b>${esc(D.fmt(d,locale(),{weekday:'short'}))}</b><strong>${esc(D.fmt(d,locale(),{day:'numeric',month:'short'}))}</strong></div>${dayRows.length?dayRows.map(m=>`<div class="meeting-day-event"><b>${esc(m.title||'Meeting')}</b><small>${esc(m.time||'بدون وقت')}</small></div>`).join(''):'<span class="meeting-day-empty">—</span>'}</div>`;}).join('')}</div></section>`:'';
   return `
+    ${meetingTabs}
+    ${meetingCalendar}
     <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'https://weeklyplanner-meeting-ai.abdos6335.workers.dev')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">Firebase UID لهذا الحساب: <code>${esc(S.user?.uid||"غير متاح")}</code> <button class="btn sm" type="button" data-action="meeting-copy-uid">نسخ UID</button>. انسخه إلى سر ALLOWED_FIREBASE_UID. عند التفريغ يُرسل الصوت إلى Groq عبر الخادم.</p></div><span class="chip">${rows.length} Meetings</span></div>
-    <section class="card glass">
+    <button class="btn primary" type="button" data-action="meeting-new">${icon('plus',18)} اجتماع جديد</button>
+    <section class="card glass" id="meeting-new-form">
       <div class="dhead"><div><h2>تسجيل اجتماع جديد</h2><p class="muted small">اربط الاجتماع بالمشروع وحدد موضوعه، ثم أضف النص والمحضر قبل الحفظ.</p></div></div>
       <form data-action="save-meeting" class="entry-form">
         <div class="form-grid">
@@ -1403,6 +1420,11 @@ async function onClick(e) {
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
+    case 'meeting-view': S.meetingView=v; render(); break;
+    case 'meeting-new': document.querySelector('#meeting-new-form')?.scrollIntoView({behavior:'smooth',block:'start'}); $('#meeting-project')?.focus({preventScroll:true}); break;
+    case 'meeting-week-prev': S.meetingWeek=D.addDays(S.meetingWeek,-7); render(); break;
+    case 'meeting-week-next': S.meetingWeek=D.addDays(S.meetingWeek,7); render(); break;
+    case 'meeting-week-today': S.meetingWeek=D.weekStartOf(D.todayISO(),startDay()); render(); break;
     case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
     case 'meeting-copy-uid': try{await navigator.clipboard.writeText(S.user?.uid||'');toast('تم نسخ Firebase UID.');}catch(err){toast('انسخ UID الظاهر بجوار هذا الزر يدويًا.');} break;
     case 'meeting-ai-endpoint-save': { let value=$('#meeting-ai-endpoint')?.value.trim()||'';while(value.endsWith('/'))value=value.slice(0,-1); if(!value.startsWith('https://')){toast('أدخل رابط HTTPS صحيحًا للخدمة.');break;} localStorage.setItem('wp1:meeting-ai-endpoint',value);toast('تم حفظ رابط خدمة الذكاء الاصطناعي على هذا الجهاز.');break; }

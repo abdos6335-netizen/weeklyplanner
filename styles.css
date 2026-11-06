@@ -524,3 +524,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .dashboard-section-heading{align-items:flex-start}
   .dashboard-section-heading>.btn{flex:0 0 auto}
 }
+
+/* Meetings tabs and weekly calendar */
+.meeting-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem;padding:.35rem;margin:.7rem 0;border:1px solid var(--btn-ring);border-radius:15px;background:var(--surface-2)}
+.meeting-tab{display:flex;align-items:center;justify-content:center;gap:.45rem;min-width:0;padding:.7rem .35rem;border:0;border-radius:11px;background:transparent;color:var(--text-2);font:inherit;font-size:.82rem;font-weight:700;cursor:pointer}
+.meeting-tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 10px rgb(20 25 35 / .08)}
+.meeting-tab span{display:flex;align-items:center;gap:.3rem;white-space:nowrap}
+.meeting-tab small{font-size:.68rem;color:var(--text-2)}
+.meeting-weekbar{display:flex;align-items:center;justify-content:center;gap:.5rem;flex-wrap:wrap;margin:.5rem 0 .8rem}
+.meeting-weekbar strong{font-size:.88rem}
+.meeting-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.4rem;margin-bottom:1rem}
+.meeting-day{display:flex;flex-direction:column;gap:.45rem;min-width:0;min-height:105px;padding:.5rem;border:1px solid var(--btn-ring);border-radius:12px;background:var(--surface)}
+.meeting-day.is-today{border-color:var(--accent);background:var(--accent-soft)}
+.meeting-day-heading{display:grid;gap:.1rem;text-align:center}
+.meeting-day-heading b{font-size:.7rem;color:var(--text-2)}
+.meeting-day-heading strong{font-size:.78rem}
+.meeting-day-event{display:grid;gap:.12rem;padding:.4rem;border-radius:8px;background:var(--surface-2);overflow-wrap:anywhere}
+.meeting-day-event b{font-size:.68rem;line-height:1.35}
+.meeting-day-event small{font-size:.64rem;color:var(--text-2)}
+.meeting-day-empty{margin:auto;color:var(--text-2);opacity:.5}
+@media(max-width:700px){.meeting-week-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:440px){.meeting-tabs{gap:.2rem;padding:.25rem}.meeting-tab{flex-direction:column;gap:.2rem;font-size:.7rem}.meeting-tab span{white-space:normal;display:grid;justify-items:center;text-align:center}.meeting-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.meeting-day{min-height:85px}}
