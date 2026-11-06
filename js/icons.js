@@ -1,6 +1,7 @@
 // WeeklyPlanner — Phosphor Icons: Regular للواجهة وFill للحالة النشطة.
 const PHOSPHOR = {
   check: 'check', plus: 'plus', tasks: 'check-square-offset',
+  dashboard: 'squares-four', meetings: 'calendar-check',
   projects: 'folder-simple', finance: 'wallet', settings: 'sliders-horizontal',
   chevL: 'caret-left', chevR: 'caret-right', chevD: 'caret-down',
   close: 'x', trash: 'trash', calendar: 'calendar-blank',
