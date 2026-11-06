@@ -37,7 +37,7 @@ async function verifyFirebaseToken(token){
   return claims;
 }
 async function authorize(request,env){
-  if(!env.GROQ_API_KEY)throw new Error("لم يتم ضبط مفتاح Groq على الخادم.");
+  if(!env.GROQ_API_KEY)throw new Error("خدمة المحاضر غير مفعّلة على الخادم.");
   if(!env.ALLOWED_FIREBASE_UID)throw new Error("لم يتم ضبط Firebase UID المسموح به على الخادم.");
   const auth=request.headers.get("Authorization")||"";
   if(!auth.startsWith("Bearer "))throw new Error("سجّل الدخول إلى التطبيق أولًا.");
@@ -48,7 +48,7 @@ async function authorize(request,env){
 async function groq(path,options,env){
   const response=await fetch(GROQ_BASE+path,{...options,headers:{Authorization:"Bearer "+env.GROQ_API_KEY,...(options.headers||{})}});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error?.message||"تعذر الاتصال بمزود الذكاء الاصطناعي.");
+  if(!response.ok)throw new Error(data.error?.message||"تعذر الاتصال بخدمة معالجة المحاضر.");
   return data;
 }
 export default {
@@ -77,7 +77,7 @@ export default {
     const user={transcript,knownProjects:projects,currentProjectId:input.currentProjectId||"",existingClient:input.existingClient||""};
     const completion=await groq("/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:0.1,response_format:{type:"json_object"},messages:[{role:"system",content:system},{role:"user",content:JSON.stringify(user)}]})},env);
     const content=completion.choices?.[0]?.message?.content||"{}";
-    let minutes;try{minutes=JSON.parse(content);}catch{throw new Error("لم يرجع الذكاء الاصطناعي محضرًا منسقًا صالحًا.");}
+    let minutes;try{minutes=JSON.parse(content);}catch{throw new Error("تعذر إعداد محضر منسق صالح.");}
     return json({minutes},200,origin);
   }catch(error){const message=String(error?.message||error);const status=/جلسة|رمز تسجيل|سجّل الدخول|انتهت صلاحية/.test(message)?401:500;return json({error:message},status,origin);}
  }
