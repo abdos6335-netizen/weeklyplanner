@@ -47,6 +47,7 @@ const S = {
   lastSettingsTouch: 0,
   saveTimer: null,
   sheet: null,
+  taskDropPending: null,
 };
 
 function mergeSettings(saved) {
@@ -1239,6 +1240,117 @@ function toast(msg, action) {
   toastTimer = setTimeout(() => { host.innerHTML = ''; }, action ? 5500 : 2600);
 }
 
+// نقل المهام بالسحب بعد الضغط المطوّل (يدعم اللمس والماوس)
+let taskDragState = null;
+let taskDragTimer = null;
+let taskDragGhost = null;
+let suppressTaskClickUntil = 0;
+
+function clearTaskDrag() {
+  if (taskDragTimer) clearTimeout(taskDragTimer);
+  taskDragTimer = null;
+  taskDragGhost?.remove();
+  taskDragGhost = null;
+  taskDragState = null;
+}
+
+function beginTaskDrag() {
+  if (!taskDragState || taskDragState.started) return;
+  taskDragState.started = true;
+  const task = S.tasks.find(x => x.id === taskDragState.taskId);
+  if (!task) { clearTaskDrag(); return; }
+  taskDragGhost = document.createElement('div');
+  taskDragGhost.className = 'task-drag-ghost';
+  taskDragGhost.textContent = task.title;
+  taskDragGhost.style.left = (taskDragState.x + 12) + 'px';
+  taskDragGhost.style.top = (taskDragState.y + 12) + 'px';
+  document.body.appendChild(taskDragGhost);
+  document.body.classList.add('task-dragging');
+}
+
+function openTaskDropChoice(taskId, date) {
+  const task = S.tasks.find(x => x.id === taskId);
+  if (!task || !date || task.date === date) return;
+  S.taskDropPending = { taskId, date };
+  $('#layer').innerHTML = `
+    <div class="overlay" data-action="task-drop-cancel">
+      <section class="sheet glass task-drop-sheet" role="dialog" aria-modal="true" aria-label="نقل أو نسخ المهمة">
+        <div class="sheet-head"><h2>نقل المهمة</h2><button class="btn icon-btn" data-action="task-drop-cancel" aria-label="إغلاق">${icon('close',18)}</button></div>
+        <p class="muted">«${esc(task.title)}»</p>
+        <p>اليوم المحدد: <b>${esc(D.fmt(date, locale(), { weekday:'long', day:'numeric', month:'long' }))}</b></p>
+        <div class="sheet-actions task-drop-actions">
+          <button class="btn" data-action="task-drop-cancel">إلغاء</button>
+          <button class="btn" data-action="task-drop-copy">نسخ المهمة</button>
+          <button class="btn primary" data-action="task-drop-move">نقل المهمة</button>
+        </div>
+      </section>
+    </div>`;
+}
+
+async function applyTaskDrop(mode) {
+  const pending = S.taskDropPending;
+  const source = pending && S.tasks.find(x => x.id === pending.taskId);
+  if (!source || !pending?.date || !['move','copy'].includes(mode)) { closeTaskDropChoice(); return; }
+  const now = Date.now();
+  const task = mode === 'copy'
+    ? normalizeTask({ ...source, id: uid(), date: pending.date, weekRef: pending.date, status: 'todo', doneAt: null, createdAt: now, updatedAt: now })
+    : normalizeTask({ ...source, date: pending.date, weekRef: pending.date, updatedAt: now });
+  try {
+    await S.store.save('tasks', task);
+    closeTaskDropChoice();
+    S.week = D.weekStartOf(pending.date, startDay());
+    S.sel = pending.date;
+    toast(mode === 'copy' ? 'تم نسخ المهمة إلى اليوم المحدد.' : 'تم نقل المهمة إلى اليوم المحدد.');
+    render();
+  } catch (err) {
+    toast('تعذر حفظ التغيير: ' + (err.message || err));
+  }
+}
+
+function closeTaskDropChoice() {
+  S.taskDropPending = null;
+  $('#layer').innerHTML = '';
+}
+
+function bindTaskDragEvents() {
+  document.addEventListener('pointerdown', e => {
+    const body = e.target.closest('.task .tbody[data-id]');
+    if (!body || e.button > 0) return;
+    clearTaskDrag();
+    taskDragState = { taskId: body.dataset.id, pointerId: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, started: false };
+    taskDragTimer = setTimeout(beginTaskDrag, 420);
+  });
+  document.addEventListener('pointermove', e => {
+    if (!taskDragState || e.pointerId !== taskDragState.pointerId) return;
+    taskDragState.x = e.clientX; taskDragState.y = e.clientY;
+    if (!taskDragState.started && Math.hypot(e.clientX-taskDragState.startX, e.clientY-taskDragState.startY) > 12) { clearTaskDrag(); return; }
+    if (taskDragState.started) {
+      e.preventDefault();
+      if (taskDragGhost) { taskDragGhost.style.left = (e.clientX+12)+'px'; taskDragGhost.style.top = (e.clientY+12)+'px'; }
+      document.querySelectorAll('.dpill.drop-target, .day.drop-target').forEach(x => x.classList.remove('drop-target'));
+      const target = document.elementFromPoint(e.clientX,e.clientY)?.closest('.dpill[data-date], .day[data-day]');
+      if (target && (target.dataset.date || target.dataset.day)) target.classList.add('drop-target');
+    }
+  }, { passive: false });
+  document.addEventListener('pointerup', e => {
+    if (!taskDragState || e.pointerId !== taskDragState.pointerId) return;
+    const state = taskDragState;
+    if (taskDragTimer) clearTimeout(taskDragTimer);
+    taskDragTimer = null;
+    if (state.started) {
+      e.preventDefault();
+      suppressTaskClickUntil = Date.now()+700;
+      const target = document.elementFromPoint(e.clientX,e.clientY)?.closest('.dpill[data-date], .day[data-day]');
+      const date = target?.dataset.date || target?.dataset.day || '';
+      clearTaskDrag();
+      document.body.classList.remove('task-dragging');
+      document.querySelectorAll('.drop-target').forEach(x => x.classList.remove('drop-target'));
+      if (date) openTaskDropChoice(state.taskId,date);
+    } else clearTaskDrag();
+  }, { passive: false });
+  document.addEventListener('pointercancel', () => { clearTaskDrag(); document.body.classList.remove('task-dragging'); document.querySelectorAll('.drop-target').forEach(x=>x.classList.remove('drop-target')); });
+}
+
 // ================================================================== الأحداث
 function bindEvents() {
   document.addEventListener('click', onClick);
@@ -1246,6 +1358,7 @@ function bindEvents() {
   document.addEventListener('input', onInput);
   document.addEventListener('change', onChange);
   document.addEventListener('keydown', onKey);
+  bindTaskDragEvents();
 }
 
 async function onClick(e) {
@@ -1253,6 +1366,7 @@ async function onClick(e) {
   if (!el) return;
   const a = el.dataset.action;
   if (a === 'overlay' && e.target !== el) return;
+  if (a === 'edit' && Date.now() < suppressTaskClickUntil) return;
   if (a === 'toast-action') return;
   const v = el.dataset.val;
 
@@ -1324,6 +1438,9 @@ async function onClick(e) {
       toast(t('carried')); break;
     }
 
+    case 'task-drop-move': await applyTaskDrop('move'); break;
+    case 'task-drop-copy': await applyTaskDrop('copy'); break;
+    case 'task-drop-cancel': closeTaskDropChoice(); break;
     case 'sheet-cancel': closeSheet(); break;
     case 'sheet-save': saveSheet(); break;
     case 'sheet-delete': deleteTask(); break;
