@@ -1,7 +1,7 @@
 {
-  "name": "Freelance Manager",
-  "short_name": "Freelance",
-  "description": "إدارة العمل الحر ومشروعات التصميم الداخلي والمهام والتسليمات والماليات",
+  "name": "WeeklyPlanner",
+  "short_name": "Weekly",
+  "description": "تنظيم المهام والمشروعات والاجتماعات والماليات",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

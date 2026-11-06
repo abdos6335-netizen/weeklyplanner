@@ -1,15 +1,15 @@
 // الترجمة: عربي (افتراضي) وإنجليزي. أضف لغة جديدة بإضافة كائن جديد هنا.
 
 const ar = {
-  app: 'Freelance Manager',
-  tagline: 'إدارة شغلك الحر ومشروعات التصميم الداخلي من مكان واحد',
+  app: 'WeeklyPlanner',
+  tagline: 'مساحة واحدة لتنظيم المهام والمشروعات والاجتماعات والماليات',
   signin_google: 'الدخول بحساب Google',
   start_local: 'ابدأ على هذا الجهاز',
-  local_note: 'وضع تجريبي: البيانات محفوظة على هذا الجهاز فقط. اربط Firebase للمزامنة بين أجهزتك (الخطوات في README).',
+  local_note: 'الوضع المحلي: بياناتك محفوظة على هذا الجهاز فقط. فعّل المزامنة السحابية للوصول إليها من أجهزتك.',
   cloud_note: 'بياناتك خاصة ولا يراها غيرك.',
   signing_in: 'جارٍ الدخول…',
   signin_failed: 'تعذر تسجيل الدخول',
-  cloud_failed: 'تعذر الاتصال بـ Firebase. تأكد من الإعدادات والإنترنت.',
+  cloud_failed: 'تعذر الاتصال بخدمة المزامنة. تأكد من الإنترنت وحاول مرة أخرى.',
   loading: 'جارٍ التحميل…',
   voice_entry: 'إدخال صوتي', voice_help: 'تحدث بالعربية، راجع النص والبيانات المستخرجة قبل الحفظ. قد يختلف دعم الصوت حسب المتصفح.', start_recording: 'ابدأ التسجيل', voice_ready: 'جاهز للتسجيل', transcript: 'النص الذي تم فهمه', voice_placeholder: 'يمكنك الكتابة هنا أيضًا…', save_as: 'احفظ الكلام كـ', voice_task: 'مهمة', voice_finance: 'حركة مالية', review_save: 'مراجعة وحفظ', voice_unsupported: 'المتصفح لا يدعم التعرف الصوتي. جرّب Chrome مع السماح بالميكروفون.', voice_listening: 'أستمع إليك الآن…', voice_error: 'تعذر استخدام الميكروفون. راجع إذن الميكروفون والاتصال.', voice_done: 'انتهى التسجيل؛ راجع النص قبل الحفظ.', voice_empty: 'سجّل أو اكتب الكلام أولًا.', voice_finance_required: 'اختر المشروع وتأكد من إدخال مبلغ صحيح.', print_project: 'طباعة التقرير', project_status_report: 'موقف المشروع والتسليمات', finance_report: 'الملخص المالي', print_choose: 'اختر نوع التقرير الذي تريد طباعته.', print_popup_blocked: 'اسمح بالنوافذ المنبثقة لهذا الموقع حتى تتم الطباعة.' ,
 
@@ -131,7 +131,7 @@ const ar = {
 
   account: 'الحساب',
   local_mode: 'وضع محلي (هذا الجهاز فقط)',
-  cloud_mode: 'مزامنة سحابية عبر Firebase',
+  cloud_mode: 'مزامنة سحابية',
   sign_out: 'تسجيل الخروج',
   export_data: 'تصدير نسخة احتياطية',
   import_data: 'استيراد نسخة احتياطية',
@@ -146,15 +146,15 @@ const ar = {
 };
 
 const en = {
-  app: 'Freelance Manager',
-  tagline: 'Your freelance work and interior design projects, organized in one place',
+  app: 'WeeklyPlanner',
+  tagline: 'One workspace for tasks, projects, meetings, and finances',
   signin_google: 'Sign in with Google',
   start_local: 'Start on this device',
-  local_note: 'Trial mode: data stays on this device only. Connect Firebase to sync across devices (steps in README).',
+  local_note: 'Local mode: your data stays on this device. Enable cloud sync to access it across your devices.',
   cloud_note: 'Your data is private. Only you can see it.',
   signing_in: 'Signing in…',
   signin_failed: 'Sign-in failed',
-  cloud_failed: 'Could not reach Firebase. Check the config and your connection.',
+  cloud_failed: 'Could not reach the sync service. Check your connection and try again.',
   loading: 'Loading…',
   voice_entry: 'Voice entry', voice_help: 'Speak, then review the transcript and extracted fields before saving. Speech support depends on your browser.', start_recording: 'Start recording', voice_ready: 'Ready to record', transcript: 'Recognized text', voice_placeholder: 'You can type here too…', save_as: 'Save speech as', voice_task: 'Task', voice_finance: 'Financial entry', review_save: 'Review and save', voice_unsupported: 'Speech recognition is not supported here. Try Chrome and allow microphone access.', voice_listening: 'Listening…', voice_error: 'Microphone unavailable. Check permissions and connection.', voice_done: 'Recording ended; review the text before saving.', voice_empty: 'Record or type something first.', voice_finance_required: 'Choose a project and enter a valid amount.', print_project: 'Print report', project_status_report: 'Project and deliverables status', finance_report: 'Financial summary', print_choose: 'Choose which report you want to print.', print_popup_blocked: 'Allow pop-ups for this site to print the report.',
 
@@ -274,7 +274,7 @@ const en = {
 
   account: 'Account',
   local_mode: 'Local mode (this device only)',
-  cloud_mode: 'Cloud sync via Firebase',
+  cloud_mode: 'Cloud sync',
   sign_out: 'Sign out',
   export_data: 'Export backup',
   import_data: 'Import backup',
