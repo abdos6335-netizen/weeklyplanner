@@ -8,8 +8,8 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.17';
-const BUILD_ID = '3.1.17';
+const VERSION = '3.1.18';
+const BUILD_ID = '3.1.18';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -51,6 +51,8 @@ const S = {
   sheet: null,
   taskDropPending: null,
   animateNextRender: false,
+  navExpanded: localStorage.getItem('wp1:nav-expanded') !== '0',
+  navOpenSection: 'tasks',
 };
 
 function mergeSettings(saved) {
@@ -208,6 +210,16 @@ function navList() {
   return [['dashboard', 'nav_dashboard'], ['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings']];
 }
 
+function navPreview(id) {
+ const today=D.todayISO(), item=(label,meta='',action='nav',section=id,extra='')=>`<button class="nav-preview-item" data-action="${action}" data-section="${section}" ${extra}><span>${esc(label)}</span>${meta?`<small>${esc(meta)}</small>`:''}</button>`;
+ if(id==='dashboard')return item('ملخص اليوم','لوحة المتابعة');
+ if(id==='tasks'){const rows=S.tasks.filter(x=>x.status!=='done'&&x.date===today).sort((a,b)=>b.priority-a.priority).slice(0,4);return rows.length?rows.map(x=>item(x.title,x.status==='doing'?'قيد التنفيذ':'اليوم')).join(''):item('لا توجد مهام لليوم','عرض كل المهام');}
+ if(id==='projects'){const rows=[...S.projects].filter(p=>p.status!=='completed').sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,4);return rows.length?rows.map(p=>item(p.name,projectStatusLabel(p.status),'open-project',id,`data-id="${esc(p.id)}"`)).join(''):item('لا توجد مشروعات نشطة','عرض المشروعات');}
+ if(id==='finance'){const rows=[...S.financeEntries].filter(x=>x.kind==='income').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,3);return rows.length?rows.map(x=>item(S.projects.find(p=>p.id===x.projectId)?.name||'تحصيل مسجل',`تحصيل · ${x.date||'—'} · •••• ج.م`)).join(''):item('لا توجد تحصيلات مسجلة','افتح سجل الماليات');}
+ if(id==='meetings'){const rows=[...S.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,4);return rows.length?rows.map(m=>item(m.title||'Meeting',`${m.date||'—'} · ${S.projects.find(p=>p.id===m.projectId)?.name||'اجتماع'}`)).join(''):item('لا توجد اجتماعات مسجلة','افتح سجل الاجتماعات');}
+ return '';
+}
+
 function shell() {
   const sec = S.section;
   const rtl = dir() === 'rtl';
@@ -218,12 +230,13 @@ function shell() {
   S.animateNextRender = false;
   return `
   <div class="shell">
-    <nav class="rail glass" aria-label="main">
-      <img class="rail-logo" src="icons/logo.svg" alt="WeeklyPlanner" width="44" height="44">
-      ${nav.map(([id, key]) => `
-        <button class="nav-item ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}">
-          ${badge(id, 22, undefined, sec === id)}<span>${t(key)}</span>
-        </button>`).join('')}
+    <nav class="rail glass ${S.navExpanded?'expanded':'collapsed'}" aria-label="main">
+      <div class="rail-top"><img class="rail-logo" src="icons/logo.svg" alt="WeeklyPlanner" width="40" height="40"><button class="rail-toggle" data-action="nav-collapse" aria-label="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}" title="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}">${icon(S.navExpanded?'chevL':'chevR',20)}</button></div>
+      ${nav.map(([id,key])=>`
+        <div class="nav-entry ${S.navOpenSection===id&&S.navExpanded?'preview-open':''}">
+          <div class="nav-entry-head"><button class="nav-item ${sec===id?'on':''}" data-action="nav" data-section="${id}">${badge(id,21,undefined,sec===id)}<span>${t(key)}</span></button><button class="nav-expand" data-action="nav-expand" data-section="${id}" aria-label="عرض ${t(key)}" title="عرض مختصر">${icon('chevD',16)}</button></div>
+          ${S.navExpanded&&S.navOpenSection===id?`<div class="nav-preview">${navPreview(id)}</div>`:''}
+        </div>`).join('')}
     </nav>
     <main class="main ${animatePage ? 'page-transition' : ''}">
       <header class="topbar">
@@ -409,7 +422,7 @@ function renderDashboard() {
       </div>`;
   };
   const taskGroup = (title, items, emptyText, kind) => `
-    <section class="dashboard-task-group">
+    <section class="card glass dashboard-task-group ${kind}">
       <div class="dhead"><h3>${title}</h3><span class="chip ${kind==='overdue'?'late':''}">${items.length}</span></div>
       ${items.length ? items.slice(0,4).map(dashboardTaskRow).join('') : `<p class="muted small dashboard-empty">${emptyText}</p>`}
       ${items.length > 4 ? `<button class="btn sm dashboard-view-all" data-action="nav" data-section="tasks">${t('all_tasks')}</button>` : ''}
@@ -420,17 +433,12 @@ function renderDashboard() {
       <button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button>
     </div>
 
-    <section class="card glass dashboard-panel dashboard-tasks-panel">
-      <div class="dhead dashboard-section-heading">
-        <div><h2>${t('dashboard_my_tasks')}</h2><p class="muted small">${t('dashboard_tasks_hint')}</p></div>
-        <button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button>
-      </div>
-      <div class="dashboard-task-groups">
-        ${taskGroup(t('late_tasks'),lateTasks,t('dashboard_no_late_tasks'),'overdue')}
-        ${taskGroup(t('today_tasks'),todayTasks,t('dashboard_no_today_tasks'),'today')}
-        ${taskGroup(t('upcoming_tasks'),upcomingTasks,t('dashboard_no_upcoming_tasks'),'upcoming')}
-      </div>
-    </section>
+    <div class="dashboard-my-tasks-heading"><div><h2>${t('dashboard_my_tasks')}</h2><p class="muted small">${t('dashboard_tasks_hint')}</p></div><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
+    <div class="dashboard-task-groups">
+      ${taskGroup(t('late_tasks'),lateTasks,t('dashboard_no_late_tasks'),'overdue')}
+      ${taskGroup(t('today_tasks'),todayTasks,t('dashboard_no_today_tasks'),'today')}
+      ${taskGroup(t('upcoming_tasks'),upcomingTasks,t('dashboard_no_upcoming_tasks'),'upcoming')}
+    </div>
 
     <section class="card glass dashboard-panel dashboard-projects-panel">
       <div class="dhead dashboard-section-heading">
@@ -754,9 +762,7 @@ function renderMeetings() {
     ${meetingTabs}
     ${meetingCalendar}
     <div class="page-tools"><div><p class="muted">كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.</p><label class="lab" for="meeting-ai-endpoint">رابط خدمة الذكاء الاصطناعي الآمنة</label><div class="meeting-record-row"><input class="input" id="meeting-ai-endpoint" type="url" placeholder="https://your-worker.workers.dev" value="${esc(localStorage.getItem('wp1:meeting-ai-endpoint')||'https://weeklyplanner-meeting-ai.abdos6335.workers.dev')}"><button class="btn sm" type="button" data-action="meeting-ai-endpoint-save">حفظ الرابط</button></div><p class="muted small">Firebase UID لهذا الحساب: <code>${esc(S.user?.uid||"غير متاح")}</code> <button class="btn sm" type="button" data-action="meeting-copy-uid">نسخ UID</button>. انسخه إلى سر ALLOWED_FIREBASE_UID. عند التفريغ يُرسل الصوت إلى Groq عبر الخادم.</p></div><span class="chip">${rows.length} Meetings</span></div>
-    <button class="btn primary" type="button" data-action="meeting-new">${icon('plus',18)} اجتماع جديد</button>
-    <section class="card glass" id="meeting-new-form">
-      <div class="dhead"><div><h2>تسجيل اجتماع جديد</h2><p class="muted small">اربط الاجتماع بالمشروع وحدد موضوعه، ثم أضف النص والمحضر قبل الحفظ.</p></div></div>
+    <details class="meeting-new-details" id="meeting-new-details"><summary><span>${icon('plus',18)} <strong>تسجيل اجتماع جديد</strong></span><small>افتح النموذج عند الحاجة فقط</small></summary><section class="meeting-new-content" id="meeting-new-form">
       <form data-action="save-meeting" class="entry-form">
         <div class="form-grid">
           <div><label class="lab" for="meeting-project">المشروع</label><select class="input" id="meeting-project"><option value="">اختر المشروع</option>${projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>
@@ -792,7 +798,7 @@ function renderMeetings() {
         <textarea class="input textarea" id="meeting-actions" rows="3" placeholder="المهمة — المسؤول — الموعد (إن ذُكر)"></textarea>
         <button class="btn primary" type="submit">حفظ محضر الاجتماع</button>
       </form>
-    </section>
+      </section></details>
     <section class="card glass">
       <div class="dhead"><div><h2>سجل Minutes of Meeting</h2><p class="muted small">جميع الاجتماعات من كل المشروعات في صفحة واحدة.</p></div></div>
       ${rows.length?rows.map(m=>{
@@ -1410,7 +1416,9 @@ async function onClick(e) {
     case 'auth-toggle': S.authMode=S.authMode==='signup'?'signin':'signup'; renderLogin(); break;
     case 'auth-reset': { const email=$('#auth-email')?.value.trim(); if(!email){toast('اكتب بريدك الإلكتروني أولًا.');break;} try{await S.store.resetPassword(email);toast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.');}catch(err){toast(err.message||'تعذر إرسال الرابط.');} break; }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
-    case 'nav': S.section = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'nav': S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'nav-expand': S.navOpenSection=S.navOpenSection===el.dataset.section?'':el.dataset.section; if(!S.navExpanded){S.navExpanded=true;localStorage.setItem('wp1:nav-expanded','1');} render(); break;
+    case 'nav-collapse': S.navExpanded=!S.navExpanded; localStorage.setItem('wp1:nav-expanded',S.navExpanded?'1':'0'); render(); break;
     case 'voice-open': openVoiceSheet(); break;
     case 'voice-start': startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
@@ -1421,7 +1429,7 @@ async function onClick(e) {
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
     case 'meeting-view': S.meetingView=v; render(); break;
-    case 'meeting-new': document.querySelector('#meeting-new-form')?.scrollIntoView({behavior:'smooth',block:'start'}); $('#meeting-project')?.focus({preventScroll:true}); break;
+    case 'meeting-new': { const panel=$('#meeting-new-details'); if(panel){panel.open=!panel.open;if(panel.open){panel.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>$('#meeting-project')?.focus({preventScroll:true}),180);}} break; }
     case 'meeting-week-prev': S.meetingWeek=D.addDays(S.meetingWeek,-7); render(); break;
     case 'meeting-week-next': S.meetingWeek=D.addDays(S.meetingWeek,7); render(); break;
     case 'meeting-week-today': S.meetingWeek=D.weekStartOf(D.todayISO(),startDay()); render(); break;
