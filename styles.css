@@ -644,10 +644,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .dashboard-project-open small{font-size:.72rem;color:var(--text-2)}
 .dashboard-project-open .chip{flex:0 0 auto;font-size:.68rem}
 .dashboard-project-card .finance-project-metrics.compact{border-top:1px solid var(--btn-ring)}
-.project-card .finance-project-metrics.compact{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--btn-ring)}
-.project-card .finance-project-metrics.compact .finance-ring{width:66px;height:66px}
-.project-card .finance-project-metrics.compact .finance-ring.small{width:54px;height:54px}
-.project-card .finance-net-compact{padding-top:.4rem}
+.project-card-wrap>.finance-project-metrics.compact{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--btn-ring)}
+.project-card-wrap>.finance-project-metrics.compact .finance-ring{width:66px;height:66px}
+.project-card-wrap>.finance-project-metrics.compact .finance-ring.small{width:54px;height:54px}
+.project-card-wrap>.finance-project-metrics.compact .finance-net-compact{padding-top:.4rem}
 @media(max-width:560px){
  .finance-project-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
  .finance-project-card{padding:.65rem}
