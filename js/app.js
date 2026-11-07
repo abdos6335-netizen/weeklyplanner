@@ -8,12 +8,15 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.24';
+const VERSION = '3.1.25';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 
-const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 } };
+const RATIO_CONTEXTS = ['dashboard', 'projects', 'finance'];
+const RATIO_STYLES = ['ring', 'bar', 'pill', 'gauge', 'blocks', 'badge'];
+const DEFAULT_RATIO_LOOK = { style: 'ring', collectionColor: '#a7e8bd', profitColor: '#24965b' };
+const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
 
 const S = {
   store: null,
@@ -35,6 +38,7 @@ const S = {
   nativeMeetingFileName: null,
   autoProcessMeetingAfterSave: false,
   financeView: 'projects',
+  ratioEditorContext: 'dashboard',
   expenseMonth: D.todayISO().slice(0,7),
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
   authMode: 'signin',
@@ -64,6 +68,18 @@ function mergeSettings(saved) {
     const target = Number(s.financeTargets[key]);
     s.financeTargets[key] = Number.isFinite(target) ? Math.min(100, Math.max(1, Math.round(target))) : DEFAULT_SETTINGS.financeTargets[key];
   }
+  const savedRatioAppearance = saved?.ratioAppearance || {};
+  const normalizeRatioLook = (look = {}, fallback = DEFAULT_RATIO_LOOK) => {
+    const style = RATIO_STYLES.includes(look.style) ? look.style : fallback.style;
+    const color = (value, defaultValue) => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value) : defaultValue;
+    return { style, collectionColor: color(look.collectionColor, fallback.collectionColor), profitColor: color(look.profitColor, fallback.profitColor) };
+  };
+  const globalRatioLook = normalizeRatioLook(savedRatioAppearance.global);
+  s.ratioAppearance = {
+    scope: savedRatioAppearance.scope === 'perTab' ? 'perTab' : 'global',
+    global: globalRatioLook,
+    tabs: Object.fromEntries(RATIO_CONTEXTS.map((context) => [context, normalizeRatioLook(savedRatioAppearance.tabs?.[context], globalRatioLook)])),
+  };
   if (!['apple','smooth','subtle','reduced'].includes(s.motion.style)) s.motion.style = 'apple';
   if (!['slow','normal','fast'].includes(s.motion.speed)) s.motion.speed = 'normal';
   s.id = 'prefs';
@@ -155,6 +171,7 @@ function onAuth(user) {
 
 function applySettings(rerender) {
   setLang(S.settings.lang);
+  document.documentElement.dataset.density = 'compact';
   S.settings.theme = applyTheme(S.settings.theme);
   applyMotionSettings();
   document.title = t('app');
@@ -164,6 +181,26 @@ function applySettings(rerender) {
 
 function applyMotionSettings() {
   const root = document.documentElement;
+  const ratioConfig = S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance;
+  const editorLook = ratioConfig.scope === 'perTab' ? (ratioConfig.tabs?.[S.ratioEditorContext] || ratioConfig.global) : ratioConfig.global;
+  const ratioLabels = lang() === 'ar'
+    ? { global: 'عام لكل التبويبات', perTab: 'تخصيص لكل تبويب', context: 'التبويب', dashboard: 'الرئيسية', projects: 'المشروعات', finance: 'المالية', style: 'شكل المؤشر', colors: 'ألوان المؤشرات', collection: 'نسبة التحصيل', profit: 'هامش صافي الربح', preview: 'معاينة مباشرة', reset: 'استعادة الافتراضي', hint: 'اختر شكلًا وألوانًا عامة أو خصصها لكل تبويب. المعاينة تستخدم نسبًا تجريبية.' }
+    : { global: 'Global across tabs', perTab: 'Customize per tab', context: 'Tab', dashboard: 'Dashboard', projects: 'Projects', finance: 'Finance', style: 'Indicator shape', colors: 'Indicator colors', collection: 'Collection ratio', profit: 'Net profit margin', preview: 'Live preview', reset: 'Reset to default', hint: 'Choose a shared style and colors, or customize each tab. Preview values are examples.' };
+  const ratioStyleLabels = lang() === 'ar'
+    ? { ring: 'حلقة', bar: 'شريط', pill: 'كبسولة', gauge: 'عداد', blocks: 'شرائح', badge: 'شارة' }
+    : { ring: 'Ring', bar: 'Bar', pill: 'Pill', gauge: 'Gauge', blocks: 'Blocks', badge: 'Badge' };
+  const ratioAppearanceSettings = `
+    <p class="muted small">${ratioLabels.hint}</p>
+    <div class="lab">${lang() === 'ar' ? 'نطاق التخصيص' : 'Customization scope'}</div>
+    ${seg('set-ratio-scope', [['global', ratioLabels.global], ['perTab', ratioLabels.perTab]], ratioConfig.scope)}
+    ${ratioConfig.scope === 'perTab' ? `<label class="lab" for="ratio-editor-context">${ratioLabels.context}</label><select class="input" id="ratio-editor-context" data-change="ratio-context">${RATIO_CONTEXTS.map((context) => `<option value="${context}" ${S.ratioEditorContext === context ? 'selected' : ''}>${ratioLabels[context]}</option>`).join('')}</select>` : ''}
+    <div class="lab">${ratioLabels.style}</div>
+    <div class="ratio-style-options">${RATIO_STYLES.map((style) => `<button type="button" class="ratio-style-option" data-action="set-ratio-style" data-val="${style}" aria-pressed="${editorLook.style === style}"><span class="ratio-style-demo demo-${style}"></span><span>${ratioStyleLabels[style]}</span></button>`).join('')}</div>
+    <div class="lab">${ratioLabels.colors}</div>
+    <div class="ratio-color-grid"><label>${ratioLabels.collection}<input type="color" value="${editorLook.collectionColor}" data-input="ratio-color" data-key="collectionColor"></label><label>${ratioLabels.profit}<input type="color" value="${editorLook.profitColor}" data-input="ratio-color" data-key="profitColor"></label></div>
+    <div class="lab">${ratioLabels.preview}</div><div id="ratio-live-preview" class="ratio-live-preview">${financeRing(68, lang() === 'ar' ? 'نسبة التحصيل' : 'Collection', 'large', 'collection', 100, S.ratioEditorContext)}${financeRing(25, lang() === 'ar' ? 'هامش الربح' : 'Profit margin', 'small', 'profit', 25, S.ratioEditorContext)}</div>
+    <button type="button" class="btn sm" data-action="reset-ratio-appearance">${ratioLabels.reset}</button>`;
+
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
   root.dataset.motion = motion.style;
   root.dataset.motionSpeed = motion.speed;
@@ -456,7 +493,7 @@ function renderDashboard() {
             <span><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
             <span class="chip">${projectStatusLabel(p.status)}</span>
           </button>
-          ${renderProjectFinanceMetrics(p, S.financeEntries, true)}
+          ${renderProjectFinanceMetrics(p, S.financeEntries, true, 'dashboard')}
         </article>`).join('')}</div>` : `<p class="muted small dashboard-empty">${t('dashboard_no_active_projects')}</p>`}
     </section>`;
 }
@@ -495,22 +532,71 @@ function projectFinanceTotals(project, entries = S.financeEntries) {
   };
 }
 
-function financeRing(value, label, size = 'large', metric = 'collection', target = 100) {
+function financeRing(value, label, size = 'large', metric = 'collection', target = 100, context = 'finance') {
   const safeTarget = Number.isFinite(Number(target)) ? Math.min(100, Math.max(1, Number(target))) : 100;
   const targetLabel = lang() === 'ar' ? `الهدف ${safeTarget}%` : `Target ${safeTarget}%`;
-  if (value === null || !Number.isFinite(value)) {
-    return `<div class="finance-ring-wrap ${size}"><div class="finance-ring empty ${metric}"><span>—</span></div><small>${esc(label)}</small><em>${lang() === 'ar' ? 'لا توجد بيانات' : 'No data'} · ${targetLabel}</em></div>`;
+  const look = ratioLookFor(context);
+  const color = value < 0 ? '#d45b52' : metric === 'collection' ? look.collectionColor : look.profitColor;
+  const isEmpty = value === null || !Number.isFinite(value);
+  const amount = isEmpty ? 0 : Math.min(100, Math.abs(value) / safeTarget * 100);
+  const rounded = isEmpty ? '—' : `${Math.round(value)}%`;
+  const style = look.style;
+  const styleVars = `--ratio-color:${color};--ratio-track:var(--surface-2);--ratio-pct:${amount}%;--ring-pct:${amount}%;`;
+  let visual;
+  if (style === 'ring') {
+    visual = `<div class="finance-ring ${metric} ${isEmpty ? 'empty' : value < 0 ? 'loss' : ''}" style="${styleVars}"><span>${rounded}</span></div>`;
+  } else if (isEmpty) {
+    visual = `<div class="ratio-visual ratio-${style} ratio-empty" style="${styleVars}"><b>${rounded}</b></div>`;
+  } else if (style === 'bar') {
+    visual = `<div class="ratio-visual ratio-bar" style="${styleVars}"><span class="ratio-fill"></span><b>${rounded}</b></div>`;
+  } else if (style === 'pill') {
+    visual = `<div class="ratio-visual ratio-pill" style="${styleVars}"><span class="ratio-fill"></span><b>${rounded}</b></div>`;
+  } else if (style === 'gauge') {
+    visual = `<div class="ratio-visual ratio-gauge" style="${styleVars}"><span class="ratio-gauge-arc"></span><b>${rounded}</b></div>`;
+  } else if (style === 'blocks') {
+    visual = `<div class="ratio-visual ratio-blocks" style="${styleVars}">${Array.from({ length: 8 }, (_, i) => `<i class="${i < Math.ceil(amount / 12.5) ? 'on' : ''}"></i>`).join('')}<b>${rounded}</b></div>`;
+  } else {
+    visual = `<div class="ratio-visual ratio-badge" style="${styleVars}"><b>${rounded}</b></div>`;
   }
-  const rounded = Math.round(value);
-  const amount = Math.min(100, Math.abs(value) / safeTarget * 100);
-  const tone = value < 0 ? 'loss' : 'gain';
-  return `<div class="finance-ring-wrap ${size}"><div class="finance-ring ${tone} ${metric}" style="--ring-pct:${amount}%"><span>${rounded}%</span></div><small>${esc(label)}</small><em>${targetLabel}</em></div>`;
+  const emptyNote = lang() === 'ar' ? 'لا توجد بيانات' : 'No data';
+  return `<div class="finance-ring-wrap ${size} ${style === 'ring' ? 'ratio-wrap-ring' : 'ratio-wrap-' + style}" style="--ratio-color:${color};">${visual}<small>${esc(label)}</small><em>${isEmpty ? emptyNote + ' · ' : ''}${targetLabel}</em></div>`;
 }
 
-function renderProjectFinanceMetrics(project, entries = S.financeEntries, compact = false) {
+function ratioLookFor(context = 'finance') {
+  const config = S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance;
+  return config.scope === 'perTab' ? (config.tabs?.[context] || config.global) : config.global;
+}
+
+function updateRatioLook(field, value, context = S.ratioEditorContext, render = true) {
+  if (!['style', 'collectionColor', 'profitColor'].includes(field)) return;
+  const current = S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance;
+  const next = { ...current, global: { ...current.global }, tabs: { ...current.tabs } };
+  if (current.scope === 'perTab') {
+    next.tabs[context] = { ...(next.tabs[context] || current.global), [field]: value };
+  } else {
+    next.global = { ...next.global, [field]: value };
+  }
+  updateSettings({ ratioAppearance: next }, { render });
+}
+
+function renderRatioPreview() {
+  const preview = $('#ratio-live-preview');
+  if (!preview) return;
+  const ar = lang() === 'ar';
+  preview.innerHTML = `${financeRing(68, ar ? 'نسبة التحصيل' : 'Collection', 'large', 'collection', 100, S.ratioEditorContext)}${financeRing(25, ar ? 'هامش الربح' : 'Profit margin', 'small', 'profit', 25, S.ratioEditorContext)}`;
+}
+
+function ratioTitlePair(metrics, context = 'finance') {
+  const look = ratioLookFor(context);
+  const fmt = (value) => value === null || !Number.isFinite(value) ? '—' : `${Math.round(value)}%`;
+  const ar = lang() === 'ar';
+  return `<span class="ratio-title-pair" style="--ratio-collection-color:${look.collectionColor};--ratio-profit-color:${look.profitColor};"><span><small>${ar ? 'تحصيل' : 'Collected'}</small><b class="collection">${fmt(metrics.collectionPct)}</b></span><span><small>${ar ? 'صافي' : 'Net margin'}</small><b class="profit">${fmt(metrics.profitPct)}</b></span></span>`;
+}
+
+function renderProjectFinanceMetrics(project, entries = S.financeEntries, compact = false, context = 'projects') {
   const m = projectFinanceTotals(project, entries);
   const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
-  const rings = `<div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large', 'collection', targets.collection)}${financeRing(m.profitPct, 'هامش صافي الربح', 'small', 'profit', targets.profit)}</div>`;
+  const rings = `<div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large', 'collection', targets.collection, context)}${financeRing(m.profitPct, 'هامش صافي الربح', 'small', 'profit', targets.profit, context)}</div>`;
   if (compact) return `<div class="finance-project-metrics compact">${rings}<div class="finance-net-compact"><span>صافي الربح</span><strong class="${m.net < 0 ? 'negative' : 'positive'}">${m.net < 0 ? '−' : ''}${money(Math.abs(m.net))} ${t('currency')}</strong><small>${m.net < 0 ? 'خسارة' : 'بعد خصم المصروفات'}</small></div></div>`;
   return `<div class="finance-project-metrics">
     ${rings}
@@ -525,8 +611,8 @@ function renderProjectFinanceMetrics(project, entries = S.financeEntries, compac
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
   return `<article class="card glass finance-project-card">
-    <div class="dhead"><div><h3>${esc(project.name)}</h3><p class="muted small">${projectTypeLabel(project.type)} · ${projectStatusLabel(project.status)}</p></div><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
-    ${renderProjectFinanceMetrics(project)}
+    <div class="dhead"><div><div class="finance-title-line"><h3>${esc(project.name)}</h3>${ratioTitlePair(metrics, 'finance')}</div><p class="muted small">${projectTypeLabel(project.type)} · ${projectStatusLabel(project.status)}</p></div><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
+    ${renderProjectFinanceMetrics(project, S.financeEntries, false, 'finance')}
   </article>`;
 }
 
@@ -538,14 +624,14 @@ function renderProjects() {
     const reqs = S.requirements.filter(x => x.projectId === selected.id).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
     const income = fs.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), expense = fs.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);
     return `<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
-      <section class="card glass"><div class="project-title"><div><h2>${esc(selected.name)}</h2><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="stats-grid"><div class="stat"><span>${t('contract_value')}</span><strong>${money(selected.contractValue)} ${t('currency')}</strong></div><div class="stat"><span>${t('collected')}</span><strong>${money(income)} ${t('currency')}</strong></div><div class="stat"><span>${t('expenses')}</span><strong>${money(expense)} ${t('currency')}</strong></div><div class="stat"><span>${t('remaining')}</span><strong>${money(Number(selected.contractValue||0)-income)} ${t('currency')}</strong></div></div>${renderProjectFinanceMetrics(selected, fs)}<p>${esc(selected.notes||'')}</p></section>
+      <section class="card glass"><div class="project-title"><div><div class="project-heading-line"><h2>${esc(selected.name)}</h2>${ratioTitlePair(projectFinanceTotals(selected, fs), 'projects')}</div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="stats-grid"><div class="stat"><span>${t('contract_value')}</span><strong>${money(selected.contractValue)} ${t('currency')}</strong></div><div class="stat"><span>${t('collected')}</span><strong>${money(income)} ${t('currency')}</strong></div><div class="stat"><span>${t('expenses')}</span><strong>${money(expense)} ${t('currency')}</strong></div><div class="stat"><span>${t('remaining')}</span><strong>${money(Number(selected.contractValue||0)-income)} ${t('currency')}</strong></div></div>${renderProjectFinanceMetrics(selected, fs)}<p>${esc(selected.notes||'')}</p></section>
       <section class="card glass"><div class="dhead"><div><h2>Requirements</h2><p class="muted small">طلبات العميل من الاجتماعات أو WhatsApp في مكان واحد.</p></div><span class="chip">${reqs.filter(x=>x.status!=='done').length} مفتوح</span></div><form data-action="add-requirement" class="entry-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="${D.todayISO()}"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>${reqs.length?`<div class="requirements-list">${reqs.map(r=>`<article class="requirement-row"><div><p>${esc(r.text)}</p><small>${r.source==='meeting'?'Meeting':r.source==='whatsapp'?'WhatsApp':'طلب مباشر'} · ${esc(r.date||'—')} ${r.sourceLabel?'· '+esc(r.sourceLabel):''}</small></div><select class="input compact" data-change="requirement-status" data-id="${esc(r.id)}"><option value="open" ${r.status==='open'?'selected':''}>مفتوح</option><option value="doing" ${r.status==='doing'?'selected':''}>قيد التنفيذ</option><option value="done" ${r.status==='done'?'selected':''}>تم</option></select></article>`).join('')}</div>`:'<p class="muted">لا توجد Requirements مسجلة لهذا المشروع.</p>'}<p class="muted small">WhatsApp integration: جاهز لإضافة Webhook/API لاحقًا؛ استقبال الرسائل تلقائيًا غير مفعّل بعد.</p></section>
       <section class="card glass"><h2>${t('transactions')} · ${esc(selected.name)}</h2>${fs.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('date')}</th><th>${t('category')}</th><th>${t('transaction_type')}</th><th>${t('amount')}</th><th></th></tr></thead><tbody>${fs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(x.category||'—')}<small>${esc(x.description||'')}</small></td><td>${x.kind==='income'?t('income'):t('expenses')}</td><td>${money(x.amount)} ${t('currency')}</td><td><button class="btn sm danger" data-action="delete-finance" data-id="${esc(x.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_transactions')}</p>`}</section>
       <section class="card glass"><h2>${t('deliverables')}</h2><form data-action="add-deliverable" class="entry-form"><input type="hidden" id="d-project" value="${esc(selected.id)}"><div class="form-grid">${inputField(t('deliverable_name'),'d-name')}<div><label class="lab" for="d-stage">${t('design_stage')}</label><select class="input" id="d-stage"><option value="concept">${t('stage_concept')}</option><option value="design">${t('stage_design')}</option><option value="technical">${t('stage_technical')}</option><option value="execution">${t('stage_execution')}</option></select></div><div><label class="lab" for="d-kind">${t('deliverable_type')}</label><select class="input" id="d-kind"><optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">${t('type_plan')}</option><option value="section">${t('type_section')}</option><option value="elevation">${t('type_elevation')}</option><option value="detail">${t('type_detail')}</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&amp;E</option></optgroup><option value="3d">3D</option><option value="other">${t('other')}</option></select></div>${inputField(t('due_date'),'d-date','date')}<div><label class="lab" for="d-status">${t('approval_status')}</label><select class="input" id="d-status"><option value="pending">${t('approval_pending')}</option><option value="submitted">${t('approval_submitted')}</option><option value="approved">${t('approval_approved')}</option><option value="revision">${t('approval_revision')}</option></select></div></div><label class="lab" for="d-notes">${t('notes')}</label><input class="input" id="d-notes"><button class="btn primary" type="submit">${t('add_deliverable')}</button></form>
       ${ds.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('deliverable_name')}</th><th>${t('design_stage')}</th><th>${t('due_date')}</th><th>${t('approval_status')}</th><th></th></tr></thead><tbody>${ds.map(d=>`<tr><td><strong>${esc(d.name)}</strong><small>${esc(d.kind||'')} ${d.notes?'· '+esc(d.notes):''}</small></td><td>${esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage]||d.stage||'—')}</td><td>${esc(d.dueDate||'—')}</td><td><select class="input compact" data-change="deliverable-status" data-id="${esc(d.id)}"><option value="pending" ${d.status==='pending'?'selected':''}>${t('approval_pending')}</option><option value="submitted" ${d.status==='submitted'?'selected':''}>${t('approval_submitted')}</option><option value="approved" ${d.status==='approved'?'selected':''}>${t('approval_approved')}</option><option value="revision" ${d.status==='revision'?'selected':''}>${t('approval_revision')}</option></select></td><td><button class="btn sm danger" data-action="delete-deliverable" data-id="${esc(d.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_deliverables')}</p>`}</section>`;
   }
   const projects = [...S.projects].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><h2>${esc(p.name)}</h2><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}${p.workScope?.length?' · '+esc(projectScopeLabel(p.workScope)):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>${renderProjectFinanceMetrics(p, S.financeEntries, true)}<div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(p.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
+  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><div class="project-heading-line"><h2>${esc(p.name)}</h2>${ratioTitlePair(projectFinanceTotals(p), 'projects')}</div><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}${p.workScope?.length?' · '+esc(projectScopeLabel(p.workScope)):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>${renderProjectFinanceMetrics(p, S.financeEntries, true)}<div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(p.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
 }
 function printProjectReport(id, mode) {
   const p = S.projects.find(x => x.id === id); if (!p) return;
@@ -978,9 +1064,9 @@ function renderFinance() {
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const projectCards = [...S.projects].sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
-  <section class="card glass finance-overview"><div class="dhead"><div><h2>ملخص ماليات كل المشروعات</h2><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
+  <section class="card glass finance-overview"><div class="dhead"><div><div class="finance-title-line"><h2>ملخص ماليات كل المشروعات</h2>${ratioTitlePair({collectionPct,profitPct}, 'finance')}</div><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
-    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large','collection',targets.collection)}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit',targets.profit)}</div>
+    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large','collection',targets.collection,'finance')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit',targets.profit,'finance')}</div>
   </section>
   <section class="finance-project-list"><div class="dhead"><div><h2>مؤشرات كل مشروع</h2><p class="muted small">كل مشروع له نسبة تحصيل وهامش ربح مستقلان.</p></div><span class="chip">${projectCards.length} مشروع</span></div>
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
@@ -1280,6 +1366,7 @@ function renderSettings() {
   return `<div class="settings">
     ${group('appearance', 'palette', 'g_appearance', appearance)}
     ${group('finance-targets', 'finance', lang() === 'ar' ? 'تخصيص النسب المالية' : 'Finance ratio targets', financeTargetSettings)}
+    ${group('ratio-appearance', 'palette', lang() === 'ar' ? 'شكل وألوان مؤشرات النسب' : 'Ratio indicator style & colors', ratioAppearanceSettings)}
     ${group('motion', 'sparkles', lang() === 'ar' ? 'الحركة والانتقالات' : 'Motion & transitions', motionSettings)}
     ${group('colors', 'layers', 'g_colors', colors)}
     ${group('icons', 'type', 'g_icons_fonts', iconsFonts)}
@@ -1605,6 +1692,15 @@ async function onClick(e) {
       else S.openGroups.has(id) ? S.openGroups.delete(id) : S.openGroups.add(id);
       render(); break;
     }
+    case 'set-ratio-scope': updateSettings({ ratioAppearance: { ...(S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance), scope: v === 'perTab' ? 'perTab' : 'global' } }); break;
+    case 'set-ratio-style': updateRatioLook('style', RATIO_STYLES.includes(v) ? v : 'ring'); break;
+    case 'reset-ratio-appearance': {
+      const current = S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance;
+      const next = { ...current, global: { ...current.global }, tabs: { ...current.tabs } };
+      if (current.scope === 'perTab') next.tabs[S.ratioEditorContext] = { ...DEFAULT_RATIO_LOOK };
+      else next.global = { ...DEFAULT_RATIO_LOOK };
+      updateSettings({ ratioAppearance: next }); break;
+    }
     case 'set-motion-style': updateSettings({ motion: { ...(S.settings.motion || DEFAULT_SETTINGS.motion), style: v } }); break;
     case 'set-motion-speed': updateSettings({ motion: { ...(S.settings.motion || DEFAULT_SETTINGS.motion), speed: v } }); break;
     case 'set-mode': updateTheme((x) => { x.mode = v; }, { render: true }); break;
@@ -1706,6 +1802,13 @@ function onInput(e) {
   const v = el.value;
   const mode = effectiveMode(S.settings.theme);
   switch (k) {
+    case 'ratio-color': {
+      const key = el.dataset.key;
+      if (!['collectionColor', 'profitColor'].includes(key) || !/^#[0-9a-f]{6}$/i.test(v)) break;
+      updateRatioLook(key, v, S.ratioEditorContext, false);
+      renderRatioPreview();
+      break;
+    }
     case 'bg': updateTheme((x) => { x.bg[mode] = v; x.preset = 'custom'; }); break;
     case 'accent': updateTheme((x) => { x.accent = v; x.preset = 'custom'; }); break;
     case 'text': updateTheme((x) => { x.text[mode] = v; }); break;
@@ -1723,7 +1826,9 @@ function onChange(e) {
   const changed = el.closest('[data-change]');
   if (!changed) return;
   const k = changed.dataset.change;
-  if (k === 'finance-target') {
+  if (k === 'ratio-context') {
+    if (RATIO_CONTEXTS.includes(el.value)) { S.ratioEditorContext = el.value; render(); }
+  } else if (k === 'finance-target') {
     const key = el.dataset.key;
     if (!['collection', 'profit'].includes(key)) return;
     const raw = Number(el.value);
