@@ -612,8 +612,12 @@ Object.assign(UI_PHRASES, {
 
 let domObserver = null;
 function phraseEntries() {
-  const pairs = Object.entries(UI_PHRASES);
-  return current === 'ar' ? pairs.map(([arText, enText]) => [enText, arText]) : pairs;
+  return Object.entries(UI_PHRASES).map(([left, right]) => {
+    const leftIsArabic = /[ء-ي]/.test(left);
+    const arText = leftIsArabic ? left : right;
+    const enText = leftIsArabic ? right : left;
+    return current === 'ar' ? [enText, arText] : [arText, enText];
+  });
 }
 function translateNode(node) {
   if (!node) return;
