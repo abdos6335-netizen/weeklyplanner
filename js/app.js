@@ -760,21 +760,6 @@ function ratioTitlePair(metrics, context = 'finance') {
   return `<span class="ratio-title-pair" style="--ratio-collection-color:${look.collectionColor};--ratio-profit-color:${look.profitColor};"><span><small>${ar ? 'تحصيل' : 'Collected'}</small><b class="collection">${fmt(metrics.collectionPct)}</b></span><span><small>${ar ? 'صافي' : 'Net margin'}</small><b class="profit">${fmt(metrics.profitPct)}</b></span></span>`;
 }
 
-function renderProjectFinanceMetrics(project, entries = S.financeEntries, compact = false, context = 'projects') {
-  const m = projectFinanceTotals(project, entries);
-  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
-  const rings = `<div class="finance-rings">${financeRing(m.collectionPct, 'نسبة التحصيل', 'large', 'collection', targets.collection, context)}${financeRing(m.profitPct, 'هامش صافي الربح', 'small', 'profit', targets.profit, context)}</div>`;
-  if (compact) return `<div class="finance-project-metrics compact">${rings}<div class="finance-net-compact"><span>صافي الربح</span><strong class="${m.net < 0 ? 'negative' : 'positive'}">${m.net < 0 ? '−' : ''}${money(Math.abs(m.net))} ${t('currency')}</strong><small>${m.net < 0 ? 'خسارة' : 'بعد خصم المصروفات'}</small></div></div>`;
-  return `<div class="finance-project-metrics">
-    ${rings}
-    <div class="finance-amounts">
-      <div><span>المحصّل</span><strong>${money(m.income)} ${t('currency')}</strong><small>من ${m.contract > 0 ? money(m.contract) + ' ' + t('currency') : 'قيمة تعاقد غير مسجلة'}</small></div>
-      <div><span>المصروفات</span><strong>${money(m.expense)} ${t('currency')}</strong></div>
-      <div><span>صافي الربح</span><strong class="${m.net < 0 ? 'negative' : 'positive'}">${m.net < 0 ? '−' : ''}${money(Math.abs(m.net))} ${t('currency')}</strong><small>${m.net < 0 ? 'خسارة' : 'بعد خصم المصروفات'}</small></div>
-    </div>
-  </div>`;
-}
-
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
   const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
