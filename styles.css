@@ -1272,8 +1272,12 @@ body .shell main *::after {
 /* Final typography scope: apply the selected family to the whole interface,
    including login, dialogs, sheets, toasts and controls outside .shell. */
 html, body, #app, #layer, #toast,
-#app *:not(.fontbtn):not(.fontbtn *),
-#layer *, #toast *, body .login * {
+#app *:not(.fontbtn):not(.fontbtn *):not(.ph):not(.ph-fill):not([class*="ph-"]),
+#layer *:not(.ph):not(.ph-fill):not([class*="ph-"]),
+#toast *, body .login * {
   font-family:var(--font,system-ui),system-ui,sans-serif !important;
 }
+/* Keep the dedicated Phosphor icon fonts intact. */
+#app .ph, #layer .ph { font-family:"Phosphor" !important; }
+#app .ph-fill, #layer .ph-fill { font-family:"Phosphor-Fill" !important; }
 #app .fontbtn, #app .fontbtn * { font-family:inherit; }
