@@ -570,7 +570,7 @@ function projectProgressData(project, deliverables = S.deliverables) {
   }
   if (explicitScopes ? selectedScopes.includes('execution') : rows.some((d) => d.stage === 'execution')) {
     const items = rows.filter((d) => d.stage === 'execution');
-    if (items.length) { const done = items.filter((d) => d.executionStatus === 'completed' || completed(d)).length; phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: Math.round(done / items.length * 100) }); }
+    if (items.length) { const done = items.filter((d) => d.executionStatus === 'completed').length; phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: Math.round(done / items.length * 100) }); }
   }
   const done = phases.reduce((sum, phase) => sum + phase.done, 0);
   const total = phases.reduce((sum, phase) => sum + phase.total, 0);
