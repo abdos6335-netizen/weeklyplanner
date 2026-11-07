@@ -632,7 +632,7 @@ function translateNode(node) {
     const trailing = original.match(/\s*$/)?.[0] || '';
     let value = trimmed;
     for (const [from, to] of phraseEntries().sort((a,b) => b[0].length-a[0].length)) {
-      if (value.includes(from)) value = value.split(from).join(to);
+      if (from.length <= 3 ? value === from : value.includes(from)) value = from.length <= 3 ? to : value.split(from).join(to);
     }
     if (value !== trimmed) node.nodeValue = leading + value + trailing;
     return;
