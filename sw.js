@@ -1,7 +1,7 @@
 // Service worker: يخزّن هيكل التطبيق ليعمل أوفلاين. غيّر VERSION عند نشر تحديث.
-const VERSION = 'wp-v3.1.32';
+const VERSION = 'wp-v3.2.0';
 const SHELL = [
-  './', 'index.html', 'styles.css', 'manifest.webmanifest',
+  './', 'index.html', 'styles.css', 'minimal.css', 'manifest.webmanifest',
   'js/app.js', 'js/store.js', 'js/theme.js', 'js/i18n.js', 'js/icons.js', 'js/dates.js', 'js/firebase-config.js',
   'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-48.png',
 ];

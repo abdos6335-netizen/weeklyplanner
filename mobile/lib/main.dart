@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 void main() => runApp(const WeeklyPlannerMobile());
 
@@ -77,6 +78,9 @@ class _PlannerWebViewState extends State<PlannerWebView> {
         },
       ))
       ..loadRequest(Uri.parse('https://abdos6335-netizen.github.io/weeklyplanner/'));
+    final platform = web.platform;
+    if (platform is AndroidWebViewController) platform.setTextZoom(100);
+    if (platform is AndroidWebViewController) platform.enableZoom(false);
   }
 
   Future<void> reloadPage() async {

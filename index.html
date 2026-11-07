@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>WeeklyPlanner</title>
   <meta name="description" content="WeeklyPlanner — تنظيم المهام والمشروعات والاجتماعات والماليات">
   <meta name="theme-color" content="#f6f4ef">
@@ -17,10 +17,11 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700&family=Inter:wght@300;400;500;600&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="minimal.css">
   <script>
     // لون الخلفية المحفوظ يُطبَّق فورًا لتجنب الوميض قبل تحميل التطبيق
     try { var b = localStorage.getItem('wp1:bg'); if (b) document.documentElement.style.setProperty('--bg', b); } catch (e) {}
@@ -28,6 +29,7 @@
 </head>
 <body>
   <div id="app"></div>
+  <div id="detail"></div>
   <div id="layer"></div>
   <div id="toast" aria-live="polite"></div>
   <noscript>WeeklyPlanner يحتاج تفعيل JavaScript.</noscript>
