@@ -931,7 +931,6 @@ html, body, #app { touch-action: pan-x pan-y; }
  .project-deliverable-row { grid-template-columns:minmax(0,1fr) auto; }
  .project-deliverable-row > span { display:none; }
  .project-transaction-row { grid-template-columns:minmax(0,1fr) auto auto; }
- .project-bottom-sheet { max-height:86dvh; border-radius:16px 16px 0 0; }
 }
 
 /* App-wide typography and surfaces follow the light, restrained reference. */
@@ -1083,7 +1082,6 @@ body::before { display:none !important; background:none !important; }
 }
 .shell main .btn, .shell main .btn.primary, .shell main .btn.ghost,
 .shell main button:not(.fab):not(.voice-fab):not(.icon-btn),
-.shell main .project-sheet-close {
   background:transparent !important; color:var(--text) !important; border:0 !important;
   border-radius:0 !important; box-shadow:none !important;
 }
