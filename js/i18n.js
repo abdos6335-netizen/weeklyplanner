@@ -520,6 +520,55 @@ Object.assign(UI_PHRASES, {
   'No time set':'بدون وقت','EGP':'ج.م'
 });
 
+
+Object.assign(UI_PHRASES, {
+  'تخطيط':'Planning','جاري':'Active','متوقف مؤقتًا':'On hold','مكتمل':'Completed',
+  'سكني':'Residential','إداري':'Administrative','تجاري':'Commercial','تشطيبات وتنفيذ':'Fit-out and execution',
+  'تقرير':'Report','التسليمات والاعتمادات':'Deliverables and approvals',
+  'الهدف':'Target','لا توجد بيانات':'No data','تحصيل':'Collection','مصروف':'Expense',
+  'قيمة التعاقد:':'Contract value:','نوع المشروع:':'Project type:','الحالة:':'Status:',
+  'العميل:':'Client:','الموقع:':'Location:','نطاق العمل:':'Work scope:',
+  'تاريخ التقرير:':'Report date:','الإنجاز الفني:':'Technical progress:','نسبة التحصيل:':'Collection rate:',
+  'إجمالي التحصيل:':'Total collected:','إجمالي المصروف:':'Total expenses:','صافي الربح:':'Net profit:',
+  'ملاحظات:':'Notes:','المرحلة':'Stage','المنجز':'Completed','النسبة':'Percentage',
+  'المتطلب':'Requirement','المصدر':'Source','التاريخ':'Date','الحالة':'Status',
+  'مراجعة':'Review','النوع':'Type','الموعد':'Due date','الاعتماد':'Approval',
+  'Existing & Layout':'القائم والتخطيط','Furniture Layout + Dimension':'توزيع الأثاث والأبعاد',
+  'RCP':'سقف منعكس (RCP)','Electrical Power':'قوى كهربائية','Switches':'مفاتيح',
+  'Low Current':'تيار خفيف','Flooring':'الأرضيات','Wall Finishing':'تشطيب الحوائط',
+  'Mechanical AC/Plumbing/Drainage':'تكييف / تغذية / صرف','Door Schedule':'جدول الأبواب',
+  'Window Schedule':'جدول النوافذ','Finishes Schedule':'جدول التشطيبات','Lighting Schedule':'جدول الإضاءة',
+  'FF&E':'الأثاث والتجهيزات','Shop Drawings Review':'مراجعة اللوحات التنفيذية',
+  'Colors & Materials':'الألوان والخامات','General Meeting':'اجتماع عام',
+  'Meeting':'اجتماع','Meetings':'اجتماعات','Project':'مشروع','Finance':'الماليات',
+  'Tasks':'المهام','Dashboard':'لوحة التحكم','Projects':'المشروعات',
+  'No project selected':'لا يوجد مشروع محدد','No client selected':'لا يوجد عميل محدد',
+  'No time set':'بدون وقت','Speech language':'لغة الإملاء الصوتي',
+  'المواعيد المتأخرة والقريبة خلال أسبوعين':'المواعيد المتأخرة والقريبة خلال أسبوعين',
+  'اسم المستخدم غير متاح':'اسم المستخدم غير متاح',
+  'المشروع المرتبط':'المشروع المرتبط','بدون مشروع':'بدون مشروع',
+  'التقويم الأسبوعي':'التقويم الأسبوعي','الاجتماعات القادمة':'الاجتماعات القادمة','الاجتماعات السابقة':'الاجتماعات السابقة',
+  'كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.':'All meeting minutes in one place, linked to projects and searchable and printable.',
+  'طلب جديد من العميل':'New client requirement','طلب مباشر':'Direct request',
+  'حركة مالية':'Financial transaction','حركة شخصية':'Personal transaction',
+  'تسجيل اجتماع جديد':'Record a new meeting','حفظ محضر الاجتماع':'Save meeting minutes',
+  'التقرير المالي للمشروع':'Project financial report','تقرير موقف المشروع':'Project status report',
+  'الاجتماع غير موجود.':'Meeting not found.','المشروع غير موجود.':'Project not found.',
+  'تسجيل الصوت الكامل غير مدعوم في هذا المتصفح.':'Full audio recording is not supported in this browser.',
+  'جارٍ الحفظ…':'Saving…','تم إنشاء المشروع بنجاح.':'Project created successfully.',
+  'تم تحديث المشروع بنجاح.':'Project updated successfully.','تم حفظ الميزانية.':'Budget saved.',
+  'تم تحديث مرحلة التنفيذ.':'Execution stage updated.','تم تسجيل الحركة المالية بنجاح.':'Financial transaction saved successfully.',
+  'تم تسجيل بيانات التسليم بنجاح.':'Deliverable saved successfully.',
+  'تم حفظ Meeting':'Meeting saved','في مشروع':'in project',
+  'تنبيه: المصروف تجاوز الميزانية الشهرية، ويمكنك الاستمرار في التسجيل.':'Warning: expenses exceed the monthly budget. You can still continue recording.',
+  'مثال: إضافة وحدة تخزين بجوار الثلاجة\nتغيير لون وحدات المطبخ':'Example: Add a storage unit next to the fridge\nChange the kitchen cabinet color',
+  '01. Shop Drawings Review\nالنقاط التي تمت مناقشتها...\n\n02. Colors & Materials\nالنقاط التي تمت مناقشتها...':'01. Shop Drawings Review\nDiscussion points...\n\n02. Colors & Materials\nDiscussion points...',
+  'طلب جديد من العميل':'New client requirement','اختار خدمة واحدة أو اجمع أكثر من خدمة حسب الاتفاق مع العميل.':'Choose one service or combine several based on the client agreement.',
+  'نطاق الخدمات المطلوبة في المشروع':'Project service scope','أضف النص المستخرج أو الملاحظات بعد الاجتماع':'Add the transcript or notes after the meeting',
+  'إلغاء الأرشفة':'Unarchive','أرشفة':'Archive','الأرشيف فارغ':'Archive is empty',
+  'إلغاء':'Cancel','حذف':'Delete','حفظ':'Save','تعديل':'Edit'
+});
+
 let domObserver = null;
 function phraseEntries() {
   const pairs = Object.entries(UI_PHRASES);
