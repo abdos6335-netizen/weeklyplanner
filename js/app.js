@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.25';
+const VERSION = '3.1.26';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -181,26 +181,6 @@ function applySettings(rerender) {
 
 function applyMotionSettings() {
   const root = document.documentElement;
-  const ratioConfig = S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance;
-  const editorLook = ratioConfig.scope === 'perTab' ? (ratioConfig.tabs?.[S.ratioEditorContext] || ratioConfig.global) : ratioConfig.global;
-  const ratioLabels = lang() === 'ar'
-    ? { global: 'عام لكل التبويبات', perTab: 'تخصيص لكل تبويب', context: 'التبويب', dashboard: 'الرئيسية', projects: 'المشروعات', finance: 'المالية', style: 'شكل المؤشر', colors: 'ألوان المؤشرات', collection: 'نسبة التحصيل', profit: 'هامش صافي الربح', preview: 'معاينة مباشرة', reset: 'استعادة الافتراضي', hint: 'اختر شكلًا وألوانًا عامة أو خصصها لكل تبويب. المعاينة تستخدم نسبًا تجريبية.' }
-    : { global: 'Global across tabs', perTab: 'Customize per tab', context: 'Tab', dashboard: 'Dashboard', projects: 'Projects', finance: 'Finance', style: 'Indicator shape', colors: 'Indicator colors', collection: 'Collection ratio', profit: 'Net profit margin', preview: 'Live preview', reset: 'Reset to default', hint: 'Choose a shared style and colors, or customize each tab. Preview values are examples.' };
-  const ratioStyleLabels = lang() === 'ar'
-    ? { ring: 'حلقة', bar: 'شريط', pill: 'كبسولة', gauge: 'عداد', blocks: 'شرائح', badge: 'شارة' }
-    : { ring: 'Ring', bar: 'Bar', pill: 'Pill', gauge: 'Gauge', blocks: 'Blocks', badge: 'Badge' };
-  const ratioAppearanceSettings = `
-    <p class="muted small">${ratioLabels.hint}</p>
-    <div class="lab">${lang() === 'ar' ? 'نطاق التخصيص' : 'Customization scope'}</div>
-    ${seg('set-ratio-scope', [['global', ratioLabels.global], ['perTab', ratioLabels.perTab]], ratioConfig.scope)}
-    ${ratioConfig.scope === 'perTab' ? `<label class="lab" for="ratio-editor-context">${ratioLabels.context}</label><select class="input" id="ratio-editor-context" data-change="ratio-context">${RATIO_CONTEXTS.map((context) => `<option value="${context}" ${S.ratioEditorContext === context ? 'selected' : ''}>${ratioLabels[context]}</option>`).join('')}</select>` : ''}
-    <div class="lab">${ratioLabels.style}</div>
-    <div class="ratio-style-options">${RATIO_STYLES.map((style) => `<button type="button" class="ratio-style-option" data-action="set-ratio-style" data-val="${style}" aria-pressed="${editorLook.style === style}"><span class="ratio-style-demo demo-${style}"></span><span>${ratioStyleLabels[style]}</span></button>`).join('')}</div>
-    <div class="lab">${ratioLabels.colors}</div>
-    <div class="ratio-color-grid"><label>${ratioLabels.collection}<input type="color" value="${editorLook.collectionColor}" data-input="ratio-color" data-key="collectionColor"></label><label>${ratioLabels.profit}<input type="color" value="${editorLook.profitColor}" data-input="ratio-color" data-key="profitColor"></label></div>
-    <div class="lab">${ratioLabels.preview}</div><div id="ratio-live-preview" class="ratio-live-preview">${financeRing(68, lang() === 'ar' ? 'نسبة التحصيل' : 'Collection', 'large', 'collection', 100, S.ratioEditorContext)}${financeRing(25, lang() === 'ar' ? 'هامش الربح' : 'Profit margin', 'small', 'profit', 25, S.ratioEditorContext)}</div>
-    <button type="button" class="btn sm" data-action="reset-ratio-appearance">${ratioLabels.reset}</button>`;
-
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
   root.dataset.motion = motion.style;
   root.dataset.motionSpeed = motion.speed;
@@ -1323,6 +1303,27 @@ function renderSettings() {
       <label>${financeLabels.collection}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.collection}" data-change="finance-target" data-key="collection" aria-label="${financeLabels.collection}"><b>%</b></span></label>
       <label>${financeLabels.profit}<span class="ratio-target-input"><input class="input" type="number" min="1" max="100" step="1" value="${targets.profit}" data-change="finance-target" data-key="profit" aria-label="${financeLabels.profit}"><b>%</b></span></label>
     </div>`;
+
+
+  const ratioConfig = S.settings.ratioAppearance || DEFAULT_SETTINGS.ratioAppearance;
+  const editorLook = ratioConfig.scope === 'perTab' ? (ratioConfig.tabs?.[S.ratioEditorContext] || ratioConfig.global) : ratioConfig.global;
+  const ratioLabels = lang() === 'ar'
+    ? { global: 'عام لكل التبويبات', perTab: 'تخصيص لكل تبويب', context: 'التبويب', dashboard: 'الرئيسية', projects: 'المشروعات', finance: 'المالية', style: 'شكل المؤشر', colors: 'ألوان المؤشرات', collection: 'نسبة التحصيل', profit: 'هامش صافي الربح', preview: 'معاينة مباشرة', reset: 'استعادة الافتراضي', hint: 'اختر شكلًا وألوانًا عامة أو خصصها لكل تبويب. المعاينة تستخدم نسبًا تجريبية.' }
+    : { global: 'Global across tabs', perTab: 'Customize per tab', context: 'Tab', dashboard: 'Dashboard', projects: 'Projects', finance: 'Finance', style: 'Indicator shape', colors: 'Indicator colors', collection: 'Collection ratio', profit: 'Net profit margin', preview: 'Live preview', reset: 'Reset to default', hint: 'Choose a shared style and colors, or customize each tab. Preview values are examples.' };
+  const ratioStyleLabels = lang() === 'ar'
+    ? { ring: 'حلقة', bar: 'شريط', pill: 'كبسولة', gauge: 'عداد', blocks: 'شرائح', badge: 'شارة' }
+    : { ring: 'Ring', bar: 'Bar', pill: 'Pill', gauge: 'Gauge', blocks: 'Blocks', badge: 'Badge' };
+  const ratioAppearanceSettings = `
+    <p class="muted small">${ratioLabels.hint}</p>
+    <div class="lab">${lang() === 'ar' ? 'نطاق التخصيص' : 'Customization scope'}</div>
+    ${seg('set-ratio-scope', [['global', ratioLabels.global], ['perTab', ratioLabels.perTab]], ratioConfig.scope)}
+    ${ratioConfig.scope === 'perTab' ? `<label class="lab" for="ratio-editor-context">${ratioLabels.context}</label><select class="input" id="ratio-editor-context" data-change="ratio-context">${RATIO_CONTEXTS.map((context) => `<option value="${context}" ${S.ratioEditorContext === context ? 'selected' : ''}>${ratioLabels[context]}</option>`).join('')}</select>` : ''}
+    <div class="lab">${ratioLabels.style}</div>
+    <div class="ratio-style-options">${RATIO_STYLES.map((style) => `<button type="button" class="ratio-style-option" data-action="set-ratio-style" data-val="${style}" aria-pressed="${editorLook.style === style}"><span class="ratio-style-demo demo-${style}"></span><span>${ratioStyleLabels[style]}</span></button>`).join('')}</div>
+    <div class="lab">${ratioLabels.colors}</div>
+    <div class="ratio-color-grid"><label>${ratioLabels.collection}<input type="color" value="${editorLook.collectionColor}" data-input="ratio-color" data-key="collectionColor"></label><label>${ratioLabels.profit}<input type="color" value="${editorLook.profitColor}" data-input="ratio-color" data-key="profitColor"></label></div>
+    <div class="lab">${ratioLabels.preview}</div><div id="ratio-live-preview" class="ratio-live-preview">${financeRing(68, lang() === 'ar' ? 'نسبة التحصيل' : 'Collection', 'large', 'collection', 100, S.ratioEditorContext)}${financeRing(25, lang() === 'ar' ? 'هامش الربح' : 'Profit margin', 'small', 'profit', 25, S.ratioEditorContext)}</div>
+    <button type="button" class="btn sm" data-action="reset-ratio-appearance">${ratioLabels.reset}</button>`;
 
 
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
