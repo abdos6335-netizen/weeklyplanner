@@ -1080,8 +1080,6 @@ body::before { display:none !important; background:none !important; }
 .shell main .task .ttl {
   font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
 }
-.shell main .muted:not(.keep-context), .shell main .page-description,
-.shell main .section-description, .shell main .helper-text { display:initial !important; }
 .shell main .card, .shell main .card.glass, .shell main .glass,
 .shell main .dashboard-metric-card, .shell main .finance-project-card,
 .shell main .finance-overview, .shell main .project-accordion,
