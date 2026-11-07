@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.26';
+const VERSION = '3.1.27';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -434,6 +434,21 @@ function renderDashboard() {
     .sort((a,b) => b.priority-a.priority);
   const upcomingTasks = openTasks.filter((x) => x.date && x.date > today)
     .sort((a,b) => a.date.localeCompare(b.date) || b.priority-a.priority);
+  const dashboardWeek = D.weekStartOf(today, startDay());
+  const weekTasks = S.tasks.filter((x) => weekOfTask(x) === dashboardWeek);
+  const completedWeekTasks = weekTasks.filter((x) => x.status === 'done').length;
+  const taskProgress = weekTasks.length ? Math.round(completedWeekTasks / weekTasks.length * 100) : null;
+  const activeProjectProgress = activeProjects.map((p) => projectProgressData(p)).filter((p) => p.total > 0);
+  const allProjectItems = activeProjectProgress.reduce((sum, p) => sum + p.total, 0);
+  const allProjectDone = activeProjectProgress.reduce((sum, p) => sum + p.done, 0);
+  const projectProgress = allProjectItems ? Math.round(allProjectDone / allProjectItems * 100) : null;
+  const projectIds = new Set(S.projects.map((p) => p.id));
+  const dashboardEntries = S.financeEntries.filter((x) => projectIds.has(x.projectId));
+  const dashboardIncome = dashboardEntries.filter((x) => x.kind === 'income').reduce((n, x) => n + Math.max(0, Number(x.amount) || 0), 0);
+  const dashboardExpense = dashboardEntries.filter((x) => x.kind === 'expense').reduce((n, x) => n + Math.max(0, Number(x.amount) || 0), 0);
+  const dashboardContracts = S.projects.reduce((n, p) => n + Math.max(0, Number(p.contractValue) || 0), 0);
+  const collectionProgress = dashboardContracts ? Math.round(dashboardIncome / dashboardContracts * 100) : null;
+  const profitProgress = dashboardIncome ? Math.round((dashboardIncome - dashboardExpense) / dashboardIncome * 100) : null;
   const dashboardTaskRow = (x) => {
     const detail = x.date ? D.fmt(x.date, locale(), { day: 'numeric', month: 'short' }) : t('no_date');
     return `
@@ -455,6 +470,12 @@ function renderDashboard() {
       <button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button>
     </div>
 
+    <div class="dashboard-metrics-grid">
+      ${dashboardMetricCard('إنجاز مهام الأسبوع', taskProgress, weekTasks.length ? completedWeekTasks + '/' + weekTasks.length + ' مهمة مكتملة' : 'لا توجد مهام لهذا الأسبوع', 'tasks')}
+      ${dashboardMetricCard('إنجاز المشروعات النشطة', projectProgress, allProjectItems ? allProjectDone + '/' + allProjectItems + ' بند مكتمل' : 'لا توجد بنود إنجاز مسجلة', 'projects')}
+      ${dashboardMetricCard('التحصيل المالي', collectionProgress, dashboardIncome ? 'هامش صافي الربح ' + (profitProgress === null ? '—' : profitProgress + '%') : 'لا توجد تحصيلات مسجلة', 'finance')}
+    </div>
+
     <div class="dashboard-my-tasks-heading"><div><h2>${t('dashboard_my_tasks')}</h2><p class="muted small">${t('dashboard_tasks_hint')}</p></div><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
     <div class="dashboard-task-groups">
       ${taskGroup(t('late_tasks'),lateTasks,t('dashboard_no_late_tasks'),'overdue')}
@@ -470,10 +491,10 @@ function renderDashboard() {
       ${activeProjects.length ? `<div class="dashboard-project-grid">${activeProjects.slice(0,3).map(p => `
         <article class="dashboard-project-card">
           <button class="dashboard-project-open" data-action="open-project" data-id="${esc(p.id)}">
-            <span><span class="dashboard-project-heading"><b>${esc(p.name)}</b>${ratioTitlePair(projectFinanceTotals(p), 'dashboard')}</span><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
+            <span><span class="dashboard-project-heading"><b>${esc(p.name)}</b></span><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
             <span class="chip">${projectStatusLabel(p.status)}</span>
           </button>
-          ${renderProjectFinanceMetrics(p, S.financeEntries, true, 'dashboard')}
+          ${renderProjectProgress(p)}
         </article>`).join('')}</div>` : `<p class="muted small dashboard-empty">${t('dashboard_no_active_projects')}</p>`}
     </section>`;
 }
@@ -482,6 +503,48 @@ function money(value) { return new Intl.NumberFormat(locale(), { maximumFraction
 function projectTypeLabel(v) { return ({ residential: t('type_residential'), administrative: t('type_administrative'), commercial: t('type_commercial'), fitout: t('type_fitout') })[v] || v || '—'; }
 function projectStatusLabel(v) { return ({ planning: t('status_planning'), active: t('status_active'), on_hold: t('status_on_hold'), completed: t('status_completed') })[v] || v || '—'; }
 function projectScopeLabel(scope) { const labels={design:'Design','3d':'3D','technical_drawings':'Technical Drawings',execution:'Execution'}; return (Array.isArray(scope)?scope:[]).map(x=>labels[x]||x).join(' + '); }
+const PROJECT_PROGRESS_PHASES = [
+  { key: 'design', scope: 'design', label: 'التصميم', matches: (d) => ['concept', 'design'].includes(d.stage) && d.kind !== '3d' },
+  { key: '3d', scope: '3d', label: '3D', matches: (d) => d.stage === 'design' && d.kind === '3d' },
+  { key: 'technical_drawings', scope: 'technical_drawings', label: 'اللوحات الفنية', matches: (d) => d.stage === 'technical' },
+  { key: 'execution', scope: 'execution', label: 'التنفيذ', matches: (d) => d.stage === 'execution' },
+];
+
+function projectProgressData(project, deliverables = S.deliverables) {
+  const rows = deliverables.filter((d) => d.projectId === project.id);
+  const selectedScopes = Array.isArray(project.workScope) ? project.workScope : [];
+  const phases = PROJECT_PROGRESS_PHASES
+    .filter((phase) => selectedScopes.length ? selectedScopes.includes(phase.scope) : rows.some(phase.matches))
+    .map((phase) => {
+      const items = rows.filter(phase.matches);
+      const done = items.filter((d) => d.status === 'approved').length;
+      return { ...phase, done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : null };
+    });
+  const total = phases.reduce((sum, phase) => sum + phase.total, 0);
+  const done = phases.reduce((sum, phase) => sum + phase.done, 0);
+  return { phases, done, total, percent: total ? Math.round(done / total * 100) : null };
+}
+
+function renderProjectProgress(project, deliverables = S.deliverables) {
+  const progress = projectProgressData(project, deliverables);
+  if (!progress.phases.length) return '<div class="project-progress-empty muted small">لا توجد بنود إنجاز مسجلة للمشروع.</div>';
+  const pct = progress.percent;
+  return `<div class="project-progress-block">
+    <div class="project-progress-overall"><div><small>إنجاز المشروع</small><strong>${pct === null ? '—' : pct + '%'}</strong></div><div class="project-progress-track"><span style="width:${pct || 0}%"></span></div><small>${progress.done}/${progress.total} بنود مكتملة</small></div>
+    <div class="project-progress-phases">${progress.phases.map((phase) => `<div class="project-progress-phase"><div><span>${phase.label}</span><strong>${phase.percent === null ? '—' : phase.percent + '%'}</strong></div><div class="project-progress-track"><span style="width:${phase.percent || 0}%"></span></div><small>${phase.total ? phase.done + '/' + phase.total + ' مكتمل' : 'لا توجد بنود مسجلة'}</small></div>`).join('')}</div>
+  </div>`;
+}
+
+function dashboardMetricCard(title, percent, detail, section, secondary = '') {
+  const value = percent === null ? '—' : percent + '%';
+  return `<article class="dashboard-metric-card"><div class="dashboard-metric-head"><div><small>${title}</small><strong>${value}</strong></div>${secondary ? `<span>${secondary}</span>` : ''}</div><div class="project-progress-track"><span style="width:${percent || 0}%"></span></div><small>${detail}</small><button class="btn sm" data-action="nav" data-section="${section}">عرض التفاصيل</button></article>`;
+}
+
+function renderProjectCard(project) {
+  const deliverables = S.deliverables.filter((d) => d.projectId === project.id);
+  return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(project.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(project.status)}</span></div><h2>${esc(project.name)}</h2><p class="muted">${projectTypeLabel(project.type)}${project.client ? ' · ' + esc(project.client) : ''}${project.workScope?.length ? ' · ' + esc(projectScopeLabel(project.workScope)) : ''}</p></button><div class="project-list-progress">${renderProjectProgress(project, deliverables)}</div><div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(project.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`;
+}
+
 function inputField(label, id, type='text', value='', extra='') { return `<label class="lab" for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(value)}" ${extra}>`; }
 
 // Project requirements share one inbox across meeting notes and client messages.
@@ -591,8 +654,8 @@ function renderProjectFinanceMetrics(project, entries = S.financeEntries, compac
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
   return `<article class="card glass finance-project-card">
-    <div class="dhead"><div><div class="finance-title-line"><h3>${esc(project.name)}</h3>${ratioTitlePair(metrics, 'finance')}</div><p class="muted small">${projectTypeLabel(project.type)} · ${projectStatusLabel(project.status)}</p></div><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
-    ${renderProjectFinanceMetrics(project, S.financeEntries, false, 'finance')}
+    <div class="dhead"><div><div class="finance-title-line"><h3>${esc(project.name)}</h3>${ratioTitlePair(metrics, 'finance')}</div><p class="muted small">${projectTypeLabel(project.type)}${project.workScope?.length ? ' · ' + esc(projectScopeLabel(project.workScope)) : ''} · ${projectStatusLabel(project.status)}</p></div><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
+    <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span></div>
   </article>`;
 }
 
@@ -604,14 +667,14 @@ function renderProjects() {
     const reqs = S.requirements.filter(x => x.projectId === selected.id).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
     const income = fs.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), expense = fs.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);
     return `<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
-      <section class="card glass"><div class="project-title"><div><div class="project-heading-line"><h2>${esc(selected.name)}</h2>${ratioTitlePair(projectFinanceTotals(selected, fs), 'projects')}</div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="stats-grid"><div class="stat"><span>${t('contract_value')}</span><strong>${money(selected.contractValue)} ${t('currency')}</strong></div><div class="stat"><span>${t('collected')}</span><strong>${money(income)} ${t('currency')}</strong></div><div class="stat"><span>${t('expenses')}</span><strong>${money(expense)} ${t('currency')}</strong></div><div class="stat"><span>${t('remaining')}</span><strong>${money(Number(selected.contractValue||0)-income)} ${t('currency')}</strong></div></div>${renderProjectFinanceMetrics(selected, fs)}<p>${esc(selected.notes||'')}</p></section>
+      <section class="card glass"><div class="project-title"><div><div class="project-heading-line"><h2>${esc(selected.name)}</h2></div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="stats-grid"><div class="stat"><span>${t('contract_value')}</span><strong>${money(selected.contractValue)} ${t('currency')}</strong></div><div class="stat"><span>${t('collected')}</span><strong>${money(income)} ${t('currency')}</strong></div><div class="stat"><span>${t('expenses')}</span><strong>${money(expense)} ${t('currency')}</strong></div><div class="stat"><span>${t('remaining')}</span><strong>${money(Number(selected.contractValue||0)-income)} ${t('currency')}</strong></div></div>${renderProjectProgress(selected, ds)}<p>${esc(selected.notes||'')}</p></section>
       <section class="card glass"><div class="dhead"><div><h2>Requirements</h2><p class="muted small">طلبات العميل من الاجتماعات أو WhatsApp في مكان واحد.</p></div><span class="chip">${reqs.filter(x=>x.status!=='done').length} مفتوح</span></div><form data-action="add-requirement" class="entry-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="${D.todayISO()}"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>${reqs.length?`<div class="requirements-list">${reqs.map(r=>`<article class="requirement-row"><div><p>${esc(r.text)}</p><small>${r.source==='meeting'?'Meeting':r.source==='whatsapp'?'WhatsApp':'طلب مباشر'} · ${esc(r.date||'—')} ${r.sourceLabel?'· '+esc(r.sourceLabel):''}</small></div><select class="input compact" data-change="requirement-status" data-id="${esc(r.id)}"><option value="open" ${r.status==='open'?'selected':''}>مفتوح</option><option value="doing" ${r.status==='doing'?'selected':''}>قيد التنفيذ</option><option value="done" ${r.status==='done'?'selected':''}>تم</option></select></article>`).join('')}</div>`:'<p class="muted">لا توجد Requirements مسجلة لهذا المشروع.</p>'}<p class="muted small">WhatsApp integration: جاهز لإضافة Webhook/API لاحقًا؛ استقبال الرسائل تلقائيًا غير مفعّل بعد.</p></section>
       <section class="card glass"><h2>${t('transactions')} · ${esc(selected.name)}</h2>${fs.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('date')}</th><th>${t('category')}</th><th>${t('transaction_type')}</th><th>${t('amount')}</th><th></th></tr></thead><tbody>${fs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(x.category||'—')}<small>${esc(x.description||'')}</small></td><td>${x.kind==='income'?t('income'):t('expenses')}</td><td>${money(x.amount)} ${t('currency')}</td><td><button class="btn sm danger" data-action="delete-finance" data-id="${esc(x.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_transactions')}</p>`}</section>
       <section class="card glass"><h2>${t('deliverables')}</h2><form data-action="add-deliverable" class="entry-form"><input type="hidden" id="d-project" value="${esc(selected.id)}"><div class="form-grid">${inputField(t('deliverable_name'),'d-name')}<div><label class="lab" for="d-stage">${t('design_stage')}</label><select class="input" id="d-stage"><option value="concept">${t('stage_concept')}</option><option value="design">${t('stage_design')}</option><option value="technical">${t('stage_technical')}</option><option value="execution">${t('stage_execution')}</option></select></div><div><label class="lab" for="d-kind">${t('deliverable_type')}</label><select class="input" id="d-kind"><optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">${t('type_plan')}</option><option value="section">${t('type_section')}</option><option value="elevation">${t('type_elevation')}</option><option value="detail">${t('type_detail')}</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&amp;E</option></optgroup><option value="3d">3D</option><option value="other">${t('other')}</option></select></div>${inputField(t('due_date'),'d-date','date')}<div><label class="lab" for="d-status">${t('approval_status')}</label><select class="input" id="d-status"><option value="pending">${t('approval_pending')}</option><option value="submitted">${t('approval_submitted')}</option><option value="approved">${t('approval_approved')}</option><option value="revision">${t('approval_revision')}</option></select></div></div><label class="lab" for="d-notes">${t('notes')}</label><input class="input" id="d-notes"><button class="btn primary" type="submit">${t('add_deliverable')}</button></form>
       ${ds.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('deliverable_name')}</th><th>${t('design_stage')}</th><th>${t('due_date')}</th><th>${t('approval_status')}</th><th></th></tr></thead><tbody>${ds.map(d=>`<tr><td><strong>${esc(d.name)}</strong><small>${esc(d.kind||'')} ${d.notes?'· '+esc(d.notes):''}</small></td><td>${esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage]||d.stage||'—')}</td><td>${esc(d.dueDate||'—')}</td><td><select class="input compact" data-change="deliverable-status" data-id="${esc(d.id)}"><option value="pending" ${d.status==='pending'?'selected':''}>${t('approval_pending')}</option><option value="submitted" ${d.status==='submitted'?'selected':''}>${t('approval_submitted')}</option><option value="approved" ${d.status==='approved'?'selected':''}>${t('approval_approved')}</option><option value="revision" ${d.status==='revision'?'selected':''}>${t('approval_revision')}</option></select></td><td><button class="btn sm danger" data-action="delete-deliverable" data-id="${esc(d.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_deliverables')}</p>`}</section>`;
   }
   const projects = [...S.projects].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(p=>{const ds=S.deliverables.filter(d=>d.projectId===p.id), done=ds.filter(d=>d.status==='approved').length;return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(p.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(p.status)}</span></div><div class="project-heading-line"><h2>${esc(p.name)}</h2>${ratioTitlePair(projectFinanceTotals(p), 'projects')}</div><p class="muted">${projectTypeLabel(p.type)}${p.client?' · '+esc(p.client):''}${p.workScope?.length?' · '+esc(projectScopeLabel(p.workScope)):''}</p><div class="project-foot"><span>${ds.length} ${t('deliverables')}</span><span>${done}/${ds.length||0} ${t('approved')}</span></div><div class="progress"><span style="width:${ds.length?Math.round(done/ds.length*100):0}%"></span></div><strong>${money(p.contractValue)} ${t('currency')}</strong></button>${renderProjectFinanceMetrics(p, S.financeEntries, true)}<div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(p.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`}).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
+  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(renderProjectCard).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
 }
 function printProjectReport(id, mode) {
   const p = S.projects.find(x => x.id === id); if (!p) return;
