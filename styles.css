@@ -1198,3 +1198,56 @@ html,body,.shell { font-family:var(--font) !important; }
   .shell main .project-disclosure-content { padding-inline:.05rem; }
   .shell main .project-summary-facts { grid-template-columns:1fr; }
 }
+
+
+/* Follow-up refinements: shared typography, quieter finance controls, execution tracking. */
+html { font-size:calc(16px * var(--type-item-scale,1)); }
+html, body, .shell, .shell * {
+  font-family:var(--font,system-ui),system-ui,sans-serif !important;
+}
+.shell main h1,.shell main h2,.shell main .page-title,.shell main .section-title {
+  font-family:var(--font,system-ui),system-ui,sans-serif !important;
+  font-size:calc(1.38rem * var(--type-heading-scale,1)) !important;
+}
+.shell main h3,.shell main h4,.shell main .section-heading,
+.shell main summary,.shell main .dashboard-task-summary {
+  font-family:var(--font,system-ui),system-ui,sans-serif !important;
+  font-size:calc(1.08rem * var(--type-subheading-scale,1)) !important;
+}
+.shell .finance-switch .btn { opacity:.5; transition:opacity .18s ease,border-color .18s ease; }
+.shell .finance-switch .btn.is-active {
+  opacity:1; border-bottom:2px solid var(--text) !important; font-weight:700 !important;
+}
+.shell main .finance-disclosure {
+  border-bottom:1px solid color-mix(in srgb,var(--text-2) 20%,transparent);
+  margin-block:.25rem .8rem;
+}
+.shell main .finance-disclosure > summary {
+  display:flex; align-items:center; justify-content:space-between; gap:.7rem;
+  list-style:none; cursor:pointer; padding:.85rem .1rem; font-weight:700;
+}
+.shell main .finance-disclosure > summary::-webkit-details-marker { display:none; }
+.shell main .finance-disclosure .disclosure-chevron { transition:transform .2s ease; color:var(--text-2); }
+.shell main .finance-disclosure[open] .disclosure-chevron { transform:rotate(180deg); }
+.shell main .finance-disclosure > section { padding:.15rem .1rem .85rem; }
+.shell main .finance-project-summary { display:flex; align-items:center; gap:.7rem; width:100%; }
+.shell main .finance-project-summary > strong { flex:1; min-width:0; text-align:start; }
+.shell main .finance-project-summary .finance-project-ratios { flex:0 0 auto; }
+.shell main .finance-project-ratios { display:flex; gap:.25rem; font-size:.72rem; }
+.shell main .finance-project-ratios b { font-variant-numeric:tabular-nums; }
+.shell main .project-list-ratios .finance-ring-wrap { display:flex; flex-direction:row; align-items:center; gap:.35rem; min-width:0; }
+.shell main .project-list-ratios .finance-ring { width:38px; height:38px; }
+.shell main .project-list-ratios .finance-ring::before { inset:4px; }
+.shell main .project-list-ratios .finance-ring > span { font-size:.62rem; }
+.shell main .project-list-ratios .finance-ring-wrap > small { font-size:.68rem; font-weight:600; }
+.shell main .project-list-ratios .finance-ring-wrap > em { display:none; }
+.shell main .project-list-report { display:inline-flex; align-items:center; gap:.3rem; white-space:nowrap; }
+.shell main .execution-item { display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.35rem 0; }
+.shell main .execution-item > span { flex:1; min-width:0; }
+.shell main .execution-item select { width:auto; min-width:145px; max-width:58%; }
+@media(max-width:560px) {
+  .shell main .project-list-ratios .finance-ring { width:34px; height:34px; }
+  .shell main .execution-item { align-items:flex-start; flex-direction:column; gap:.3rem; }
+  .shell main .execution-item select { max-width:100%; width:100%; }
+  .shell main .finance-project-summary { flex-wrap:wrap; }
+}
