@@ -600,9 +600,10 @@ function dashboardMetricCard(title, percent, detail, section, metric = 'collecti
   return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-copy"><strong class="dashboard-metric-title">${esc(title)}</strong><small>${esc(detail || '')}</small>${extra}</span><span class="dashboard-metric-indicator">${indicator}</span></button>`;
 }
 
-function renderProjectCategoryRow(label, description, panel, percent = null) {
+function renderProjectCategoryRow(project, label, description, panel, percent = null, deliverables = [], financeEntries = [], requirements = []) {
   const value = percent === null || percent === undefined ? '' : '<span class="project-category-percent">' + Math.round(percent) + '%</span>';
-  return '<button class="project-category-row" data-action="open-project-panel" data-panel="' + panel + '" type="button"><span class="project-category-copy"><strong>' + esc(label) + '</strong><small>' + esc(description) + '</small></span>' + value + '<span class="project-category-chevron">' + icon('chevL', 16) + '</span></button>';
+  const content = renderProjectPanelContent(project, panel, deliverables, financeEntries, requirements);
+  return '<details class="project-disclosure"><summary class="project-category-row"><span class="project-category-copy"><strong>' + esc(label) + '</strong><small>' + esc(description) + '</small></span>' + value + '<span class="project-category-chevron">' + icon('chevL', 16) + '</span></summary><div class="project-disclosure-content">' + content + '</div></details>';
 }
 
 function renderProjectRequirementsPanel(project, requirements) {
@@ -682,10 +683,10 @@ function renderProjectCard(project) {
   return '<article class="project-accordion ' + (expanded ? 'is-expanded' : '') + (project.archivedAt ? ' is-archived' : '') + '">' +
     '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>إنجاز فني ' + techText + '</span></span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
     (expanded ? '<div class="project-accordion-content"><div class="project-accordion-meta"><span>' + esc(projectTypeLabel(project.type)) + '</span><span>' + esc(projectStatusLabel(project.status)) + '</span><span>' + ds.length + ' تسليمات</span></div>' +
-      renderProjectCategoryRow('ملخص المشروع', 'بيانات المشروع ومتابعة العميل', 'summary') +
-      renderProjectCategoryRow('متطلبات العميل', reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', 'requirements', reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null) +
-      renderProjectCategoryRow('الحالة الفنية', progress.phases.length ? progress.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', 'technical', technical) +
-      renderProjectCategoryRow('التسليمات واللوحات', ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', 'deliverables', ds.length ? Math.round(ds.filter(d => ['submitted','approved'].includes(d.status)).length / ds.length * 100) : null) +
+      renderProjectCategoryRow(project, 'ملخص المشروع', 'بيانات المشروع ومتابعة العميل', 'summary', null, ds, fs, reqs) +
+      renderProjectCategoryRow(project, 'متطلبات العميل', reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', 'requirements', reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null, ds, fs, reqs) +
+      renderProjectCategoryRow(project, 'الحالة الفنية', progress.phases.length ? progress.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', 'technical', technical, ds, fs, reqs) +
+      renderProjectCategoryRow(project, 'التسليمات واللوحات', ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', 'deliverables', ds.length ? Math.round(ds.filter(d => ['submitted','approved'].includes(d.status)).length / ds.length * 100) : null, ds, fs, reqs) +
       '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button><button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
 }
 
@@ -706,7 +707,7 @@ function renderProjects() {
   const activeProject = S.activeProjectId && S.projects.find(p => p.id === S.activeProjectId);
   return '<div class="project-page ' + (activeProject && S.activeProjectPanel ? 'has-bottom-sheet' : '') + '"><div class="projects-toolbar"><div class="project-filters"><button class="minimal-text-action ' + (!S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="active">المشروعات ' + activeCount + '</button><button class="minimal-text-action ' + (S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="archived">الأرشيف ' + archivedCount + '</button><button class="minimal-text-action" data-action="new-project">+ ' + t('new_project') + '</button></div></div>' +
     (projects.length ? '<div class="project-grid">' + projects.map(renderProjectCard).join('') + '</div>' : '<div class="project-empty-line"><strong>' + (S.showArchivedProjects ? 'الأرشيف فارغ' : t('no_projects')) + '</strong></div>') +
-    (activeProject && S.activeProjectPanel ? renderProjectBottomSheet(activeProject) : '') + '</div>';
+    '</div>';
 }
 
 function inputField(label, id, type='text', value='', extra='') { return `<label class="lab" for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(value)}" ${extra}>`; }
