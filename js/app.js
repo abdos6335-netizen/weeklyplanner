@@ -601,7 +601,7 @@ function dashboardMetricCard(title, percent, detail, section, metric = 'collecti
   return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-copy"><strong class="dashboard-metric-title">${esc(title)}</strong><small>${esc(detail || '')}</small>${extra}</span><span class="dashboard-metric-indicator">${indicator}</span></button>`;
 }
 
-function renderProjectCategoryRow(project, label, description, panel, percent = null, deliverables = [], financeEntries = [], requirements = []) {
+function renderProjectCategoryRow(project, label, description, panel, percent = null, deliverables = [], requirements = []) {
   const value = percent === null || percent === undefined ? '' : '<span class="project-category-percent">' + Math.round(percent) + '%</span>';
   const content = renderProjectPanelContent(project, panel, deliverables, requirements);
   return '<details class="project-disclosure"><summary class="project-category-row"><span class="project-category-copy"><strong>' + esc(label) + '</strong><small>' + esc(description) + '</small></span>' + value + '<span class="project-category-chevron">' + icon('chevL', 16) + '</span></summary><div class="project-disclosure-content">' + content + '</div></details>';
