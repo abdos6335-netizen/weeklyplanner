@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.30';
+const VERSION = '3.1.31';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -44,6 +44,9 @@ const S = {
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
   authMode: 'signin',
   activeProjectId: null,
+  expandedTaskId: null,
+  expandedFinanceProjectId: null,
+  expandedFinanceSummary: false,
   settings: mergeSettings(null),
   section: 'dashboard',
   prevSection: 'dashboard',
@@ -63,6 +66,8 @@ const S = {
 function mergeSettings(saved) {
   const s = { ...DEFAULT_SETTINGS, ...(saved || {}) };
   s.theme = mergeTheme(saved && saved.theme);
+  const oldDefaultTheme = saved?.theme?.preset === 'quiet' && saved.theme.accent === '#1a73e8' && !saved.theme.bg?.light && !saved.theme.bg?.dark;
+  if (oldDefaultTheme) s.theme = mergeTheme({ ...saved.theme, preset: 'monochrome', accent: DEFAULT_THEME.accent, bg: DEFAULT_THEME.bg, sat: 0 });
   s.motion = { ...DEFAULT_SETTINGS.motion, ...(saved?.motion || {}) };
   s.financeTargets = { ...DEFAULT_SETTINGS.financeTargets, ...(saved?.financeTargets || {}) };
   for (const key of ['collection', 'profit']) {
@@ -232,8 +237,13 @@ function updateSettings(patch, { render: doRender = true } = {}) {
 function render() {
   if (!S.user) return;
   const y = window.scrollY;
-  $('#app').innerHTML = shell();
-  window.scrollTo(0, y);
+  const animate = S.animateNextRender;
+  const paint = () => { S.animateNextRender = animate; $('#app').innerHTML = shell(); window.scrollTo(0, y); };
+  if (animate && document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const transition = document.startViewTransition(paint);
+    transition.finished.then(() => window.scrollTo(0, 0));
+  }
+  else paint();
 }
 
 function navList() {
@@ -268,7 +278,7 @@ function shell() {
           ${S.navExpanded&&S.navOpenSection===id?`<div class="nav-preview">${navPreview(id)}</div>`:''}
         </div>`).join('')}
     </nav>
-    <main class="main ${animatePage ? 'page-transition' : ''}">
+    <main class="main ${animatePage ? 'page-transition' : ''} ${S.activeProjectId ? 'project-open' : ''}">
       <header class="topbar">
         <div class="tb-start">
           ${sec === 'settings' ? `<button class="btn icon-btn" data-action="back" aria-label="${t('cancel')}">${icon(rtl ? 'chevR' : 'chevL', 20)}</button>` : ''}
@@ -285,7 +295,7 @@ function shell() {
           ${badge(id, 21, undefined, sec === id)}<span>${t(key)}</span>
         </button>`).join('')}
     </nav>
-    ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>` : ''}
+    ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? (S.activeProjectId ? `<button class="fab" data-action="scroll-deliverable-form" aria-label="${t('add_deliverable')}">${icon('plus', 26)}<span>${t('add_deliverable')}</span></button>` : `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>`) : ''}
     <button class="voice-fab" data-action="voice-open" aria-label="${t('voice_entry')}">${icon('mic', 23)}<span>${t('voice_entry')}</span></button>
   </div>`;
 }
@@ -361,10 +371,9 @@ function renderTasks() {
     return `
     <div class="task ${isDone(x) ? 'done' : ''} ${x.status === 'doing' ? 'doing' : ''}" data-id="${esc(x.id)}">
       <button class="chk" data-action="toggle" data-id="${esc(x.id)}" aria-label="toggle" aria-pressed="${isDone(x)}"><span class="ring-c">${mark}</span></button>
-      <div class="tbody" data-action="edit" data-id="${esc(x.id)}" tabindex="0" role="button">
+    <div class="tbody ${S.expandedTaskId === x.id ? 'is-expanded' : ''}" data-action="toggle-task-details" data-id="${esc(x.id)}" tabindex="0" role="button" aria-expanded="${S.expandedTaskId === x.id}">
         <div class="ttl">${esc(x.title)}</div>
-        ${x.notes ? `<div class="tnote">${esc(x.notes)}</div>` : ''}
-        ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
+        <div class="task-detail"><div>${x.notes ? `<div class="tnote">${esc(x.notes)}</div>` : ''}${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}<button class="btn sm" data-action="edit" data-id="${esc(x.id)}">${t('edit')}</button></div></div>
       </div>
       ${ctx.carry ? `<button class="btn sm" data-action="carry" data-id="${esc(x.id)}">${t('carry')}</button>` : ''}
     </div>`;
@@ -552,8 +561,10 @@ function projectProgressData(project, deliverables = S.deliverables) {
     const done = items.filter(completed).length;
     phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
   }
-  const percent = phases.length ? Math.round(phases.reduce((sum, phase) => sum + phase.percent, 0) / phases.length) : null;
-  return { phases, percent, done: phases.reduce((sum, phase) => sum + phase.done, 0), total: phases.reduce((sum, phase) => sum + phase.total, 0) };
+  const done = phases.reduce((sum, phase) => sum + phase.done, 0);
+  const total = phases.reduce((sum, phase) => sum + phase.total, 0);
+  const percent = phases.length ? (total ? Math.round(done / total * 100) : 0) : null;
+  return { phases, percent, done, total };
 }
 
 function renderProjectProgress(project, deliverables = S.deliverables, context = 'projects') {
@@ -577,14 +588,10 @@ function dashboardMetricCard(title, percent, detail, section, secondary = null) 
 }
 
 function renderProjectCard(project) {
-  const deliverables = S.deliverables.filter((d) => d.projectId === project.id);
-  const metadata = [projectTypeLabel(project.type), project.client, ...(project.workScope?.length ? [projectScopeLabel(project.workScope)] : [])].filter(Boolean);
-  return `<article class="card glass project-card-wrap ${project.archivedAt?'is-archived':''}">
-    <div class="project-card-head"><button class="project-card-open" data-action="open-project" data-id="${esc(project.id)}"><h2>${esc(project.name)}</h2></button><span class="chip">${projectStatusLabel(project.status)}</span></div>
-    <p class="project-card-meta muted">${metadata.map(esc).join(' · ')}</p>
-    ${project.followUpDate?`<p class="project-card-followup ${project.followUpDate<D.todayISO()?'late':''}">متابعة العميل · ${esc(project.followUpDate)}${project.followUpNote?' · '+esc(project.followUpNote):''}</p>`:''}
-    ${renderProjectProgress(project, deliverables)}
-    <div class="project-print-actions"><button class="btn sm" data-action="archive-project" data-id="${esc(project.id)}">${project.archivedAt?'إلغاء الأرشفة':'أرشفة'}</button><button class="btn sm" data-action="print-project" data-id="${esc(project.id)}">${icon('printer',16)} ${t('print_project')}</button></div>
+  const created = project.createdAt ? new Date(project.createdAt) : null;
+  const createdLabel = created && Number.isFinite(created.getTime()) ? created.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  return `<article class="card glass project-card-wrap ${project.archivedAt?'is-archived':''}" data-action="open-project" data-id="${esc(project.id)}" tabindex="0" role="button">
+    <div class="project-card-head"><h2 class="project-card-open" style="view-transition-name:project-${esc(project.id)}">${esc(project.name)}</h2><span class="project-card-date">${esc(createdLabel)}</span></div>
   </article>`;
 }
 
@@ -701,9 +708,11 @@ function renderFinanceProjectCard(project) {
   const ratioSettings = `<div class="finance-project-ratios">${financeRing(metrics.collectionPct, 'التحصيل', 'small', 'collection', targets.collection, 'finance')}${financeRing(metrics.profitPct, 'صافي الربح', 'small', 'profit', targets.profit, 'finance')}</div>`;
   const scope = project.workScope?.length ? projectScopeLabel(project.workScope) : '';
   const meta = [projectTypeLabel(project.type), scope, projectStatusLabel(project.status)].filter(Boolean).join(' · ');
-  return `<article class="card glass finance-project-card">
-    <div class="finance-project-head"><div class="finance-project-identity"><h3>${esc(project.name)}</h3><p class="muted small">${esc(meta)}</p></div>${ratioSettings}</div>
-    <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>المصروف <strong>${money(metrics.expense)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
+  const expanded = S.expandedFinanceProjectId === project.id;
+  return `<article class="card glass finance-project-card ${expanded?'is-expanded':''}">
+    <button class="finance-project-summary" data-action="toggle-finance-project" data-id="${esc(project.id)}" aria-expanded="${expanded}"><strong>${esc(project.name)}</strong><span>${esc(project.updatedAt ? new Date(project.updatedAt).toLocaleDateString(locale(), {day:'numeric',month:'short'}) : '')}</span></button>
+    <div class="finance-project-details"><div class="finance-project-head"><div class="finance-project-identity"><p class="muted small">${esc(meta)}</p></div>${ratioSettings}</div>
+    <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>المصروف <strong>${money(metrics.expense)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div></div>
   </article>`;
 }
 
@@ -726,9 +735,11 @@ function renderProjects() {
     const ds = S.deliverables.filter(d => d.projectId === selected.id).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
     const fs = S.financeEntries.filter(x => x.projectId === selected.id);
     const reqs = S.requirements.filter(x => x.projectId === selected.id).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
-    const income = fs.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), expense = fs.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);
-    return `<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm" data-action="archive-project" data-id="${esc(selected.id)}">${selected.archivedAt?'إلغاء الأرشفة':'أرشفة المشروع'}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
-      <section class="card glass"><div class="project-title"><div><div class="project-heading-line"><h2>${esc(selected.name)}</h2></div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="stats-grid"><div class="stat"><span>${t('contract_value')}</span><strong>${money(selected.contractValue)} ${t('currency')}</strong></div><div class="stat"><span>${t('collected')}</span><strong>${money(income)} ${t('currency')}</strong></div><div class="stat"><span>${t('expenses')}</span><strong>${money(expense)} ${t('currency')}</strong></div><div class="stat"><span>${t('remaining')}</span><strong>${money(Number(selected.contractValue||0)-income)} ${t('currency')}</strong></div></div>${renderProjectProgress(selected, ds)}<p>${esc(selected.notes||'')}</p></section>
+    const delivered = ds.filter(d => ['submitted','approved'].includes(d.status)).length;
+    const remaining = ds.length - delivered;
+    const progress = projectProgressData(selected, ds);
+    return `<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm" data-action="archive-project" data-id="${esc(selected.id)}">${selected.archivedAt?'إلغاء الأرشفة':'أرشفة المشروع'}</button><button class="btn sm" data-action="print-project" data-id="${esc(selected.id)}">${icon('printer',16)} ${t('print_project')}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
+      <section class="card glass project-hero"><div class="project-title"><div><div class="project-heading-line"><h2 style="view-transition-name:project-${esc(selected.id)}">${esc(selected.name)}</h2></div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="project-deliverable-summary"><div><strong>${progress.percent ?? 0}%</strong><span>إنجاز المشروع</span></div><div><strong>${delivered}</strong><span>تم تسليمها</span></div><div><strong>${remaining}</strong><span>متبقية</span></div><div><strong>${ds.length}</strong><span>إجمالي البنود</span></div></div>${renderProjectProgress(selected, ds)}${selected.notes?`<p class="project-notes">${esc(selected.notes)}</p>`:''}</section>
       ${renderProjectInstallments(selected)}
       ${renderProjectFollowUp(selected)}
       <section class="card glass"><div class="dhead"><div><h2>Requirements</h2><p class="muted small">طلبات العميل من الاجتماعات أو WhatsApp في مكان واحد.</p></div><span class="chip">${reqs.filter(x=>x.status!=='done').length} مفتوح</span></div><form data-action="add-requirement" class="entry-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="${D.todayISO()}"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>${reqs.length?`<div class="requirements-list">${reqs.map(r=>`<article class="requirement-row"><div><p>${esc(r.text)}</p><small>${r.source==='meeting'?'Meeting':r.source==='whatsapp'?'WhatsApp':'طلب مباشر'} · ${esc(r.date||'—')} ${r.sourceLabel?'· '+esc(r.sourceLabel):''}</small></div><select class="input compact" data-change="requirement-status" data-id="${esc(r.id)}"><option value="open" ${r.status==='open'?'selected':''}>مفتوح</option><option value="doing" ${r.status==='doing'?'selected':''}>قيد التنفيذ</option><option value="done" ${r.status==='done'?'selected':''}>تم</option></select></article>`).join('')}</div>`:'<p class="muted">لا توجد Requirements مسجلة لهذا المشروع.</p>'}<p class="muted small">WhatsApp integration: جاهز لإضافة Webhook/API لاحقًا؛ استقبال الرسائل تلقائيًا غير مفعّل بعد.</p></section>
@@ -1169,13 +1180,14 @@ function renderFinance() {
   const collectionPct = contracts > 0 ? totalIncome / contracts * 100 : null;
   const profitPct = totalIncome > 0 ? totalNet / totalIncome * 100 : null;
   const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
+  const summaryExpanded = S.expandedFinanceSummary;
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const projectCards = S.projects.filter(p=>!p.archivedAt).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
-  <section class="card glass finance-overview"><div class="dhead"><div><div class="finance-title-line"><h2>ملخص ماليات كل المشروعات</h2></div><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
+  <section class="card glass finance-overview ${summaryExpanded?'is-expanded':''}"><button class="finance-project-summary" data-action="toggle-finance-summary" aria-expanded="${summaryExpanded}"><strong>ملخص ماليات كل المشروعات</strong><span>${summaryExpanded?'−':'+'}</span></button><div class="finance-overview-details">
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
     <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large','collection',targets.collection,'finance')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit',targets.profit,'finance')}</div>
-  </section>
+  </div></section>
   <section class="finance-project-list"><div class="dhead"><div><h2>مؤشرات كل مشروع</h2><p class="muted small">كل مشروع له نسبة تحصيل وهامش ربح مستقلان.</p></div><span class="chip">${projectCards.length} مشروع</span></div>
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
   </section>
@@ -1382,7 +1394,7 @@ function renderSettings() {
       <div class="gbody">${body}</div>
     </section>`;
 
-  const presetIds = ['quiet', 'paper', 'midnight', 'forest', 'sand', 'rose', 'ocean'];
+  const presetIds = ['monochrome', 'quiet', 'paper', 'midnight', 'forest', 'sand', 'rose', 'ocean'];
   const modeIcon = { auto: 'auto', light: 'sun', dark: 'moon' };
 
   if (open('icons')) Object.keys(FONTS).forEach(ensureFont);
@@ -1713,6 +1725,18 @@ function bindEvents() {
   document.addEventListener('input', onInput);
   document.addEventListener('change', onChange);
   document.addEventListener('keydown', onKey);
+  let swipeStart = null;
+  document.addEventListener('touchstart', e => {
+    const touch = e.changedTouches?.[0];
+    if (touch && (touch.clientX < 28 || touch.clientX > window.innerWidth - 28)) swipeStart = { x: touch.clientX, y: touch.clientY };
+    else swipeStart = null;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const touch = e.changedTouches?.[0], start = swipeStart; swipeStart = null;
+    if (!touch || !start || !S.activeProjectId) return;
+    const dx = touch.clientX - start.x, dy = touch.clientY - start.y;
+    if (Math.abs(dx) > 76 && Math.abs(dy) < 52) { S.activeProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); }
+  }, { passive: true });
   bindTaskDragEvents();
 }
 
@@ -1812,8 +1836,12 @@ async function onClick(e) {
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
-    case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; render(); window.scrollTo(0,0); break;
-    case 'projects-back': S.activeProjectId = null; render(); break;
+    case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'projects-back': S.activeProjectId = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'toggle-task-details': S.expandedTaskId = S.expandedTaskId === el.dataset.id ? null : el.dataset.id; render(); break;
+    case 'toggle-finance-project': S.expandedFinanceProjectId = S.expandedFinanceProjectId === el.dataset.id ? null : el.dataset.id; render(); break;
+    case 'toggle-finance-summary': S.expandedFinanceSummary = !S.expandedFinanceSummary; render(); break;
+    case 'scroll-deliverable-form': $('#d-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => $('#d-name')?.focus({ preventScroll: true }), 260); break;
     case 'delete-project': { const p=S.projects.find(x=>x.id===el.dataset.id); if(p && confirm(t('confirm_delete_project'))) { for(const d of S.deliverables.filter(x=>x.projectId===p.id)) await S.store.remove('deliverables',d.id); for(const f of S.financeEntries.filter(x=>x.projectId===p.id)) await S.store.remove('financeEntries',f.id); for(const m of S.meetings.filter(x=>x.projectId===p.id)) await S.store.remove('meetings',m.id); for(const r of S.requirements.filter(x=>x.projectId===p.id)) await S.store.remove('requirements',r.id); await S.store.remove('projects',p.id); S.activeProjectId=null; toast(t('project_deleted_ok')); render(); } break; }
     case 'delete-deliverable': if(confirm(t('confirm_delete'))) { await S.store.remove('deliverables',el.dataset.id); toast(t('deleted')); } break;
     case 'delete-finance': if(confirm(t('confirm_delete'))) { const entry=S.financeEntries.find(x=>x.id===el.dataset.id),project=entry?.installmentId?S.projects.find(p=>p.id===entry.projectId):null;try{if(project){const updated={...project,installments:(project.installments||[]).map(x=>x.id===entry.installmentId?{...x,status:'pending',paidAt:null}:x),updatedAt:Date.now()};await S.store.save('projects',updated);try{await S.store.remove('financeEntries',el.dataset.id);}catch(err){await S.store.save('projects',project);throw err;}S.projects=S.projects.map(p=>p.id===updated.id?updated:p);}else await S.store.remove('financeEntries',el.dataset.id);toast(t('deleted'));render();}catch(err){toast(t('save_failed',{msg:err.message||err}));} } break;
@@ -1888,10 +1916,10 @@ async function onClick(e) {
     case 'set-icons': updateTheme((x) => { x.icons = v; }, { render: true }); break;
     case 'set-font': updateTheme((x) => { x.font = v; }, { render: true }); break;
     case 'reset-colors': {
-      const p = PRESETS.quiet;
+      const p = PRESETS.monochrome;
       updateTheme((x) => {
-        x.preset = 'quiet'; x.accent = p.accent; x.sat = 100;
-        x.bg = { light: null, dark: null }; x.text = { light: null, dark: null }; x.surface = 'tint';
+        x.preset = 'monochrome'; x.accent = p.accent; x.sat = 0;
+        x.bg = { ...p.bg }; x.text = { light: null, dark: null }; x.surface = 'tint';
       }, { render: true }); break;
     }
     case 'set-lang': updateSettings({ lang: v }); break;
@@ -2031,10 +2059,12 @@ function onChange(e) {
 function onKey(e) {
   if (e.key === 'Escape' && $('#layer')?.innerHTML) { $('#layer').innerHTML=''; if (S.sheet) S.sheet=null; return; }
   if (e.key === 'Escape' && S.sheet) { closeSheet(); return; }
+  if (e.key === 'Escape' && S.activeProjectId) { S.activeProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); return; }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName);
   if (S.sheet && e.key === 'Enter' && document.activeElement && document.activeElement.id === 'f-title') { e.preventDefault(); saveSheet(); return; }
   if (!typing && !S.sheet && S.user && S.section === 'tasks' && e.key === 'n') { e.preventDefault(); openSheet(null); return; }
-  if (e.key === 'Enter' && document.activeElement && document.activeElement.classList.contains('tbody')) openSheet(document.activeElement.dataset.id);
+  if (e.key === 'Enter' && document.activeElement && document.activeElement.classList.contains('tbody')) { S.expandedTaskId = S.expandedTaskId === document.activeElement.dataset.id ? null : document.activeElement.dataset.id; render(); }
+  if (e.key === 'Enter' && document.activeElement?.matches('[data-action="open-project"]')) { S.activeProjectId = document.activeElement.dataset.id; S.section = 'projects'; S.animateNextRender = true; render(); window.scrollTo(0, 0); }
 }
 
 boot();

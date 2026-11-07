@@ -77,6 +77,7 @@ export function ensureFont(id) {
 
 // ------------------------------------------------------------------ الثيمات الجاهزة
 export const PRESETS = {
+  monochrome: { accent: '#5b5b60', bg: { light: '#f4f4f5', dark: '#171719' }, sat: 0 },
   quiet: { accent: '#1a73e8', bg: { light: null, dark: null }, sat: 100 },
   paper: { accent: '#6b5b45', bg: { light: '#f4efe6', dark: '#211e1a' }, sat: 85 },
   midnight: { accent: '#8ab4f8', bg: { light: '#eef1f8', dark: '#0f1320' }, sat: 100 },
@@ -88,11 +89,11 @@ export const PRESETS = {
 
 export const DEFAULT_THEME = {
   mode: 'auto',            // auto | light | dark
-  preset: 'quiet',
-  accent: '#1a73e8',
-  bg: { light: null, dark: null },
+  preset: 'monochrome',
+  accent: '#5b5b60',
+  bg: { light: '#f4f4f5', dark: '#171719' },
   text: { light: null, dark: null },
-  sat: 100,                // 0..150
+  sat: 0,                  // 0..150
   surface: 'tint',         // tint (بلون مغاير) | same (بنفس لون الخلفية)
   glass: true,
   blur: 16,                // 0..32
