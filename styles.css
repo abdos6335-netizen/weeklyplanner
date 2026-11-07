@@ -1152,3 +1152,21 @@ body::before { display:none !important; background:none !important; }
   .shell main .dashboard-metrics-grid { grid-template-columns:1fr; }
   .shell main .dashboard-metric-card + .dashboard-metric-card { border-inline-start:0; }
 }
+
+
+/* Phase 1 — compact four-part dashboard indicators */
+.shell main .dashboard-metrics-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:0 1rem}
+.shell main .dashboard-metric-card{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:.55rem;min-height:76px;padding:.7rem .15rem}
+.shell main .dashboard-metric-copy{display:grid;gap:.18rem;min-width:0}
+.shell main .dashboard-metric-title{font-size:.82rem!important;font-weight:600!important;line-height:1.35}
+.shell main .dashboard-metric-copy>small{font-size:.68rem;line-height:1.35;color:var(--text-2)}
+.shell main .dashboard-metric-indicator{display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.shell main .dashboard-metric-indicator .finance-ring-wrap{min-width:0;gap:0}
+.shell main .dashboard-metric-indicator .finance-ring{width:44px;height:44px}
+.shell main .dashboard-metric-indicator .finance-ring::before{inset:4px}
+.shell main .dashboard-metric-indicator .finance-ring>span{font-size:.68rem}
+.shell main .dashboard-metric-indicator .finance-ring-wrap>small,
+.shell main .dashboard-metric-indicator .finance-ring-wrap>em{display:none}
+.shell main .dashboard-metric-secondary{font-size:.65rem}
+@media(max-width:850px){.shell main .dashboard-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shell main .dashboard-metric-card:nth-child(3){border-inline-start:0;padding-inline-start:.15rem}.shell main .dashboard-metric-card:nth-child(n+3){border-top:1px solid color-mix(in srgb,var(--text-2) 14%,transparent)}}
+@media(max-width:520px){.shell main .dashboard-metrics-grid{grid-template-columns:1fr}.shell main .dashboard-metric-card{min-height:64px}.shell main .dashboard-metric-card+.dashboard-metric-card{border-inline-start:0;padding-inline-start:.15rem}}
