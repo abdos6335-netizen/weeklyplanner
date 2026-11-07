@@ -509,10 +509,10 @@ function renderDashboard() {
     </div>
 
     <div class="dashboard-metrics-grid">
-      ${dashboardMetricCard(t('metric_tasks'), taskProgress, weekTasks.length ? completedWeekTasks + '/' + weekTasks.length + ' مهمة مكتملة' : 'لا توجد مهام لهذا الأسبوع', 'tasks', 'collection', 'dashboard')}
-      ${dashboardMetricCard(t('metric_projects'), projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' مشروع ضمن المتوسط' : 'لا توجد نطاقات إنجاز مسجلة', 'projects', 'collection', 'dashboard')}
-      ${dashboardMetricCard(t('metric_collection'), collectionProgress, dashboardIncome ? 'من إجمالي قيمة التعاقدات' : 'لا توجد تحصيلات مسجلة', 'finance', 'collection', 'dashboard', { value: profitProgress, label: t('metric_profit'), metric: 'profit' })}
-      ${dashboardMetricCard(t('metric_meetings'), meetingProgress, S.meetings.length ? t('metric_meetings_detail', { done: meetingsWithMinutes, total: S.meetings.length }) : 'لا توجد اجتماعات مسجلة', 'meetings', 'collection', 'dashboard')}
+      ${dashboardMetricCard(t('metric_tasks'), taskProgress, weekTasks.length ? t('done_of', { done: completedWeekTasks, total: weekTasks.length }) : t('no_tasks_week'), 'tasks', 'collection', 'dashboard')}
+      ${dashboardMetricCard(t('metric_projects'), projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' ' + t('projects_count') + ' ضمن المتوسط' : t('dashboard_no_active_projects'), 'projects', 'collection', 'dashboard')}
+      ${dashboardMetricCard(t('metric_collection'), collectionProgress, dashboardIncome ? (lang() === 'ar' ? 'من إجمالي قيمة التعاقدات' : 'of total contract value') : (lang() === 'ar' ? 'لا توجد تحصيلات مسجلة' : 'No collections recorded'), 'finance', 'collection', 'dashboard', { value: profitProgress, label: t('metric_profit'), metric: 'profit' })}
+      ${dashboardMetricCard(t('metric_meetings'), meetingProgress, S.meetings.length ? t('metric_meetings_detail', { done: meetingsWithMinutes, total: S.meetings.length }) : t('metric_no_meetings'), 'meetings', 'collection', 'dashboard')}
     </div>
 
     <section class="card glass dashboard-personal-cashflow">
