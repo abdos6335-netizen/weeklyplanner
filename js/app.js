@@ -493,11 +493,13 @@ function renderDashboard() {
       </div>`;
   };
   const taskGroup = (title, items, emptyText, kind) => `
-    <section class="card glass dashboard-task-group ${kind}">
-      <div class="dhead"><h3>${title}</h3><span class="chip ${kind==='overdue'?'late':''}">${items.length}</span></div>
+    <details class="card glass dashboard-task-group ${kind}">
+      <summary class="dashboard-task-summary"><h3>${title}</h3><span class="chip ${kind==='overdue'?'late':''}">${items.length}</span></summary>
+      <div class="dashboard-task-group-content">
       ${items.length ? items.slice(0,4).map(dashboardTaskRow).join('') : `<p class="muted small dashboard-empty">${emptyText}</p>`}
       ${items.length > 4 ? `<button class="btn sm dashboard-view-all" data-action="nav" data-section="tasks">${t('all_tasks')}</button>` : ''}
-    </section>`;
+      </div>
+    </details>`;
   return `
     <div class="dashboard-intro">
       <div><h2>${t('dashboard_title')}</h2><p class="muted">${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
