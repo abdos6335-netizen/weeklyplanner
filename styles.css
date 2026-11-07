@@ -1170,3 +1170,16 @@ body::before { display:none !important; background:none !important; }
 .shell main .dashboard-metric-secondary{font-size:.65rem}
 @media(max-width:850px){.shell main .dashboard-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shell main .dashboard-metric-card:nth-child(3){border-inline-start:0;padding-inline-start:.15rem}.shell main .dashboard-metric-card:nth-child(n+3){border-top:1px solid color-mix(in srgb,var(--text-2) 14%,transparent)}}
 @media(max-width:520px){.shell main .dashboard-metrics-grid{grid-template-columns:1fr}.shell main .dashboard-metric-card{min-height:64px}.shell main .dashboard-metric-card+.dashboard-metric-card{border-inline-start:0;padding-inline-start:.15rem}}
+
+
+/* Phase 1 — project headings disclose content directly beneath the heading */
+.shell main .project-disclosure{border-bottom:1px solid color-mix(in srgb,var(--text-2) 18%,transparent)}
+.shell main .project-disclosure>summary{display:flex;align-items:center;gap:.65rem;list-style:none;cursor:pointer}
+.shell main .project-disclosure>summary::-webkit-details-marker{display:none}
+.shell main .project-disclosure .project-category-copy{display:grid;gap:.15rem;min-width:0;flex:1}
+.shell main .project-disclosure .project-category-copy strong{font-size:.88rem;font-weight:600}
+.shell main .project-disclosure .project-category-copy small{font-size:.7rem;color:var(--text-2)}
+.shell main .project-disclosure .project-category-chevron{transition:transform var(--motion-duration,.26s) ease}
+.shell main .project-disclosure[open] .project-category-chevron{transform:rotate(-90deg)}
+.shell main .project-disclosure-content{padding:.55rem .15rem .9rem}
+.shell main .project-disclosure-content .project-panel-intro{margin-bottom:.6rem}
