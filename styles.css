@@ -1267,3 +1267,13 @@ body .shell main *::before,
 body .shell main *::after {
   font-family:var(--font) !important;
 }
+
+
+/* Final typography scope: apply the selected family to the whole interface,
+   including login, dialogs, sheets, toasts and controls outside .shell. */
+html, body, #app, #layer, #toast,
+#app *:not(.fontbtn):not(.fontbtn *),
+#layer *, #toast *, body .login * {
+  font-family:var(--font,system-ui),system-ui,sans-serif !important;
+}
+#app .fontbtn, #app .fontbtn * { font-family:inherit; }
