@@ -428,6 +428,98 @@ const UI_PHRASES = {
   'تم حفظ التسجيل وحفظ النص.':'Recording and transcript saved.','تعديل':'Edit','حذف':'Delete','حفظ':'Save','إلغاء':'Cancel'
 };
 
+
+Object.assign(UI_PHRASES, {
+  'لوحة المتابعة':'Dashboard overview','عرض كل المهام':'View all tasks','عرض المشروعات':'View projects',
+  'لا توجد مهام لليوم':'No tasks today','لا توجد مشروعات نشطة':'No active projects','تحصيل مسجل':'Collection recorded',
+  'افتح سجل الماليات':'Open finance log','افتح سجل الاجتماعات':'Open meeting log','عرض مختصر':'Quick preview',
+  'إضافة Requirement':'Add requirement','لا توجد متطلبات مسجلة لهذا المشروع حتى الآن.':'No requirements have been recorded for this project yet.',
+  'ربط WhatsApp التلقائي غير مفعّل بعد؛ يمكنك تسجيل المتطلبات يدويًا أو من محاضر الاجتماعات.':'Automatic WhatsApp linking is not enabled yet. You can add requirements manually or from meeting minutes.',
+  'لا توجد مراحل فنية محددة لهذا المشروع. حدّد نطاق العمل من تعديل المشروع.':'No technical phases are defined for this project. Set the work scope in Edit Project.',
+  'لا توجد ملاحظات إضافية للمشروع.':'No additional project notes.','بيانات المشروع ومتابعة العميل':'Project details and client follow-up',
+  'أضف بنود التسليم':'Add deliverable items','لم يتم تحديد نطاق فني':'No technical scope defined',
+  'أضف مواعيد الدفعات المتفق عليها لو محتاج تتابعها.':'Add agreed installment dates to track them.',
+  'أضف موعدًا لتظهر المتابعة في الرئيسية':'Add a date to show the follow-up on the dashboard',
+  'الموعد والملاحظة يظهران في الرئيسية عند اقتراب الموعد.':'The date and note appear on the dashboard as the follow-up approaches.',
+  'تقرير موقف المشروع':'Project status report','لا توجد مراحل فنية محددة.':'No technical phases defined.',
+  'لا توجد حركات مالية مسجلة.':'No financial transactions recorded.','التقرير الشامل':'Full report',
+  'لم يُرسل':'Not submitted','مرسل للمراجعة':'Submitted for review','مطلوب تعديل':'Revision required',
+  'تعذر إكمال معالجة الاجتماع. حاول مرة أخرى.':'Could not process the meeting. Please try again.',
+  'سجّل الدخول إلى حسابك لاستخدام خدمات المحاضر.':'Sign in to use meeting processing services.',
+  'حجم التسجيل أكبر من 24 ميجابايت. قسّم التسجيل إلى أجزاء أقصر ثم أعد المحاولة.':'Recording exceeds 24 MB. Split it into shorter parts and try again.',
+  'تعذر بدء التسجيل. تحقق من صلاحية الميكروفون.':'Could not start recording. Check microphone permissions.',
+  'تعذر الوصول للميكروفون. تحقق من صلاحية المتصفح.':'Could not access the microphone. Check browser permissions.',
+  'انتهى الإملاء الصوتي. راجع النص قبل الحفظ.':'Voice dictation ended. Review the text before saving.',
+  'بدأ الإملاء الصوتي. اترك صفحة التطبيق مفتوحة.':'Voice dictation started. Keep the app page open.',
+  'تعذر بدء التسجيل الصوتي.':'Could not start voice recording.','التسجيل متوقف مؤقتًا من إشعار Android.':'Recording paused from the Android notification.',
+  'حدث خطأ في التسجيل':'A recording error occurred','تعذر التسجيل.':'Recording failed.',
+  'يحتاج مراجعة بيانات المشروع أو العميل قبل الاعتماد':'Project or client details need review before approval',
+  'ملاحظات المراجعة:':'Review notes:','لا توجد محاضر اجتماعات حتى الآن. سجّل أول اجتماع من النموذج أعلاه.':'No meeting minutes yet. Record your first meeting using the form above.',
+  'اسم المشروع الجديد':'New project name','يُراجع إذا لم يكن واضحًا من سياق الاجتماع':'Review if unclear from the meeting context',
+  'مثال: مراجعة الشوب دروينج والتعديلات':'Example: Shop drawing review and revisions',
+  'اسم العميل أو الحضور الآخرين':'Client or other attendees',
+  'أضف النص المستخرج أو الملاحظات بعد الاجتماع':'Add the transcript or notes after the meeting',
+  'النقاط التي تمت مناقشتها...':'Discussion points...','الحضور الآخرون':'Other attendees',
+  'مراجعة وتعديل المحضر والنص':'Review and edit minutes and transcript',
+  'ملاحظات المراجعة':'Review notes','حفظ التعديلات':'Save changes',
+  'لا توجد مشروعات مسجلة.':'No projects recorded.','الشهر':'Month','مثال: 5000':'Example: 5000',
+  'تنبيه: المصروف تجاوز الميزانية الشهرية، ويمكنك الاستمرار في التسجيل.':'Warning: expenses exceed the monthly budget. You can still continue recording.',
+  'سجّل مصروفات لتظهر تفاصيل التصنيفات هنا.':'Record expenses to see category details here.',
+  'لا توجد حركات شخصية مسجلة في هذا الشهر.':'No personal transactions recorded this month.',
+  'دخل من عميل':'Client income','راتب أو دخل عمل':'Salary or work income','دخل آخر':'Other income',
+  'سكن وفواتير':'Housing and bills','مواصلات':'Transport','طعام ومشروبات':'Food and drinks',
+  'مشتريات البيت':'Household shopping','صحة':'Health','تعليم':'Education','ترفيه':'Entertainment',
+  'ملابس':'Clothing','التزامات وديون':'Commitments and debts','أخرى':'Other',
+  'ملخص ماليات كل المشروعات':'All-project finance summary','نسبة التحصيل الإجمالية':'Overall collection rate',
+  'هامش صافي الربح الإجمالي':'Overall net profit margin','الميزانية الشهرية (جنيه)':'Monthly budget (EGP)',
+  'المستهلك من الميزانية':'Budget used','إضافة حركة شخصية':'Add personal transaction',
+  'تحليل المصروفات حسب التصنيف':'Expenses by category','سجل الحركات الشخصية':'Personal transaction log',
+  'عام لكل التبويبات':'Global for all tabs','تخصيص لكل تبويب':'Customize per tab',
+  'شكل المؤشر':'Indicator style','ألوان المؤشرات':'Indicator colors','معاينة مباشرة':'Live preview',
+  'استعادة الافتراضي':'Restore defaults','نطاق التخصيص':'Customization scope',
+  'تحكم في الفرق بين أحجام العناوين والعناصر.':'Control the size difference between headings and content.',
+  'العناوين الرئيسية':'Main headings','العناوين الفرعية':'Subheadings','العناصر والمعلومات':'Content and information',
+  'أسلوب الحركة':'Motion style','تقليل الحركة':'Reduced motion','سرعة الحركة':'Motion speed',
+  'تتحكم هذه الاختيارات في انتقالات الصفحات والقوائم والنوافذ والتفاعلات.':'These settings control page, menu, dialog and interaction transitions.',
+  'معاينة الحركة':'Motion preview','شكل وألوان مؤشرات النسب':'Ratio indicator style and colors',
+  'أحجام الخطوط':'Font sizes','الحركة والانتقالات':'Motion and transitions',
+  'ملف النسخة الاحتياطية أكبر من الحد المسموح للاستيراد.':'Backup file exceeds the allowed import size.',
+  'لم يتم استيراد أي بيانات.':'No data was imported.','إغلاق':'Close',
+  'لم يكتمل تسجيل الدخول. حاول مرة أخرى.':'Sign-in was not completed. Try again.',
+  'اكتب بريدك الإلكتروني أولًا.':'Enter your email address first.',
+  'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.':'Password reset link sent to your email.',
+  'تعذر إرسال الرابط.':'Could not send the link.',
+  'تمت أرشفة المشروع ويمكنك إعادته من الأرشيف.':'Project archived. You can restore it from the archive.',
+  'تمت إعادة المشروع من الأرشيف.':'Project restored from the archive.',
+  'سيُحذف قيد التحصيل المرتبط بهذه الدفعة من ماليات المشروع. هل تريد التراجع؟':'The collection entry linked to this installment will also be deleted. Continue?',
+  'تم إلغاء تسجيل التحصيل.':'Collection entry cancelled.','دفعة تعاقد':'Contract installment',
+  'تحصيل دفعة:':'Installment collection:','تم تسجيل الدفعة في ماليات المشروع.':'Installment recorded in project finances.',
+  'حذف الدفعة سيحذف قيد التحصيل المرتبط بها أيضًا. هل تريد المتابعة؟':'Deleting this installment will also delete its linked collection entry. Continue?',
+  'حذف هذه الدفعة؟':'Delete this installment?','تم حذف الدفعة.':'Installment deleted.',
+  'تم مسح متابعة العميل.':'Client follow-up cleared.','حذف الحركة الشخصية؟':'Delete this personal transaction?',
+  'تم حذف الحركة.':'Transaction deleted.','تعذر تفريغ التسجيل.':'Could not transcribe the recording.',
+  'تعذر إنشاء المحضر.':'Could not generate minutes.','تعذر تشغيل التسجيل.':'Could not play the recording.',
+  'تعذر تنزيل التسجيل.':'Could not download the recording.','تعذر حذف التسجيل.':'Could not delete the recording.',
+  'تم تسجيل الدخول.':'Signed in.','تم حفظ تعديلات محضر الاجتماع.':'Meeting minutes updated.',
+  'اختر مشروعًا أو اكتب اسم مشروع جديد.':'Choose a project or enter a new project name.',
+  'تم حفظ الميزانية.':'Budget saved.','المشروع غير موجود.':'Project not found.',
+  'أدخل اسم الدفعة ومبلغًا صحيحًا.':'Enter a valid installment name and amount.',
+  'تمت إضافة الدفعة.':'Installment added.','تم حفظ متابعة العميل.':'Client follow-up saved.',
+  'أدخل وصفًا ومبلغًا صحيحًا':'Enter a valid description and amount',
+  'تم تسجيل الدخل.':'Income recorded.','تم تسجيل المصروف.':'Expense recorded.',
+  'اكتب الطلب وتأكد من فتح المشروع.':'Enter the requirement and make sure the project is open.',
+  'تمت إضافة Requirement للمشروع.':'Requirement added to the project.',
+  'تم تسجيل بيانات التسليم بنجاح.':'Deliverable saved successfully.',
+  'تم تسجيل الحركة المالية بنجاح.':'Financial transaction saved successfully.',
+  'حفظ':'Save','تعديل':'Edit','حذف':'Delete','إلغاء':'Cancel',
+  'Existing & Layout':'القائم والتخطيط','Switches':'المفاتيح','Low Current':'تيار خفيف',
+  'Ceiling':'السقف','Flooring':'الأرضيات','Wall Finishing':'تشطيب الحوائط',
+  'Mechanical AC/Plumbing/Drainage':'تكييف / تغذية / صرف','Door Schedule':'جدول الأبواب',
+  'Window Schedule':'جدول النوافذ','Finishes Schedule':'جدول التشطيبات','Lighting Schedule':'جدول الإضاءة',
+  'FF&E':'الأثاث والتجهيزات','Meeting':'اجتماع','Meetings':'اجتماعات','Report':'تقرير',
+  'No time set':'بدون وقت','EGP':'ج.م'
+});
+
 let domObserver = null;
 function phraseEntries() {
   const pairs = Object.entries(UI_PHRASES);
@@ -438,7 +530,7 @@ function translateNode(node) {
   const skip = (el) => el && /^(SCRIPT|STYLE|TEXTAREA|INPUT|CODE|PRE)$/i.test(el.tagName);
   if (node.nodeType === 3) {
     const parent = node.parentElement;
-    if (skip(parent) || parent?.closest('[data-user-content],.user-content,.task-title,.ttl,.tnote,.transcript-content,.meeting-user-text')) return;
+    if (skip(parent) || parent?.closest('[data-user-content],.user-content,.task-title,.ttl,.tnote,.transcript-content,.meeting-user-text,.project-list-name,.meeting-card h3,.meeting-card p,.project-summary-facts strong,.project-deliverable-row strong,.requirement-row p')) return;
     const original = node.nodeValue;
     const trimmed = original.trim();
     if (!trimmed) return;
@@ -446,7 +538,7 @@ function translateNode(node) {
     const trailing = original.match(/\s*$/)?.[0] || '';
     let value = trimmed;
     for (const [from, to] of phraseEntries().sort((a,b) => b[0].length-a[0].length)) {
-      if (value === from) { value = to; break; }
+      if (value.includes(from)) value = value.split(from).join(to);
     }
     if (value !== trimmed) node.nodeValue = leading + value + trailing;
     return;
@@ -458,7 +550,7 @@ function translateNode(node) {
     const old = el.getAttribute?.(attr);
     if (!old) continue;
     let next = old;
-    for (const [from,to] of phraseEntries().sort((a,b)=>b[0].length-a[0].length)) if (next === from) { next = to; break; }
+    for (const [from,to] of phraseEntries().sort((a,b)=>b[0].length-a[0].length)) if (next.includes(from)) next = next.split(from).join(to);
     if (next !== old) el.setAttribute(attr,next);
   }
   for (const child of [...(el.childNodes || [])]) translateNode(child);
