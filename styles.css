@@ -957,3 +957,45 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell .tabbar { border:0; border-top:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); border-radius:0; box-shadow:none; }
 .shell .meeting-tab { border-radius:0; box-shadow:none; }
 .shell .meeting-tab.active { background:transparent; box-shadow:none; border-bottom:1px solid var(--text); }
+
+/* Minimal, title-led surfaces: no card frames or boxed text. */
+.shell main h1,.shell main .page-title,.shell main .section-title,
+.shell main h2 { font-size:1.38rem !important; line-height:1.35; font-weight:500 !important; letter-spacing:-.025em; }
+.shell main h3,.shell main h4 { font-size:1.08rem !important; font-weight:500 !important; }
+.shell main .muted:not(.keep-context),.shell main .page-description,
+.shell main .section-description,.shell main .helper-text { display:none !important; }
+.shell main .card,.shell main .card.glass,.shell main .dashboard-metric-card,
+.shell main .finance-project-card,.shell main .finance-overview,
+.shell main .project-accordion,.shell main .meeting-card,
+.shell main .task-card,.shell main .list-card {
+ background:transparent !important; border:0 !important; border-radius:0 !important;
+ box-shadow:none !important;
+}
+.shell main .card + .card,.shell main .project-accordion,
+.shell main .dashboard-metric-card,.shell main .finance-project-card,
+.shell main .meeting-card,.shell main .task-card,.shell main .list-card {
+ border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent) !important;
+}
+.shell main .projects-toolbar { padding:0 0 .45rem; border:0; background:transparent; }
+.shell main .project-filters { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; }
+.shell main .minimal-text-action { appearance:none; background:transparent; border:0; border-radius:0;
+ padding:.35rem 0; color:var(--text-2); font:inherit; font-size:.84rem; font-weight:400; }
+.shell main .minimal-text-action.is-active { color:var(--text); border-bottom:1px solid currentColor; }
+.shell main .project-list-row-wrap { border:0 !important; background:transparent !important; box-shadow:none !important; }
+.shell main .project-list-row,.shell main .finance-project-summary {
+ background:transparent !important; border:0 !important; border-radius:0 !important;
+ box-shadow:none !important; padding-block:.9rem;
+}
+.shell main .project-list-name { font-size:1.12rem !important; font-weight:500 !important; }
+.shell main .project-list-ratios { font-size:.72rem !important; font-weight:400 !important; }
+.shell main .project-list-report { background:transparent !important; border:0 !important; box-shadow:none !important; }
+.shell main .project-accordion .project-accordion-content,
+.shell main .project-accordion .project-panel-section,
+.shell main .project-bottom-sheet { border-radius:0 !important; box-shadow:none !important; }
+.shell main .project-bottom-sheet { border:0 !important; border-top:1px solid color-mix(in srgb,var(--text-2) 20%,transparent) !important; }
+.shell main .project-category-row,.shell main .project-phase-row,
+.shell main .project-deliverable-summary,.shell main .project-finance-summary {
+ background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent) !important;
+ border-radius:0 !important; box-shadow:none !important;
+}
+.shell main button:not(.input):not([type="submit"]) { box-shadow:none !important; }
