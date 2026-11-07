@@ -646,8 +646,9 @@ function renderProjectCard(project) {
   const reqs = S.requirements.filter(x => x.projectId === project.id);
   const techText = technical === null ? '—' : technical + '%';
   const progress = projectProgressData(project, ds);
+  const progressIndicator = technical === null ? '' : financeRing(technical, 'إنجاز فني', 'small', 'collection', 100, 'projects');
   return '<article class="project-accordion ' + (expanded ? 'is-expanded' : '') + (project.archivedAt ? ' is-archived' : '') + '">' +
-    '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>إنجاز فني ' + techText + '</span></span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
+    '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios">' + progressIndicator + '</span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">' + icon('printer',16) + '<span>تقرير</span></button></div>' +
     (expanded ? '<div class="project-accordion-content"><div class="project-accordion-meta"><span>' + esc(projectTypeLabel(project.type)) + '</span><span>' + esc(projectStatusLabel(project.status)) + '</span><span>' + ds.length + ' تسليمات</span></div>' +
       renderProjectCategoryRow(project, 'ملخص المشروع', 'بيانات المشروع ومتابعة العميل', 'summary', null, ds, reqs) +
       renderProjectCategoryRow(project, 'متطلبات العميل', reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', 'requirements', reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null, ds, reqs) +
@@ -766,8 +767,8 @@ function renderFinanceProjectCard(project) {
   const meta = [projectTypeLabel(project.type), scope, projectStatusLabel(project.status)].filter(Boolean).join(' · ');
   const expanded = S.expandedFinanceProjectId === project.id;
   return `<article class="card glass finance-project-card ${expanded?'is-expanded':''}">
-    <button class="finance-project-summary" data-action="toggle-finance-project" data-id="${esc(project.id)}" aria-expanded="${expanded}"><strong>${esc(project.name)}</strong><span>${esc(project.updatedAt ? new Date(project.updatedAt).toLocaleDateString(locale(), {day:'numeric',month:'short'}) : '')}</span></button>
-    <div class="finance-project-details"><div class="finance-project-head"><div class="finance-project-identity"><p class="muted small">${esc(meta)}</p></div>${ratioSettings}</div>
+    <button class="finance-project-summary" data-action="toggle-finance-project" data-id="${esc(project.id)}" aria-expanded="${expanded}"><strong>${esc(project.name)}</strong>${ratioSettings}<span>${esc(project.updatedAt ? new Date(project.updatedAt).toLocaleDateString(locale(), {day:'numeric',month:'short'}) : '')}</span></button>
+    <div class="finance-project-details"><div class="finance-project-head"><div class="finance-project-identity"><p class="muted small">${esc(meta)}</p></div></div>
     <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>المصروف <strong>${money(metrics.expense)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div></div>
   </article>`;
 }
@@ -1237,7 +1238,7 @@ function renderFinance() {
   <section class="finance-project-list">
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
   </section>
-  <details class="finance-disclosure"><summary><strong>تسجيل حركة مالية</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass"><form data-action="add-finance" class="entry-form"><div class="form-grid"><div><label class="lab" for="f-project">${t('project')}</label><select class="input" id="f-project" required><option value="">${t('choose_project')}</option>${S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div><div><label class="lab" for="f-kind">${t('transaction_type')}</label><select class="input" id="f-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select></div>${inputField(t('amount'),'f-amount','number','', 'min="0.01" step="0.01" required')}${inputField(t('date'),'f-fin-date','date',D.todayISO())}<div><label class="lab" for="f-category">${t('category')}</label><select class="input" id="f-category"><option>${t('general')}</option><option>${t('design')}</option><option>${t('materials')}</option><option>${t('labor')}</option><option>${t('transport')}</option><option>${t('other')}</option></select></div></div><label class="lab" for="f-description">${t('description')}</label><input class="input" id="f-description"><button class="btn primary" type="submit">${t('save_entry')}</button></form></section></details>
+  <details class="finance-disclosure" data-disclosure="project-entry"><summary><strong>تسجيل حركة مالية</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass"><form data-action="add-finance" class="entry-form"><div class="form-grid"><div><label class="lab" for="f-project">${t('project')}</label><select class="input" id="f-project" required><option value="">${t('choose_project')}</option>${S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div><div><label class="lab" for="f-kind">${t('transaction_type')}</label><select class="input" id="f-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select></div>${inputField(t('amount'),'f-amount','number','', 'min="0.01" step="0.01" required')}${inputField(t('date'),'f-fin-date','date',D.todayISO())}<div><label class="lab" for="f-category">${t('category')}</label><select class="input" id="f-category"><option>${t('general')}</option><option>${t('design')}</option><option>${t('materials')}</option><option>${t('labor')}</option><option>${t('transport')}</option><option>${t('other')}</option></select></div></div><label class="lab" for="f-description">${t('description')}</label><input class="input" id="f-description"><button class="btn primary" type="submit">${t('save_entry')}</button></form></section></details>
   <section class="card glass"><h2>${t('transactions')}</h2>${entries.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('date')}</th><th>${t('project')}</th><th>${t('category')}</th><th>${t('transaction_type')}</th><th>${t('amount')}</th><th></th></tr></thead><tbody>${entries.map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(S.projects.find(p=>p.id===x.projectId)?.name||t('project_deleted'))}</td><td>${esc(x.category||'—')}<small>${esc(x.description||'')}</small></td><td>${x.kind==='income'?t('income'):t('expenses')}</td><td class="${x.kind==='income'?'positive':'negative'}">${x.kind==='income'?'+':'−'}${money(x.amount)} ${t('currency')}</td><td><button class="btn sm danger" data-action="delete-finance" data-id="${esc(x.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_transactions')}</p>`}</section>`;
 }
 
@@ -1263,7 +1264,7 @@ function renderPersonalExpenses() {
   const categoryRows = Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]);
   const personalCategories = ['سكن وفواتير','مواصلات','طعام ومشروبات','مشتريات البيت','صحة','تعليم','ترفيه','ملابس','التزامات وديون','أخرى'];
   return `<div class="finance-switch"><button class="btn" data-action="finance-view" data-val="projects" aria-pressed="false">ماليات المشروعات</button><button class="btn is-active" data-action="finance-view" data-val="personal" aria-pressed="true">المصروف الشخصي</button></div>
-  <details class="finance-disclosure" ${S.expandedPersonalBudget?'open':''}><summary><strong>ميزانية الشهر</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass">
+  <details class="finance-disclosure" data-disclosure="personal-budget" ${S.expandedPersonalBudget?'open':''}><summary><strong>ميزانية الشهر</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass">
     <div class="dhead"><input class="input compact" id="expense-month" type="month" value="${esc(month)}" aria-label="الشهر"></div>
     <form data-action="save-personal-budget" class="entry-form">
       <label class="lab" for="personal-budget">الميزانية الشهرية (جنيه)</label>
@@ -1279,7 +1280,7 @@ function renderPersonalExpenses() {
     </div>
     ${budget>0&&spent>budget?'<p class="expense-warning">تنبيه: المصروف تجاوز الميزانية الشهرية، ويمكنك الاستمرار في التسجيل.</p>':''}
   </section></details>
-  <details class="finance-disclosure" ${S.expandedPersonalEntry?'open':''}><summary><strong>إضافة حركة شخصية</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass">
+  <details class="finance-disclosure" data-disclosure="personal-entry" ${S.expandedPersonalEntry?'open':''}><summary><strong>إضافة حركة شخصية</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass">
     <form data-action="add-personal-expense" class="entry-form">
       <div class="form-grid"><div><label class="lab" for="pe-kind">نوع الحركة</label><select class="input" id="pe-kind"><option value="expense">مصروف</option><option value="income">دخل</option></select></div><div><label class="lab" for="pe-amount">المبلغ (جنيه)</label><input class="input" id="pe-amount" type="number" min="0.01" step="0.01" required></div>
       <div><label class="lab" for="pe-date">التاريخ</label><input class="input" id="pe-date" type="date" value="${D.todayISO()}" required></div></div>
@@ -1781,6 +1782,12 @@ function bindEvents() {
   document.addEventListener('gestureend', stopPinch, { passive: false });
   document.addEventListener('touchmove', event => { if (event.touches && event.touches.length > 1) stopPinch(event); }, { passive: false });
   document.addEventListener('click', onClick);
+  document.addEventListener('toggle', (event) => {
+    const disclosure = event.target;
+    if (!(disclosure instanceof HTMLDetailsElement) || !disclosure.matches('[data-disclosure]')) return;
+    if (disclosure.dataset.disclosure === 'personal-budget') S.expandedPersonalBudget = disclosure.open;
+    if (disclosure.dataset.disclosure === 'personal-entry') S.expandedPersonalEntry = disclosure.open;
+  }, true);
   document.addEventListener('submit', onSubmit);
   document.addEventListener('input', onInput);
   document.addEventListener('change', onChange);
