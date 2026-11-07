@@ -907,18 +907,6 @@ html, body, #app { touch-action: pan-x pan-y; }
 .text-action:hover { color:var(--text); text-decoration:underline; }
 .text-action.danger { color:var(--danger,#b45a55); }
 .project-empty-line { padding:1.5rem .15rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
-.project-sheet-backdrop { position:fixed; inset:0; z-index:120; background:rgba(15,18,22,.22); backdrop-filter:blur(2px); animation:projectBackdropIn .2s ease both; }
-.project-bottom-sheet { position:fixed; z-index:121; inset-inline:0; bottom:0; width:min(100%,920px); max-height:min(82dvh,780px); margin-inline:auto; overflow:hidden; display:flex; flex-direction:column; padding:0 clamp(1rem,3vw,1.6rem) env(safe-area-inset-bottom,0); border:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); border-bottom:0; border-radius:18px 18px 0 0; background:var(--surface, var(--bg)); color:var(--text); box-shadow:0 -16px 50px rgba(0,0,0,.13); animation:projectSheetIn .28s cubic-bezier(.2,.75,.25,1) both; }
-.project-bottom-sheet-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.5rem 0 .9rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); }
-.project-bottom-sheet-head h3 { margin:.3rem 0 .1rem; font-size:1rem; font-weight:500; }
-.project-bottom-sheet-head small { color:var(--text-2); font-size:.72rem; }
-.project-sheet-handle { display:block; width:34px; height:3px; margin:.15rem auto .35rem; border-radius:9px; background:var(--text-2); opacity:.35; }
-.project-sheet-head-actions { display:flex; align-items:center; gap:.8rem; }
-.project-sheet-close { width:32px; height:32px; border:0; border-radius:50%; background:color-mix(in srgb,var(--text-2) 9%,transparent); color:var(--text); font-size:1.35rem; cursor:pointer; }
-.project-bottom-sheet-body { overflow:auto; overscroll-behavior:contain; padding:.8rem 0 1.5rem; }
-.project-page.has-bottom-sheet .project-accordion.is-expanded { transform:scale(.985) translateY(-3px); transform-origin:top center; opacity:.62; filter:saturate(.8); transition:transform .25s ease,opacity .25s ease,filter .25s ease; }
-@keyframes projectBackdropIn { from { opacity:0; } to { opacity:1; } }
-@keyframes projectSheetIn { from { opacity:0; transform:translateY(32px); } to { opacity:1; transform:translateY(0); } }
 .project-panel-intro { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.2rem .1rem .75rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); color:var(--text-2); font-size:.78rem; }
 .project-panel-intro strong { color:var(--text); font-weight:500; font-size:.9rem; }
 .project-summary-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1.5rem; }
@@ -990,8 +978,6 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell main .project-list-report { background:transparent !important; border:0 !important; box-shadow:none !important; }
 .shell main .project-accordion .project-accordion-content,
 .shell main .project-accordion .project-panel-section,
-.shell main .project-bottom-sheet { border-radius:0 !important; box-shadow:none !important; }
-.shell main .project-bottom-sheet { border:0 !important; border-top:1px solid color-mix(in srgb,var(--text-2) 20%,transparent) !important; }
 .shell main .project-category-row,.shell main .project-phase-row,
 .shell main .project-deliverable-summary,.shell main .project-finance-summary {
  background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent) !important;
@@ -1083,7 +1069,7 @@ body::before { display:none !important; background:none !important; }
 .shell main .dashboard-metric-card, .shell main .finance-project-card,
 .shell main .finance-overview, .shell main .project-accordion,
 .shell main .meeting-card, .shell main .task-card, .shell main .list-card,
-.shell main .project-bottom-sheet, .shell main .sheet,
+.shell main .sheet,
 .shell .login-card {
   background:transparent !important; border:0 !important; border-radius:0 !important;
   box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
@@ -1144,7 +1130,6 @@ body::before { display:none !important; background:none !important; }
 .shell main .fab, .shell main .voice-fab { border-radius:50% !important; background:var(--accent) !important; color:#fff !important; }
 .shell main .overlay { background:rgb(0 0 0 / .38); }
 .shell main .sheet { background:var(--bg) !important; border-top:1px solid color-mix(in srgb,var(--text-2) 28%,transparent) !important; }
-.shell main .project-bottom-sheet { background:var(--bg) !important; }
 :root[data-dark="1"] .shell main .task .ring-c { border-color:#a1a1a1 !important; }
 :root[data-dark="1"] .shell main .task.done .ring-c { border-color:#e36b35 !important; background:#e36b35 !important; }
 @media (max-width:650px) {
