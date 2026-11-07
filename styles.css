@@ -1024,3 +1024,133 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell main .dashboard-task-summary h3 { margin:0; font-weight:500; }
 .shell main .dashboard-task-group-content { padding:.2rem .1rem .6rem; }
 .shell main .dashboard-task-group { padding:0; border-top:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+
+
+/* ================================================================
+   WEEKLYPLANNER — Reference visual system (flat, monochrome, editorial)
+   Based on the supplied checklist and dark dashboard references.
+   ================================================================ */
+:root {
+  --bg: #f1f1f1;
+  --surface: #f1f1f1;
+  --surface-2: #e7e7e7;
+  --text: #292929;
+  --text-2: #777777;
+  --accent: #a43b46;
+  --accent-text: #91323d;
+  --accent-soft: #eadbdd;
+  --primary: #a43b46;
+  --primary-text: #ffffff;
+  --btn: transparent;
+  --btn-ring: #bdbdbd;
+  --font: "Roboto Condensed", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --r-lg: 0;
+  --r-md: 0;
+}
+:root[data-dark="1"] {
+  --surface: #242424;
+  --surface-2: #303030;
+}
+html, body { background:var(--bg) !important; }
+body { font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important; }
+body::before { display:none !important; background:none !important; }
+.shell, .shell .main, .shell .rail, .shell .tabbar { background:var(--bg) !important; }
+.shell .main { max-width:1180px; }
+.shell .rail { border-inline-end:1px solid color-mix(in srgb,var(--text-2) 24%,transparent); }
+.shell .tabbar {
+  inset-inline:0; bottom:0; max-width:none; height:calc(4rem + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom); border-top:1px solid color-mix(in srgb,var(--text-2) 24%,transparent);
+  background:var(--bg) !important;
+}
+.shell .tab, .shell .nav-item { border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
+.shell .tab.on, .shell .nav-item.on { color:var(--accent) !important; background:transparent !important; }
+.shell .tab.on::after, .shell .nav-item.on::after {
+  content:""; display:block; width:18px; height:2px; margin-top:3px; background:var(--accent);
+}
+.shell .topbar h1, .shell main h1, .shell main h2, .shell main h3, .shell main h4,
+.shell main .page-title, .shell main .section-title, .shell main .dashboard-intro h2 {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
+  font-weight:800 !important; letter-spacing:-.025em; color:var(--text);
+}
+.shell .topbar h1, .shell main h1, .shell main .page-title { font-size:clamp(1.65rem,3vw,2.1rem) !important; line-height:1.12; }
+.shell main h2, .shell main .section-title { font-size:1.42rem !important; line-height:1.2; }
+.shell main h3, .shell main h4 { font-size:1.08rem !important; line-height:1.3; }
+.shell main p, .shell main li, .shell main label, .shell main input, .shell main textarea,
+.shell main select, .shell main small, .shell main .muted, .shell main .project-list-name,
+.shell main .task .ttl {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
+}
+.shell main .muted:not(.keep-context), .shell main .page-description,
+.shell main .section-description, .shell main .helper-text { display:initial !important; }
+.shell main .card, .shell main .card.glass, .shell main .glass,
+.shell main .dashboard-metric-card, .shell main .finance-project-card,
+.shell main .finance-overview, .shell main .project-accordion,
+.shell main .meeting-card, .shell main .task-card, .shell main .list-card,
+.shell main .project-bottom-sheet, .shell main .sheet,
+.shell .login-card {
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+}
+.shell main .card { padding-inline:0; }
+.shell main .card + .card, .shell main .project-accordion,
+.shell main .dashboard-metric-card, .shell main .finance-project-card,
+.shell main .finance-overview, .shell main .meeting-card,
+.shell main .task-card, .shell main .list-card {
+  border-bottom:1px solid color-mix(in srgb,var(--text-2) 28%,transparent) !important;
+}
+.shell main .btn, .shell main .btn.primary, .shell main .btn.ghost,
+.shell main button:not(.fab):not(.voice-fab):not(.icon-btn),
+.shell main .project-sheet-close {
+  background:transparent !important; color:var(--text) !important; border:0 !important;
+  border-radius:0 !important; box-shadow:none !important;
+}
+.shell main .btn.danger, .shell main .text-action.danger { color:#b0444c !important; }
+.shell main input:not([type=checkbox]), .shell main textarea, .shell main select,
+.shell main .input, .shell main .textarea {
+  background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 42%,transparent) !important;
+  border-radius:0 !important; box-shadow:none !important;
+}
+.shell main .task { border-radius:0 !important; padding:.42rem 0; }
+.shell main .task .ring-c {
+  width:1.05rem !important; height:1.05rem !important; border-radius:2px !important;
+  border:1.5px solid #858585 !important; background:transparent !important;
+  color:transparent !important; box-shadow:none !important;
+}
+.shell main .task.done .ring-c {
+  border-color:#e36b35 !important; background:#e36b35 !important;
+  color:#fff !important;
+}
+.shell main .task.done .ring-c .ic { color:#fff !important; font-size:12px !important; }
+.shell main .task.done .ttl { color:var(--text-2) !important; text-decoration:line-through; text-decoration-thickness:1px; }
+.shell main .dashboard-task-group, .shell main .dashboard-task-summary,
+.shell main .project-disclosure, .shell main .project-phase-row,
+.shell main .project-category-row, .shell main .meeting-tab,
+.shell main .finance-switch {
+  border-radius:0 !important; background:transparent !important; box-shadow:none !important;
+}
+.shell main .dashboard-task-summary, .shell main .project-disclosure > summary,
+.shell main .project-phase-row > summary {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
+  font-weight:700 !important; color:var(--text);
+}
+.shell main .project-list-row, .shell main .project-list-row-wrap .project-list-row,
+.shell main .finance-project-summary { background:transparent !important; border-radius:0 !important; }
+.shell main .project-list-name { font-size:1.12rem !important; font-weight:700 !important; }
+.shell main .project-list-row-wrap, .shell main .project-category-row,
+.shell main .project-phase-row, .shell main .project-deliverable-row,
+.shell main .project-transaction-row { border-color:color-mix(in srgb,var(--text-2) 28%,transparent) !important; }
+.shell main .dashboard-metrics-grid { border-block-color:color-mix(in srgb,var(--text-2) 28%,transparent); }
+.shell main .dashboard-metric-card + .dashboard-metric-card { border-inline-start-color:color-mix(in srgb,var(--text-2) 28%,transparent); }
+.shell main .dashboard-metric-title { font-weight:700 !important; }
+.shell main .dashboard-metric-value { font-weight:700 !important; }
+.shell main .chip, .shell main .badge { background:transparent !important; border-radius:0 !important; }
+.shell main .fab, .shell main .voice-fab { border-radius:50% !important; background:var(--accent) !important; color:#fff !important; }
+.shell main .overlay { background:rgb(0 0 0 / .38); }
+.shell main .sheet { background:var(--bg) !important; border-top:1px solid color-mix(in srgb,var(--text-2) 28%,transparent) !important; }
+.shell main .project-bottom-sheet { background:var(--bg) !important; }
+:root[data-dark="1"] .shell main .task .ring-c { border-color:#a1a1a1 !important; }
+:root[data-dark="1"] .shell main .task.done .ring-c { border-color:#e36b35 !important; background:#e36b35 !important; }
+@media (max-width:650px) {
+  .shell main .dashboard-metrics-grid { grid-template-columns:1fr; }
+  .shell main .dashboard-metric-card + .dashboard-metric-card { border-inline-start:0; }
+}
