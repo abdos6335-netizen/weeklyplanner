@@ -1199,10 +1199,7 @@ html,body,.shell { font-family:var(--font) !important; }
 .shell main textarea,.shell main button,.shell main .muted,.shell main .helper-text {
   font-size:calc(1em * var(--type-item-scale,1));
 }
-.shell main .muted:not(.keep-context),.shell main .page-description,
-.shell main .section-description,.shell main .helper-text {
-  display:revert !important;
-}
+
 .shell main .projects-page .page-description { display:none !important; }
 .shell main .dashboard-metric-title { font-size:calc(.82rem * var(--type-item-scale,1)) !important; }
 .shell main .dashboard-metric-copy>small { font-size:calc(.68rem * var(--type-item-scale,1)); }
