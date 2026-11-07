@@ -65,7 +65,7 @@ export const FONTS = {
   system: { label: 'System', family: 'system-ui', stack: 'system-ui', gf: null },
 };
 
-const loadedFonts = new Set(['almarai', 'inter']); // محمّلان من index.html
+const loadedFonts = new Set(['almarai', 'inter', 'ibm', 'editorial']); // IBM Plex Sans Arabic وRoboto Condensed محمّلان من index.html
 export function ensureFont(id) {
   const f = FONTS[id];
   if (!f || !f.gf || loadedFonts.has(id)) return;
