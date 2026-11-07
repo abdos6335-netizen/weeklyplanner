@@ -662,8 +662,7 @@ function renderProjects() {
   const projects = allProjects.filter(p => !!p.archivedAt === S.showArchivedProjects);
   const activeCount = allProjects.filter(p => !p.archivedAt).length;
   const archivedCount = allProjects.length - activeCount;
-  const activeProject = S.activeProjectId && S.projects.find(p => p.id === S.activeProjectId);
-  return '<div class="project-page ' + '' + '"><div class="projects-toolbar"><div class="project-filters"><button class="minimal-text-action ' + (!S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="active">المشروعات ' + activeCount + '</button><button class="minimal-text-action ' + (S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="archived">الأرشيف ' + archivedCount + '</button><button class="minimal-text-action" data-action="new-project">+ ' + t('new_project') + '</button></div></div>' +
+  return '<div class="project-page"><div class="projects-toolbar"><div class="project-filters"><button class="minimal-text-action ' + (!S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="active">المشروعات ' + activeCount + '</button><button class="minimal-text-action ' + (S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="archived">الأرشيف ' + archivedCount + '</button><button class="minimal-text-action" data-action="new-project">+ ' + t('new_project') + '</button></div></div>' +
     (projects.length ? '<div class="project-grid">' + projects.map(renderProjectCard).join('') + '</div>' : '<div class="project-empty-line"><strong>' + (S.showArchivedProjects ? 'الأرشيف فارغ' : t('no_projects')) + '</strong></div>') +
     '</div>';
 }
