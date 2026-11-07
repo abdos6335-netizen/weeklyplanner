@@ -594,7 +594,7 @@ function renderProjectProgress(project, deliverables = S.deliverables, context =
 function dashboardMetricCard(title, percent, detail, section, secondary = null) {
   const value = percent === null || percent === undefined ? '—' : Math.round(percent) + '%';
   const extra = secondary ? '<span class="dashboard-metric-secondary">' + esc(secondary.label) + ' ' + (secondary.value === null || secondary.value === undefined ? '—' : Math.round(secondary.value) + '%') + '</span>' : '';
-  return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-title">${esc(title)}</span><strong class="dashboard-metric-value">${value}</strong><small>${esc(detail)}</small>${extra}</button>`;
+  return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-title">${esc(title)}</span><strong class="dashboard-metric-value">${value}</strong>${extra}</button>`;
 }
 
 function renderProjectCategoryRow(label, description, panel, percent = null) {
@@ -1577,6 +1577,13 @@ function renderSettings() {
     <button type="button" class="btn sm" data-action="reset-ratio-appearance">${ratioLabels.reset}</button>`;
 
 
+  const typography = S.settings.typography || DEFAULT_SETTINGS.typography;
+  const typographySettings = `
+    <p class="muted small">${lang()==='ar'?'تحكم في الفرق بين أحجام العناوين والعناصر.':'Adjust the size difference between headings and items.'}</p>
+    <div class="lab">${lang()==='ar'?'العناوين الرئيسية':'Main headings'}</div>${range('type-heading',80,130,typography.heading,'%')}
+    <div class="lab">${lang()==='ar'?'العناوين الفرعية':'Subheadings'}</div>${range('type-subheading',80,130,typography.subheading,'%')}
+    <div class="lab">${lang()==='ar'?'العناصر والمعلومات':'Items & information'}</div>${range('type-item',80,130,typography.item,'%')}`;
+
   const motion = S.settings.motion || DEFAULT_SETTINGS.motion;
   const motionLabels = lang() === 'ar'
     ? { title: 'أسلوب الحركة', apple: 'Apple Smooth', smooth: 'ناعم', subtle: 'هادئ', reduced: 'تقليل الحركة', speed: 'سرعة الحركة', slow: 'بطيئة', normal: 'متوازنة', fast: 'سريعة', hint: 'تتحكم هذه الاختيارات في انتقالات الصفحات والقوائم والنوافذ والتفاعلات.' }
@@ -1619,6 +1626,7 @@ function renderSettings() {
     ${group('appearance', 'palette', 'g_appearance', appearance)}
     ${group('finance-targets', 'finance', lang() === 'ar' ? 'تخصيص النسب المالية' : 'Finance ratio targets', financeTargetSettings)}
     ${group('ratio-appearance', 'palette', lang() === 'ar' ? 'شكل وألوان مؤشرات النسب' : 'Ratio indicator style & colors', ratioAppearanceSettings)}
+    ${group('typography', 'type', lang() === 'ar' ? 'أحجام الخطوط' : 'Typography sizes', typographySettings)}
     ${group('motion', 'sparkles', lang() === 'ar' ? 'الحركة والانتقالات' : 'Motion & transitions', motionSettings)}
     ${group('colors', 'layers', 'g_colors', colors)}
     ${group('icons', 'type', 'g_icons_fonts', iconsFonts)}
@@ -2133,6 +2141,7 @@ function onInput(e) {
     case 'sat': updateTheme((x) => { x.sat = Number(v); }); $('#v-sat').textContent = v + '%'; break;
     case 'blur': updateTheme((x) => { x.blur = Number(v); }); $('#v-blur').textContent = v + 'px'; break;
     case 'scale': updateTheme((x) => { x.scale = Number(v); }); $('#v-scale').textContent = v + '%'; break;
+    case 'type-heading': case 'type-subheading': case 'type-item': { const key=k.replace('type-',''); const typography={...(S.settings.typography||DEFAULT_SETTINGS.typography),[key]:Math.min(130,Math.max(80,Number(v)||100))}; updateSettings({typography},{render:false}); applyTypographySettings(); const out=$('#v-'+k); if(out)out.textContent=v+'%'; break; }
     default: break;
   }
 }

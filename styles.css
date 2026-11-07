@@ -999,3 +999,16 @@ html, body, #app { touch-action: pan-x pan-y; }
  border-radius:0 !important; box-shadow:none !important;
 }
 .shell main button:not(.input):not([type="submit"]) { box-shadow:none !important; }
+
+/* Compact dashboard metrics and user-controlled typography hierarchy. */
+.shell main h1,.shell main .topbar h1,.shell main .dashboard-intro h2,.shell main .page-title { font-size:calc(1.38rem * var(--type-heading-scale,1)) !important; }
+.shell main h2,.shell main .section-title { font-size:calc(1.2rem * var(--type-heading-scale,1)) !important; }
+.shell main h3,.shell main h4,.shell main summary { font-size:calc(1rem * var(--type-subheading-scale,1)) !important; }
+.shell main p,.shell main li,.shell main small,.shell main label,.shell main input,.shell main textarea,.shell main select,.shell main .project-list-name { font-size:calc(.88rem * var(--type-item-scale,1)); }
+.shell main .dashboard-metric-card { flex-direction:row; align-items:baseline; justify-content:space-between; gap:.7rem; padding:.85rem .15rem; }
+.shell main .dashboard-metric-title { color:var(--text); font-size:calc(.9rem * var(--type-subheading-scale,1)); }
+.shell main .dashboard-metric-value { font-size:calc(.9rem * var(--type-item-scale,1)); font-weight:500; }
+.shell main .dashboard-metric-secondary { font-size:.72rem; }
+.shell main button:not(.fab):not(.voice-fab):not(.icon-btn) { box-shadow:none !important; }
+.shell main .btn:not(.danger),.shell main .btn.primary,.shell main .btn.ghost { border:0 !important; background:transparent !important; color:var(--text) !important; }
+.shell main input[type=checkbox] { accent-color:#e58a32; }
