@@ -44,6 +44,7 @@ const S = {
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
   authMode: 'signin',
   activeProjectId: null,
+  activeProjectPanel: null,
   expandedTaskId: null,
   expandedFinanceProjectId: null,
   expandedFinanceSummary: false,
@@ -563,7 +564,7 @@ function projectProgressData(project, deliverables = S.deliverables) {
   }
   const done = phases.reduce((sum, phase) => sum + phase.done, 0);
   const total = phases.reduce((sum, phase) => sum + phase.total, 0);
-  const percent = phases.length ? Math.round(phases.reduce((sum, phase) => sum + phase.percent, 0) / phases.length) : null;
+  const percent = total > 0 ? Math.round(done / total * 100) : null;
   return { phases, percent, done, total };
 }
 
@@ -585,20 +586,85 @@ function dashboardMetricCard(title, percent, detail, section, secondary = null) 
   return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-title">${esc(title)}</span><strong class="dashboard-metric-value">${value}</strong><small>${esc(detail)}</small>${extra}</button>`;
 }
 
+function renderProjectCategoryRow(label, description, panel, percent = null) {
+  const value = percent === null || percent === undefined ? '' : '<span class="project-category-percent">' + Math.round(percent) + '%</span>';
+  return '<button class="project-category-row" data-action="open-project-panel" data-panel="' + panel + '" type="button"><span class="project-category-copy"><strong>' + esc(label) + '</strong><small>' + esc(description) + '</small></span>' + value + '<span class="project-category-chevron">' + icon('chevL', 16) + '</span></button>';
+}
+
+function renderProjectRequirementsPanel(project, requirements) {
+  const openCount = requirements.filter(x => x.status !== 'done').length;
+  return '<div class="project-panel-intro"><span>متطلبات العميل</span><strong>' + openCount + ' مفتوح</strong></div>' +
+    '<form data-action="add-requirement" class="entry-form project-minimal-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="' + D.todayISO() + '"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>' +
+    (requirements.length ? '<div class="project-requirements-list">' + requirements.map(r => '<article class="requirement-row"><div><p>' + esc(r.text) + '</p><small>' + (r.source === 'meeting' ? 'Meeting' : r.source === 'whatsapp' ? 'WhatsApp' : 'طلب مباشر') + ' · ' + esc(r.date || '—') + (r.sourceLabel ? ' · ' + esc(r.sourceLabel) : '') + '</small></div><select class="input compact" data-change="requirement-status" data-id="' + esc(r.id) + '"><option value="open" ' + (r.status === 'open' ? 'selected' : '') + '>مفتوح</option><option value="doing" ' + (r.status === 'doing' ? 'selected' : '') + '>قيد التنفيذ</option><option value="done" ' + (r.status === 'done' ? 'selected' : '') + '>تم</option></select></article>').join('') + '</div>' : '<p class="muted small">لا توجد متطلبات مسجلة لهذا المشروع حتى الآن.</p>') +
+    '<p class="muted small">ربط WhatsApp التلقائي غير مفعّل بعد؛ يمكنك تسجيل المتطلبات يدويًا أو من محاضر الاجتماعات.</p>';
+}
+
+function renderProjectDeliverablesPanel(project, deliverables) {
+  const rows = deliverables;
+  const stages = '<option value="concept">' + t('stage_concept') + '</option><option value="design">' + t('stage_design') + '</option><option value="technical">' + t('stage_technical') + '</option><option value="execution">' + t('stage_execution') + '</option>';
+  const kinds = '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + t('type_plan') + '</option><option value="section">' + t('type_section') + '</option><option value="elevation">' + t('type_elevation') + '</option><option value="detail">' + t('type_detail') + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + t('other') + '</option>';
+  return '<form data-action="add-deliverable" class="entry-form project-minimal-form"><input type="hidden" id="d-project" value="' + esc(project.id) + '"><div class="form-grid">' + inputField(t('deliverable_name'), 'd-name') + '<div><label class="lab" for="d-stage">' + t('design_stage') + '</label><select class="input" id="d-stage">' + stages + '</select></div><div><label class="lab" for="d-kind">' + t('deliverable_type') + '</label><select class="input" id="d-kind">' + kinds + '</select></div>' + inputField(t('due_date'), 'd-date', 'date') + '<div><label class="lab" for="d-status">' + t('approval_status') + '</label><select class="input" id="d-status"><option value="pending">' + t('approval_pending') + '</option><option value="submitted">' + t('approval_submitted') + '</option><option value="approved">' + t('approval_approved') + '</option><option value="revision">' + t('approval_revision') + '</option></select></div></div><label class="lab" for="d-notes">' + t('notes') + '</label><input class="input" id="d-notes"><button class="btn primary" type="submit">' + t('add_deliverable') + '</button></form>' +
+    (rows.length ? '<div class="project-deliverables-list">' + rows.map(d => '<article class="project-deliverable-row"><div><strong>' + esc(d.name) + '</strong><small>' + esc(d.kind || '') + (d.notes ? ' · ' + esc(d.notes) : '') + '</small></div><span>' + esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage] || d.stage || '—') + '</span><span>' + esc(d.dueDate || '—') + '</span><select class="input compact" data-change="deliverable-status" data-id="' + esc(d.id) + '"><option value="pending" ' + (d.status === 'pending' ? 'selected' : '') + '>' + t('approval_pending') + '</option><option value="submitted" ' + (d.status === 'submitted' ? 'selected' : '') + '>' + t('approval_submitted') + '</option><option value="approved" ' + (d.status === 'approved' ? 'selected' : '') + '>' + t('approval_approved') + '</option><option value="revision" ' + (d.status === 'revision' ? 'selected' : '') + '>' + t('approval_revision') + '</option></select><button class="text-action danger" data-action="delete-deliverable" data-id="' + esc(d.id) + '" type="button">حذف</button></article>').join('') + '</div>' : '<p class="muted small">لا توجد تسليمات مسجلة لهذا المشروع.</p>');
+}
+
+function renderProjectFinancePanel(project, entries) {
+  const rows = entries.slice().sort((a,b)=>(b.date || '').localeCompare(a.date || ''));
+  return renderProjectFinanceSummary(project, entries) + renderProjectInstallments(project) +
+    '<div class="project-transactions-heading"><strong>الحركة المالية</strong><span>' + rows.length + ' عملية</span></div>' +
+    (rows.length ? '<div class="project-transactions-list">' + rows.map(x => '<article class="project-transaction-row"><div><strong>' + esc(x.category || '—') + '</strong><small>' + esc(x.date || '—') + (x.description ? ' · ' + esc(x.description) : '') + '</small></div><span class="' + (x.kind === 'income' ? 'positive' : 'negative') + '">' + (x.kind === 'income' ? '+' : '−') + money(x.amount) + ' ج.م</span><button class="text-action danger" data-action="delete-finance" data-id="' + esc(x.id) + '" type="button">حذف</button></article>').join('') + '</div>' : '<p class="muted small">لا توجد حركات مالية مسجلة لهذا المشروع.</p>');
+}
+
+function renderProjectPanelContent(project, panel, deliverables, financeEntries, requirements) {
+  if (panel === 'summary') return '<div class="project-summary-facts"><div><span>نوع المشروع</span><strong>' + esc(projectTypeLabel(project.type)) + '</strong></div><div><span>الحالة</span><strong>' + esc(projectStatusLabel(project.status)) + '</strong></div><div><span>الموقع</span><strong>' + esc(project.location || '—') + '</strong></div><div><span>نطاق العمل</span><strong>' + esc(projectScopeLabel(project.workScope || []) || '—') + '</strong></div><div><span>قيمة التعاقد</span><strong>' + money(project.contractValue || 0) + ' ج.م</strong></div></div>' + (project.notes ? '<p class="project-summary-notes">' + esc(project.notes) + '</p>' : '<p class="muted small">لا توجد ملاحظات إضافية للمشروع.</p>') + renderProjectFollowUp(project);
+  if (panel === 'requirements') return renderProjectRequirementsPanel(project, requirements);
+  if (panel === 'technical') return '<div class="project-panel-intro"><span>إنجاز المراحل الفنية</span><strong>' + (projectProgressData(project, deliverables).percent === null ? '—' : projectProgressData(project, deliverables).percent + '%') + '</strong></div>' + renderProjectPhaseRows(project, deliverables);
+  if (panel === 'finance') return renderProjectFinancePanel(project, financeEntries);
+  if (panel === 'deliverables') return renderProjectDeliverablesPanel(project, deliverables);
+  return '';
+}
+
 function renderProjectCard(project) {
-  const created = project.createdAt ? new Date(project.createdAt) : null;
-  const createdLabel = created && Number.isFinite(created.getTime()) ? created.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  const expanded = S.activeProjectId === project.id;
   const technical = projectProgressData(project, S.deliverables).percent;
   const financial = projectFinanceTotals(project, S.financeEntries).collectionPct;
-  const technicalLabel = technical === null ? '—' : technical + '%';
-  const financialLabel = financial === null ? '—' : Math.round(financial) + '%';
-  return '<div class="project-list-row-wrap"><button class="project-list-row ' + (project.archivedAt ? 'is-archived' : '') + '" data-action="open-project" data-id="' + esc(project.id) + '" type="button">' +
-    '<span class="project-list-name">' + esc(project.name) + '</span>' +
-    '<span class="project-list-meta">' + esc(createdLabel) + '</span>' +
-    '<span class="project-list-ratios"><span>فني ' + technicalLabel + '</span><span>مالي ' + financialLabel + '</span></span>' +
-    '<span class="project-list-chevron" aria-hidden="true">' + icon('chevL',16) + '</span></button>' +
-    '<button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>';
+  const ds = S.deliverables.filter(d => d.projectId === project.id);
+  const fs = S.financeEntries.filter(x => x.projectId === project.id);
+  const reqs = S.requirements.filter(x => x.projectId === project.id);
+  const techText = technical === null ? '—' : technical + '%';
+  const financeText = financial === null ? '—' : Math.round(financial) + '%';
+  const progress = projectProgressData(project, ds);
+  const phaseRows = progress.phases.map(p => renderProjectCategoryRow(p.label, p.total ? p.done + ' من ' + p.total + ' بند تم تسليمه' : 'لم تُضف بنود بعد', 'technical', p.total ? p.percent : null)).join('');
+  return '<article class="project-accordion ' + (expanded ? 'is-expanded' : '') + (project.archivedAt ? ' is-archived' : '') + '">' +
+    '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>فني ' + techText + '</span><span>مالي ' + financeText + '</span></span><span class="project-list-chevron">' + icon('chevron-down', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
+    (expanded ? '<div class="project-accordion-content"><div class="project-accordion-meta"><span>' + esc(projectTypeLabel(project.type)) + '</span><span>' + esc(projectStatusLabel(project.status)) + '</span><span>' + ds.length + ' تسليمات</span></div>' +
+      renderProjectCategoryRow('ملخص المشروع', 'بيانات المشروع ومتابعة العميل', 'summary') +
+      renderProjectCategoryRow('متطلبات العميل', reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', 'requirements', reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null) +
+      renderProjectCategoryRow('الحالة الفنية', progress.phases.length ? progress.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', 'technical', technical) +
+      renderProjectCategoryRow('الحالة المالية', fs.length ? fs.length + ' حركات مالية مسجلة' : 'لا توجد حركات مالية مسجلة', 'finance', financial) +
+      renderProjectCategoryRow('التسليمات واللوحات', ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', 'deliverables', ds.length ? Math.round(ds.filter(d => ['submitted','approved'].includes(d.status)).length / ds.length * 100) : null) +
+      '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button><button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
 }
+
+function renderProjectBottomSheet(project) {
+  if (!project || !S.activeProjectPanel) return '';
+  const ds = S.deliverables.filter(d => d.projectId === project.id).sort((a,b)=>(a.dueDate || '').localeCompare(b.dueDate || ''));
+  const fs = S.financeEntries.filter(x => x.projectId === project.id);
+  const reqs = S.requirements.filter(x => x.projectId === project.id).sort((a,b)=>(b.createdAt || 0) - (a.createdAt || 0));
+  const labels = {summary:'ملخص المشروع',requirements:'متطلبات العميل',technical:'الحالة الفنية',finance:'الحالة المالية',deliverables:'التسليمات واللوحات'};
+  return '<div class="project-sheet-backdrop" data-action="close-project-panel" aria-hidden="true"></div><section class="project-bottom-sheet" role="dialog" aria-modal="true" aria-label="' + labels[S.activeProjectPanel] + '"><header class="project-bottom-sheet-head"><div><span class="project-sheet-handle"></span><h3>' + labels[S.activeProjectPanel] + '</h3><small>' + esc(project.name) + '</small></div><div class="project-sheet-head-actions"><button class="text-action" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button><button class="project-sheet-close" data-action="close-project-panel" type="button" aria-label="إغلاق">×</button></div></header><div class="project-bottom-sheet-body">' + renderProjectPanelContent(project, S.activeProjectPanel, ds, fs, reqs) + '</div></section>';
+}
+
+function renderProjects() {
+  const allProjects = [...S.projects].sort((a,b)=>(b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+  const projects = allProjects.filter(p => !!p.archivedAt === S.showArchivedProjects);
+  const activeCount = allProjects.filter(p => !p.archivedAt).length;
+  const archivedCount = allProjects.length - activeCount;
+  const activeProject = S.activeProjectId && S.projects.find(p => p.id === S.activeProjectId);
+  return '<div class="project-page ' + (activeProject && S.activeProjectPanel ? 'has-bottom-sheet' : '') + '"><div class="projects-toolbar"><p class="muted">' + t('projects_intro') + '</p><div class="project-filters"><button class="btn sm ' + (!S.showArchivedProjects ? 'primary' : '') + '" data-action="show-projects" data-val="active">المشروعات (' + activeCount + ')</button><button class="btn sm ' + (S.showArchivedProjects ? 'primary' : '') + '" data-action="show-projects" data-val="archived">الأرشيف (' + archivedCount + ')</button><button class="btn primary" data-action="new-project">' + t('new_project') + '</button></div></div>' +
+    (projects.length ? '<div class="project-grid">' + projects.map(renderProjectCard).join('') + '</div>' : '<div class="project-empty-line"><strong>' + (S.showArchivedProjects ? 'الأرشيف فارغ' : t('no_projects')) + '</strong><p class="muted small">' + (S.showArchivedProjects ? 'المشروعات المؤرشفة ستظهر هنا.' : t('projects_intro')) + '</p></div>') +
+    (activeProject && S.activeProjectPanel ? renderProjectBottomSheet(activeProject) : '') + '</div>';
+}
+
 function inputField(label, id, type='text', value='', extra='') { return `<label class="lab" for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(value)}" ${extra}>`; }
 
 // Project requirements share one inbox across meeting notes and client messages.
@@ -1874,8 +1940,11 @@ async function onClick(e) {
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
-    case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
-    case 'projects-back': S.activeProjectId = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'open-project': S.activeProjectId = el.dataset.id; S.activeProjectPanel = null; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'toggle-project': S.activeProjectId = S.activeProjectId === el.dataset.id ? null : el.dataset.id; S.activeProjectPanel = null; S.animateNextRender = true; render(); break;
+    case 'open-project-panel': S.activeProjectPanel = el.dataset.panel; S.animateNextRender = true; render(); break;
+    case 'close-project-panel': S.activeProjectPanel = null; S.animateNextRender = true; render(); break;
+    case 'projects-back': S.activeProjectId = null; S.activeProjectPanel = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
     case 'toggle-task-details': S.expandedTaskId = S.expandedTaskId === el.dataset.id ? null : el.dataset.id; render(); break;
     case 'toggle-finance-project': S.expandedFinanceProjectId = S.expandedFinanceProjectId === el.dataset.id ? null : el.dataset.id; render(); break;
     case 'toggle-finance-summary': S.expandedFinanceSummary = !S.expandedFinanceSummary; render(); break;
