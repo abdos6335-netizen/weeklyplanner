@@ -569,6 +569,47 @@ Object.assign(UI_PHRASES, {
   'إلغاء':'Cancel','حذف':'Delete','حفظ':'Save','تعديل':'Edit'
 });
 
+
+Object.assign(UI_PHRASES, {
+  'واجهة ملفات Android غير متاحة. حدّث التطبيق إلى آخر إصدار.':'Android file access is unavailable. Update the app to the latest version.',
+  'انتهت مهلة الوصول إلى ملف التسجيل.':'Timed out while accessing the recording file.',
+  'تعذر إكمال معالجة الاجتماع. حاول مرة أخرى.':'Could not finish processing the meeting. Try again.',
+  'حجم التسجيل أكبر من 24 ميجابايت. قسّم التسجيل إلى أجزاء أقصر ثم أعد المحاولة.':'Recording exceeds 24 MB. Split it into shorter parts and try again.',
+  'تم التسجيل. جارٍ حفظ الاجتماع ثم تفريغ الصوت وإنشاء MOM تلقائيًا…':'Recording complete. Saving the meeting, transcribing audio and generating MOM…',
+  '● التسجيل الأصلي يعمل في الخلفية؛ يمكنك تصغير التطبيق.':'● Original recording is running in the background; you can minimize the app.',
+  'التسجيل متوقف مؤقتًا من إشعار Android.':'Recording paused from the Android notification.',
+  'انتهى التسجيل — جارٍ حفظ الاجتماع والتجهيز للتفريغ.':'Recording ended. Saving the meeting and preparing transcription.',
+  'حدث خطأ في التسجيل':'A recording error occurred','تعذر التسجيل.':'Recording failed.',
+  'تعذر الوصول للميكروفون. تحقق من صلاحية المتصفح.':'Could not access the microphone. Check browser permissions.',
+  'انتهى الإملاء الصوتي. راجع النص قبل الحفظ.':'Voice dictation ended. Review the text before saving.',
+  'بدأ الإملاء الصوتي. اترك صفحة التطبيق مفتوحة.':'Voice dictation started. Keep the app page open.',
+  'تعذر بدء التسجيل الصوتي.':'Could not start voice recording.',
+  'تنبيه/موعد بعد':'Reminder / appointment in','تأكيد تسجيل':'Confirm recording',
+  'بقيمة':'for','في مشروع':'in project','بتاريخ':'on',
+  'تم الإنشاء من الأمر الصوتي:':'Created from voice command:',
+  'يوجد مشروع باسم':'A project named','بالفعل. اضغط موافق لفتح المشروع الموجود، أو إلغاء لمراجعة خيار إنشاء نسخة أخرى.':'already exists. Select OK to open it, or Cancel to review creating a duplicate.',
+  'هل تريد رغم ذلك إنشاء مشروع آخر بنفس الاسم؟':'Do you still want to create another project with the same name?',
+  'ظهر أكثر من مشروع في نص الاجتماع. اختر المشروع الصحيح يدويًا.':'More than one project was found in the meeting text. Select the correct project manually.',
+  'ألغيت العملية لتجنب ربط الاجتماع بمشروع غير مقصود.':'Operation cancelled to avoid linking the meeting to the wrong project.',
+  'تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إعداد المحضر:':'Meeting and recording saved, but transcription or minutes generation failed:',
+  'تم حفظ Meeting':'Meeting saved','في مشروع':'in project',
+  'ملاحظات المراجعة:':'Review notes:','يحتاج مراجعة بيانات المشروع أو العميل قبل الاعتماد':'Project or client details need review before approval',
+  'تاريخ التقرير:':'Report date:','لا توجد بيانات مسجلة':'No data recorded',
+  'لا توجد مراحل فنية محددة لهذا المشروع. حدّد نطاق العمل من تعديل المشروع.':'No technical phases are defined for this project. Set the work scope in Edit Project.',
+  'من دون موعد':'No due date','متأخرة':'Overdue','مجدولة':'Scheduled',
+  'تسليمات':'deliverables','متطلبات مسجلة':'requirements recorded','مراحل ضمن نطاق العمل':'phases in scope',
+  'بند تسليم':'deliverable item','بند مكتمل':'items completed',
+  'ملاحظات إضافية للمشروع.':'additional project notes.',
+  'مثال: إضافة وحدة تخزين بجوار الثلاجة':'Example: Add a storage unit next to the fridge',
+  'تغيير لون وحدات المطبخ':'Change the kitchen cabinet color',
+  'النقاط التي تمت مناقشتها...':'Discussion points...',
+  'التقرير الشامل للمشروع':'Full project report',
+  'الاجتماع غير موجود.':'Meeting not found.','التسجيل غير موجود على هذا الجهاز. افتح التطبيق على الجهاز الذي تم عليه التسجيل.':'Recording is unavailable on this device. Open the app on the device where it was recorded.',
+  'تم حذف التسجيل الصوتي.':'Recording deleted.','لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.':'No audio file for this meeting is saved on this device.',
+  'الملفات':'Files','الأسبوع السابق':'Previous week','الأسبوع التالي':'Next week',
+  'الجمعة':'Friday','السبت':'Saturday','الأحد':'Sunday','الإثنين':'Monday','الثلاثاء':'Tuesday','الأربعاء':'Wednesday','الخميس':'Thursday'
+});
+
 let domObserver = null;
 function phraseEntries() {
   const pairs = Object.entries(UI_PHRASES);
