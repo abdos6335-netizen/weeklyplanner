@@ -44,7 +44,6 @@ const S = {
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
   authMode: 'signin',
   activeProjectId: null,
-  activeProjectPanel: null,
   expandedTaskId: null,
   expandedFinanceProjectId: null,
   expandedFinanceSummary: false,
@@ -698,7 +697,7 @@ function renderProjects() {
   const activeCount = allProjects.filter(p => !p.archivedAt).length;
   const archivedCount = allProjects.length - activeCount;
   const activeProject = S.activeProjectId && S.projects.find(p => p.id === S.activeProjectId);
-  return '<div class="project-page ' + (activeProject && S.activeProjectPanel ? 'has-bottom-sheet' : '') + '"><div class="projects-toolbar"><div class="project-filters"><button class="minimal-text-action ' + (!S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="active">المشروعات ' + activeCount + '</button><button class="minimal-text-action ' + (S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="archived">الأرشيف ' + archivedCount + '</button><button class="minimal-text-action" data-action="new-project">+ ' + t('new_project') + '</button></div></div>' +
+  return '<div class="project-page ' + '' + '"><div class="projects-toolbar"><div class="project-filters"><button class="minimal-text-action ' + (!S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="active">المشروعات ' + activeCount + '</button><button class="minimal-text-action ' + (S.showArchivedProjects ? 'is-active' : '') + '" data-action="show-projects" data-val="archived">الأرشيف ' + archivedCount + '</button><button class="minimal-text-action" data-action="new-project">+ ' + t('new_project') + '</button></div></div>' +
     (projects.length ? '<div class="project-grid">' + projects.map(renderProjectCard).join('') + '</div>' : '<div class="project-empty-line"><strong>' + (S.showArchivedProjects ? 'الأرشيف فارغ' : t('no_projects')) + '</strong></div>') +
     '</div>';
 }
@@ -1949,11 +1948,9 @@ async function onClick(e) {
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
-    case 'open-project': S.activeProjectId = el.dataset.id; S.activeProjectPanel = null; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
-    case 'toggle-project': S.activeProjectId = S.activeProjectId === el.dataset.id ? null : el.dataset.id; S.activeProjectPanel = null; S.animateNextRender = true; render(); break;
-    case 'open-project-panel': S.activeProjectPanel = el.dataset.panel; S.animateNextRender = true; render(); break;
-    case 'close-project-panel': S.activeProjectPanel = null; S.animateNextRender = true; render(); break;
-    case 'projects-back': S.activeProjectId = null; S.activeProjectPanel = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'toggle-project': S.activeProjectId = S.activeProjectId === el.dataset.id ? null : el.dataset.id; S.animateNextRender = true; render(); break;
+    case 'projects-back': S.activeProjectId = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
     case 'toggle-task-details': S.expandedTaskId = S.expandedTaskId === el.dataset.id ? null : el.dataset.id; render(); break;
     case 'toggle-finance-project': S.expandedFinanceProjectId = S.expandedFinanceProjectId === el.dataset.id ? null : el.dataset.id; render(); break;
     case 'toggle-finance-summary': S.expandedFinanceSummary = !S.expandedFinanceSummary; render(); break;
