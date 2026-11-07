@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.31';
+const VERSION = '3.1.32';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -563,7 +563,7 @@ function projectProgressData(project, deliverables = S.deliverables) {
   }
   const done = phases.reduce((sum, phase) => sum + phase.done, 0);
   const total = phases.reduce((sum, phase) => sum + phase.total, 0);
-  const percent = phases.length ? (total ? Math.round(done / total * 100) : 0) : null;
+  const percent = phases.length ? Math.round(phases.reduce((sum, phase) => sum + phase.percent, 0) / phases.length) : null;
   return { phases, percent, done, total };
 }
 
