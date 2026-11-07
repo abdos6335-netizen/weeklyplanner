@@ -61,6 +61,7 @@ export const FONTS = {
   tajawal: { label: 'Tajawal', family: 'Tajawal', stack: '"Tajawal"', gf: 'Tajawal:wght@400;500;700' },
   ibm: { label: 'IBM Plex Arabic', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600' },
   inter: { label: 'Inter', family: 'Inter', stack: '"Inter","Almarai"', gf: 'Inter:wght@400;500;600;700' },
+  editorial: { label: 'IBM Plex Arabic + Roboto Condensed', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic","Roboto Condensed"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700;800' },
   system: { label: 'System', family: 'system-ui', stack: 'system-ui', gf: null },
 };
 
@@ -98,7 +99,7 @@ export const DEFAULT_THEME = {
   glass: true,
   blur: 16,                // 0..32
   icons: 'plain',          // Phosphor icons بدون خلفية أو إطار
-  font: 'almarai',
+  font: 'editorial',
   scale: 100,              // 90..120
 };
 
