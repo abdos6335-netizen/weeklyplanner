@@ -1012,3 +1012,15 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell main button:not(.fab):not(.voice-fab):not(.icon-btn) { box-shadow:none !important; }
 .shell main .btn:not(.danger),.shell main .btn.primary,.shell main .btn.ghost { border:0 !important; background:transparent !important; color:var(--text) !important; }
 .shell main input[type=checkbox] { accent-color:#e58a32; }
+
+/* Reference-style checklist marks and quiet expandable dashboard headings. */
+.shell main .task .ring-c { width:1.15rem; height:1.15rem; border-radius:4px !important; border:1.5px solid color-mix(in srgb,var(--text-2) 65%,transparent); background:transparent !important; color:transparent; box-shadow:none !important; }
+.shell main .task.done .ring-c { border-color:#e58a32 !important; color:#e58a32 !important; background:transparent !important; }
+.shell main .task.done .ring-c .ic { color:#e58a32 !important; }
+.shell main .dashboard-task-summary { display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.65rem .1rem; list-style:none; cursor:pointer; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+.shell main .dashboard-task-summary::-webkit-details-marker { display:none; }
+.shell main .dashboard-task-summary::after { content:'⌄'; color:var(--text-2); font-size:.9rem; transition:transform .2s ease; }
+.shell main .dashboard-task-group[open] .dashboard-task-summary::after { transform:rotate(180deg); }
+.shell main .dashboard-task-summary h3 { margin:0; font-weight:500; }
+.shell main .dashboard-task-group-content { padding:.2rem .1rem .6rem; }
+.shell main .dashboard-task-group { padding:0; border-top:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
