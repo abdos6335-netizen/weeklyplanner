@@ -605,6 +605,8 @@ function translateNode(node) {
   if (/^(TEXTAREA|INPUT)$/i.test(el.tagName || '')) return;
   for (const child of [...(el.childNodes || [])]) translateNode(child);
 }
+export function translateDom(root = document) { translateNode(root); }
+
 function installDomTranslation() {
   if (typeof document === 'undefined') return;
   translateNode(document.body);
