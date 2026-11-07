@@ -949,7 +949,6 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell main h1,.shell main .page-title,.shell main .section-title,
 .shell main h2 { font-size:1.38rem !important; line-height:1.35; font-weight:500 !important; letter-spacing:-.025em; }
 .shell main h3,.shell main h4 { font-size:1.08rem !important; font-weight:500 !important; }
-.shell main .projects-page .page-description { display:none !important; }
 .shell main .card,.shell main .card.glass,.shell main .dashboard-metric-card,
 .shell main .finance-project-card,.shell main .finance-overview,
 .shell main .project-accordion,.shell main .meeting-card,
