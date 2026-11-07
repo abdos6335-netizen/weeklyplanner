@@ -490,7 +490,7 @@ function renderDashboard() {
       ${activeProjects.length ? `<div class="dashboard-project-grid">${activeProjects.slice(0,3).map(p => `
         <article class="dashboard-project-card">
           <button class="dashboard-project-open" data-action="open-project" data-id="${esc(p.id)}">
-            <span><b>${esc(p.name)}</b><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
+            <span><span class="dashboard-project-heading"><b>${esc(p.name)}</b>${ratioTitlePair(projectFinanceTotals(p), 'dashboard')}</span><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
             <span class="chip">${projectStatusLabel(p.status)}</span>
           </button>
           ${renderProjectFinanceMetrics(p, S.financeEntries, true, 'dashboard')}
@@ -541,7 +541,7 @@ function financeRing(value, label, size = 'large', metric = 'collection', target
   const amount = isEmpty ? 0 : Math.min(100, Math.abs(value) / safeTarget * 100);
   const rounded = isEmpty ? '—' : `${Math.round(value)}%`;
   const style = look.style;
-  const styleVars = `--ratio-color:${color};--ratio-track:var(--surface-2);--ratio-pct:${amount}%;--ring-pct:${amount}%;`;
+  const styleVars = `--ratio-color:${color};--ratio-track:var(--surface-2);--ratio-pct:${amount}%;--ratio-angle:${amount * 1.8}deg;--ring-pct:${amount}%;`;
   let visual;
   if (style === 'ring') {
     visual = `<div class="finance-ring ${metric} ${isEmpty ? 'empty' : value < 0 ? 'loss' : ''}" style="${styleVars}"><span>${rounded}</span></div>`;
