@@ -268,7 +268,7 @@ function navPreview(id) {
  if(id==='tasks'){const rows=S.tasks.filter(x=>x.status!=='done'&&x.date===today).sort((a,b)=>b.priority-a.priority).slice(0,4);return rows.length?rows.map(x=>item(x.title,x.status==='doing'?'قيد التنفيذ':'اليوم')).join(''):item('لا توجد مهام لليوم','عرض كل المهام');}
  if(id==='projects'){const rows=[...S.projects].filter(p=>p.status!=='completed').sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,4);return rows.length?rows.map(p=>item(p.name,projectStatusLabel(p.status),'open-project',id,`data-id="${esc(p.id)}"`)).join(''):item('لا توجد مشروعات نشطة','عرض المشروعات');}
  if(id==='finance'){const rows=[...S.financeEntries].filter(x=>x.kind==='income').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,3);return rows.length?rows.map(x=>item(S.projects.find(p=>p.id===x.projectId)?.name||'تحصيل مسجل',`تحصيل · ${x.date||'—'} · •••• ج.م`)).join(''):item('لا توجد تحصيلات مسجلة','افتح سجل الماليات');}
- if(id==='meetings'){const rows=[...S.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,4);return rows.length?rows.map(m=>item(m.title||'Meeting',`${m.date||'—'} · ${S.projects.find(p=>p.id===m.projectId)?.name||'اجتماع'}`)).join(''):item('لا توجد اجتماعات مسجلة','افتح سجل الاجتماعات');}
+ if(id==='meetings'){const rows=[...S.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,4);return rows.length?rows.map(m=>item(m.title||'Meeting',`${m.date||'—'} · ${S.projects.find(p=>p.id===m.projectId)?.name||'اجتماع'}`)).join(''):item(t('metric_no_meetings'),'افتح سجل الاجتماعات');}
  return '';
 }
 
@@ -509,10 +509,10 @@ function renderDashboard() {
     </div>
 
     <div class="dashboard-metrics-grid">
-      ${dashboardMetricCard('إنجاز مهام الأسبوع', taskProgress, weekTasks.length ? completedWeekTasks + '/' + weekTasks.length + ' مهمة مكتملة' : 'لا توجد مهام لهذا الأسبوع', 'tasks', 'collection', 'dashboard')}
-      ${dashboardMetricCard('إنجاز المشروعات النشطة', projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' مشروع ضمن المتوسط' : 'لا توجد نطاقات إنجاز مسجلة', 'projects', 'collection', 'dashboard')}
-      ${dashboardMetricCard('نسبة التحصيل', collectionProgress, dashboardIncome ? 'من إجمالي قيمة التعاقدات' : 'لا توجد تحصيلات مسجلة', 'finance', 'collection', 'dashboard', { value: profitProgress, label: 'هامش صافي الربح', metric: 'profit' })}
-      ${dashboardMetricCard('اكتمال محاضر الاجتماعات', meetingProgress, S.meetings.length ? meetingsWithMinutes + ' من ' + S.meetings.length + ' محضر مكتمل' : 'لا توجد اجتماعات مسجلة', 'meetings', 'collection', 'dashboard')}
+      ${dashboardMetricCard(t('metric_tasks'), taskProgress, weekTasks.length ? completedWeekTasks + '/' + weekTasks.length + ' مهمة مكتملة' : 'لا توجد مهام لهذا الأسبوع', 'tasks', 'collection', 'dashboard')}
+      ${dashboardMetricCard(t('metric_projects'), projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' مشروع ضمن المتوسط' : 'لا توجد نطاقات إنجاز مسجلة', 'projects', 'collection', 'dashboard')}
+      ${dashboardMetricCard(t('metric_collection'), collectionProgress, dashboardIncome ? 'من إجمالي قيمة التعاقدات' : 'لا توجد تحصيلات مسجلة', 'finance', 'collection', 'dashboard', { value: profitProgress, label: t('metric_profit'), metric: 'profit' })}
+      ${dashboardMetricCard(t('metric_meetings'), meetingProgress, S.meetings.length ? t('metric_meetings_detail', { done: meetingsWithMinutes, total: S.meetings.length }) : 'لا توجد اجتماعات مسجلة', 'meetings', 'collection', 'dashboard')}
     </div>
 
     <section class="card glass dashboard-personal-cashflow">
