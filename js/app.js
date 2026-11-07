@@ -580,23 +580,24 @@ function renderProjectProgress(project, deliverables = S.deliverables, context =
 }
 
 function dashboardMetricCard(title, percent, detail, section, secondary = null) {
-  const primaryRatio = financeRing(percent, title, 'small', 'collection', 100, 'dashboard', detail);
-  const secondaryRatio = secondary
-    ? financeRing(secondary.value, secondary.label, 'small', secondary.metric || 'profit', 100, 'dashboard', secondary.detail)
-    : '';
-  return `<article class="dashboard-metric-card"><div class="dashboard-metric-indicators">${primaryRatio}${secondaryRatio}</div><button class="btn sm" data-action="nav" data-section="${section}">عرض التفاصيل</button></article>`;
+  const value = percent === null || percent === undefined ? '—' : Math.round(percent) + '%';
+  const extra = secondary ? '<span class="dashboard-metric-secondary">' + esc(secondary.label) + ' ' + (secondary.value === null || secondary.value === undefined ? '—' : Math.round(secondary.value) + '%') + '</span>' : '';
+  return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-title">${esc(title)}</span><strong class="dashboard-metric-value">${value}</strong><small>${esc(detail)}</small>${extra}</button>`;
 }
 
 function renderProjectCard(project) {
   const created = project.createdAt ? new Date(project.createdAt) : null;
   const createdLabel = created && Number.isFinite(created.getTime()) ? created.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-  const technical = projectProgressData(project, S.deliverables).percent ?? 0;
-  const financial = projectFinanceTotals(project, S.financeEntries).collectionPct ?? 0;
-  return '<button class="project-list-row ' + (project.archivedAt ? 'is-archived' : '') + '" data-action="open-project" data-id="' + esc(project.id) + '" type="button">' +
+  const technical = projectProgressData(project, S.deliverables).percent;
+  const financial = projectFinanceTotals(project, S.financeEntries).collectionPct;
+  const technicalLabel = technical === null ? '—' : technical + '%';
+  const financialLabel = financial === null ? '—' : Math.round(financial) + '%';
+  return '<div class="project-list-row-wrap"><button class="project-list-row ' + (project.archivedAt ? 'is-archived' : '') + '" data-action="open-project" data-id="' + esc(project.id) + '" type="button">' +
     '<span class="project-list-name">' + esc(project.name) + '</span>' +
     '<span class="project-list-meta">' + esc(createdLabel) + '</span>' +
-    '<span class="project-list-ratios"><span>فني ' + technical + '%</span><span>مالي ' + financial + '%</span></span>' +
-    '<span class="project-list-chevron" aria-hidden="true">' + icon('chevL',16) + '</span></button>';
+    '<span class="project-list-ratios"><span>فني ' + technicalLabel + '</span><span>مالي ' + financialLabel + '</span></span>' +
+    '<span class="project-list-chevron" aria-hidden="true">' + icon('chevL',16) + '</span></button>' +
+    '<button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>';
 }
 function inputField(label, id, type='text', value='', extra='') { return `<label class="lab" for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(value)}" ${extra}>`; }
 
@@ -740,6 +741,25 @@ function projectSectionsAsDisclosures(markup) {
     return '<details class="project-disclosure"><summary><span>' + title + '</span><span class="project-disclosure-hint">عرض التفاصيل</span></summary><div class="project-disclosure-body">' + body + '</div></details>';
   });
 }
+function renderProjectPhaseRows(project, deliverables) {
+  const progress = projectProgressData(project, deliverables);
+  if (!progress.phases.length) return '<p class="muted small">لا توجد مراحل فنية محددة لهذا المشروع. حدّد نطاق العمل من تعديل المشروع.</p>';
+  return '<div class="project-phase-list">' + progress.phases.map(phase => {
+    const rows = deliverables.filter(d => phase.key === 'design' ? ['concept','design'].includes(d.stage) && d.kind !== '3d' : phase.key === '3d' ? ['concept','design'].includes(d.stage) && d.kind === '3d' : phase.key === 'technical_drawings' ? d.stage === 'technical' : phase.key === 'execution' ? d.stage === 'execution' : false);
+    return '<details class="project-phase-row"><summary><span>' + esc(phase.label) + '</span><span class="project-phase-percent">' + (phase.total ? phase.percent + '%' : '—') + '</span></summary><div class="project-phase-detail"><span class="muted small">' + phase.done + ' من ' + phase.total + ' بند تم تسليمه</span>' + (rows.length ? '<ul>' + rows.map(d => '<li>' + esc(d.name) + ' <small>' + esc(({pending:'قيد العمل',submitted:'تم الإرسال',approved:'معتمد',revision:'مطلوب تعديل'})[d.status] || d.status || '—') + '</small></li>').join('') + '</ul>' : '<p class="muted small">لم تُضف بنود لهذه المرحلة بعد.</p>') + '</div></details>';
+  }).join('') + '</div>';
+}
+function renderProjectFinanceSummary(project, entries) {
+  const m = projectFinanceTotals(project, entries);
+  const pct = v => v === null ? '—' : Math.round(v) + '%';
+  return '<div class="project-finance-summary">' +
+    '<div><span>نسبة التحصيل</span><strong>' + pct(m.collectionPct) + '</strong></div>' +
+    '<div><span>هامش صافي الربح</span><strong>' + pct(m.profitPct) + '</strong></div>' +
+    '<div><span>قيمة التعاقد</span><strong>' + money(m.contract) + ' ج.م</strong></div>' +
+    '<div><span>إجمالي التحصيل</span><strong>' + money(m.income) + ' ج.م</strong></div>' +
+    '<div><span>إجمالي المصروف</span><strong>' + money(m.expense) + ' ج.م</strong></div>' +
+    '<div><span>صافي الربح</span><strong>' + money(m.net) + ' ج.م</strong></div></div>';
+}
 function renderProjects() {
   const selected = S.activeProjectId && S.projects.find(p => p.id === S.activeProjectId);
   if (selected) {
@@ -749,8 +769,10 @@ function renderProjects() {
     const delivered = ds.filter(d => ['submitted','approved'].includes(d.status)).length;
     const remaining = ds.length - delivered;
     const progress = projectProgressData(selected, ds);
-    return projectSectionsAsDisclosures(`<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm" data-action="archive-project" data-id="${esc(selected.id)}">${selected.archivedAt?'إلغاء الأرشفة':'أرشفة المشروع'}</button><button class="btn sm" data-action="print-project" data-id="${esc(selected.id)}">${icon('printer',16)} ${t('print_project')}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
-      <section class="card glass project-hero"><div class="project-title"><div><div class="project-heading-line"><h2 style="view-transition-name:project-${esc(selected.id)}">${esc(selected.name)}</h2></div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="project-deliverable-summary"><div><strong>${progress.percent ?? 0}%</strong><span>إنجاز المشروع</span></div><div><strong>${delivered}</strong><span>تم تسليمها</span></div><div><strong>${remaining}</strong><span>متبقية</span></div><div><strong>${ds.length}</strong><span>إجمالي البنود</span></div></div>${renderProjectProgress(selected, ds)}${selected.notes?`<p class="project-notes">${esc(selected.notes)}</p>`:''}</section>
+    return projectSectionsAsDisclosures(`<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm" data-action="archive-project" data-id="${esc(selected.id)}">${selected.archivedAt?'إلغاء الأرشفة':'أرشفة المشروع'}</button><button class="btn sm" data-action="print-project" data-id="${esc(selected.id)}">${icon('printer',16)} تقرير كامل</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
+      <section class="card glass project-hero"><div class="project-title"><div><div class="project-heading-line"><h2 style="view-transition-name:project-${esc(selected.id)}">${esc(selected.name)}</h2></div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="project-deliverable-summary"><div><strong>${progress.percent === null ? '—' : progress.percent + '%'}</strong><span>إنجاز فني</span></div><div><strong>${projectFinanceTotals(selected, fs).collectionPct === null ? '—' : Math.round(projectFinanceTotals(selected, fs).collectionPct) + '%'}</strong><span>إنجاز مالي</span></div><div><strong>${delivered}</strong><span>تم تسليمها</span></div><div><strong>${remaining}</strong><span>متبقية</span></div><div><strong>${ds.length}</strong><span>إجمالي البنود</span></div></div>${selected.notes?`<p class="project-notes">${esc(selected.notes)}</p>`:''}</section>
+      <section class="card glass"><h2>الحالة الفنية</h2>${renderProjectPhaseRows(selected, ds)}</section>
+      <section class="card glass"><h2>الحالة المالية</h2>${renderProjectFinanceSummary(selected, fs)}</section>
       ${renderProjectInstallments(selected)}
       ${renderProjectFollowUp(selected)}
       <section class="card glass"><div class="dhead"><div><h2>Requirements</h2><p class="muted small">طلبات العميل من الاجتماعات أو WhatsApp في مكان واحد.</p></div><span class="chip">${reqs.filter(x=>x.status!=='done').length} مفتوح</span></div><form data-action="add-requirement" class="entry-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="${D.todayISO()}"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>${reqs.length?`<div class="requirements-list">${reqs.map(r=>`<article class="requirement-row"><div><p>${esc(r.text)}</p><small>${r.source==='meeting'?'Meeting':r.source==='whatsapp'?'WhatsApp':'طلب مباشر'} · ${esc(r.date||'—')} ${r.sourceLabel?'· '+esc(r.sourceLabel):''}</small></div><select class="input compact" data-change="requirement-status" data-id="${esc(r.id)}"><option value="open" ${r.status==='open'?'selected':''}>مفتوح</option><option value="doing" ${r.status==='doing'?'selected':''}>قيد التنفيذ</option><option value="done" ${r.status==='done'?'selected':''}>تم</option></select></article>`).join('')}</div>`:'<p class="muted">لا توجد Requirements مسجلة لهذا المشروع.</p>'}<p class="muted small">WhatsApp integration: جاهز لإضافة Webhook/API لاحقًا؛ استقبال الرسائل تلقائيًا غير مفعّل بعد.</p></section>
@@ -1731,6 +1753,12 @@ function bindTaskDragEvents() {
 
 // ================================================================== الأحداث
 function bindEvents() {
+  // Block two-finger browser zoom while preserving one-finger scrolling.
+  const stopPinch = event => { if (event.cancelable) event.preventDefault(); };
+  document.addEventListener('gesturestart', stopPinch, { passive: false });
+  document.addEventListener('gesturechange', stopPinch, { passive: false });
+  document.addEventListener('gestureend', stopPinch, { passive: false });
+  document.addEventListener('touchmove', event => { if (event.touches && event.touches.length > 1) stopPinch(event); }, { passive: false });
   document.addEventListener('click', onClick);
   document.addEventListener('submit', onSubmit);
   document.addEventListener('input', onInput);

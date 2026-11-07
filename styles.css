@@ -833,3 +833,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .project-hero { padding-inline:0 !important; }
 .project-hero .project-deliverable-summary { border-block:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); border-radius:0; }
 @media (max-width:560px) { .project-list-row { gap:.5rem; flex-wrap:wrap; } .project-list-meta { display:none; } .project-list-ratios { margin-inline-start:auto; font-size:.68rem; gap:.45rem; } }
+/* Compact Notion-like project rows and progress: text first, separators only. */
+.project-list-row-wrap { display:flex; align-items:center; gap:.65rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); }
+.project-list-row-wrap:first-child { border-top:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); }
+.project-list-row { flex:1; border:0 !important; }
+.project-list-report { border:0; background:transparent; color:var(--text-2); font:inherit; font-size:.74rem; padding:.5rem .2rem; cursor:pointer; }
+.project-list-report:hover { color:var(--text); text-decoration:underline; }
+.project-phase-list { display:flex; flex-direction:column; }
+.project-phase-row { border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); }
+.project-phase-row > summary { display:flex; justify-content:space-between; align-items:center; min-height:46px; padding:.6rem .15rem; cursor:pointer; list-style:none; font-size:.9rem; font-weight:450; }
+.project-phase-row > summary::-webkit-details-marker { display:none; }
+.project-phase-percent { color:var(--text-2); font-variant-numeric:tabular-nums; font-size:.82rem; }
+.project-phase-detail { padding:.15rem .2rem .85rem; color:var(--text-2); font-size:.82rem; }
+.project-phase-detail ul { margin:.5rem 0 0; padding-inline-start:1.25rem; }
+.project-phase-detail li { padding:.28rem 0; color:var(--text); }
+.project-phase-detail li small { color:var(--text-2); margin-inline-start:.4rem; }
+.project-finance-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1.5rem; }
+.project-finance-summary > div { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; padding:.75rem .1rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+.project-finance-summary span { color:var(--text-2); font-size:.82rem; }
+.project-finance-summary strong { font-size:.88rem; font-weight:500; font-variant-numeric:tabular-nums; }
+.dashboard-metrics-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 1.25rem; border-block:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); }
+.dashboard-metric-card { display:flex; flex-direction:column; align-items:flex-start; gap:.3rem; padding:1rem .15rem; border:0; border-radius:0; background:transparent; color:var(--text); text-align:start; cursor:pointer; min-width:0; }
+.dashboard-metric-card + .dashboard-metric-card { border-inline-start:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); padding-inline-start:1rem; }
+.dashboard-metric-title { color:var(--text-2); font-size:.78rem; line-height:1.5; }
+.dashboard-metric-value { font-size:1.2rem; line-height:1.3; font-weight:500; font-variant-numeric:tabular-nums; }
+.dashboard-metric-card small,.dashboard-metric-secondary { color:var(--text-2); font-size:.7rem; line-height:1.45; }
+.dashboard-metric-secondary { margin-top:.15rem; }
+.project-deliverable-summary > div strong { font-size:1rem; font-weight:500; }
+.project-deliverable-summary > div span { font-size:.72rem; color:var(--text-2); }
+.project-disclosure > summary { font-weight:450; }
+.project-list-row-wrap .project-list-row { border-bottom:0 !important; }
+@media (max-width:650px) { .dashboard-metrics-grid { grid-template-columns:1fr; } .dashboard-metric-card + .dashboard-metric-card { border-inline-start:0; border-top:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); padding-inline-start:.15rem; } .project-finance-summary { grid-template-columns:1fr; } }
+html, body, #app { touch-action: pan-x pan-y; }
