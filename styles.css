@@ -667,6 +667,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .dashboard-project-card .finance-ring.small{width:48px;height:48px}
 }
 @media(max-width:360px){.finance-project-list,.dashboard-project-grid{grid-template-columns:1fr}}
+.dashboard-personal-cashflow{margin-top:.7rem}.dashboard-cashflow-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}.dashboard-cashflow-values>div{display:grid;gap:.15rem;padding:.65rem;border-radius:var(--r-md);background:var(--surface-2);min-width:0}.dashboard-cashflow-values small{font-size:.7rem;color:var(--text-2)}.dashboard-cashflow-values strong{font-size:.9rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}@media(max-width:520px){.dashboard-cashflow-values{gap:.35rem}.dashboard-cashflow-values>div{padding:.5rem}.dashboard-cashflow-values small{font-size:.62rem}.dashboard-cashflow-values strong{font-size:.76rem}}
 
 /* Editable finance ratio goals in settings */
 .ratio-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:.6rem 0}.ratio-target-grid>label{display:grid;gap:.4rem;font-size:.82rem;font-weight:700}.ratio-target-input{display:flex;align-items:center;gap:.45rem}.ratio-target-input .input{max-width:120px}.ratio-target-input b{color:var(--text-2)}@media(max-width:480px){.ratio-target-grid{grid-template-columns:1fr}}
@@ -772,3 +773,4 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .dashboard-metric-card .ratio-visual.ratio-bar,.dashboard-metric-card .ratio-visual.ratio-pill{width:58px;height:22px}
 .dashboard-metric-card .ratio-visual.ratio-blocks{min-height:26px}
 @media(max-width:700px){.project-card-wrap{padding:.7rem}.project-card-wrap .project-progress-phases{grid-template-columns:repeat(auto-fit,minmax(78px,1fr))}.finance-project-card{padding:.7rem}.finance-project-head{align-items:flex-start}.finance-project-ratios{gap:.2rem}.finance-project-card .finance-ring{width:38px;height:38px}.finance-project-card .finance-ring.small{width:32px;height:32px}.finance-project-card .finance-ring-wrap>small{font-size:.55rem}.finance-project-card .finance-ring-wrap>em{font-size:.5rem}.finance-project-compact-values{gap:.25rem .45rem}.finance-project-compact-values>span{font-size:.6rem}.finance-project-compact-values strong{font-size:.65rem}.dashboard-metric-indicators{justify-content:space-evenly}}
+
