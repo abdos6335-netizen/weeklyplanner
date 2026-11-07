@@ -962,8 +962,7 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell main h1,.shell main .page-title,.shell main .section-title,
 .shell main h2 { font-size:1.38rem !important; line-height:1.35; font-weight:500 !important; letter-spacing:-.025em; }
 .shell main h3,.shell main h4 { font-size:1.08rem !important; font-weight:500 !important; }
-.shell main .muted:not(.keep-context),.shell main .page-description,
-.shell main .section-description,.shell main .helper-text { display:none !important; }
+.shell main .projects-page .page-description { display:none !important; }
 .shell main .card,.shell main .card.glass,.shell main .dashboard-metric-card,
 .shell main .finance-project-card,.shell main .finance-overview,
 .shell main .project-accordion,.shell main .meeting-card,
@@ -1183,3 +1182,40 @@ body::before { display:none !important; background:none !important; }
 .shell main .project-disclosure[open] .project-category-chevron{transform:rotate(-90deg)}
 .shell main .project-disclosure-content{padding:.55rem .15rem .9rem}
 .shell main .project-disclosure-content .project-panel-intro{margin-bottom:.6rem}
+
+
+/* Phase 2/3 — typography controls and bilingual editorial type system */
+:root { --type-heading-scale:1; --type-subheading-scale:1; --type-item-scale:1; }
+html,body,.shell { font-family:var(--font) !important; }
+.shell main h1,.shell main h2,.shell main .page-title,.shell main .section-title {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",var(--font),system-ui,sans-serif !important;
+  font-size:calc(1.38rem * var(--type-heading-scale,1)) !important;
+}
+.shell main h3,.shell main h4,.shell main .section-heading,.shell main .dashboard-task-summary {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",var(--font),system-ui,sans-serif !important;
+  font-size:calc(1.08rem * var(--type-subheading-scale,1)) !important;
+}
+.shell main p,.shell main small,.shell main label,.shell main input,.shell main select,
+.shell main textarea,.shell main button,.shell main .muted,.shell main .helper-text {
+  font-size:calc(1em * var(--type-item-scale,1));
+}
+.shell main .muted:not(.keep-context),.shell main .page-description,
+.shell main .section-description,.shell main .helper-text {
+  display:revert !important;
+}
+.shell main .projects-page .page-description { display:none !important; }
+.shell main .dashboard-metric-title { font-size:calc(.82rem * var(--type-item-scale,1)) !important; }
+.shell main .dashboard-metric-copy>small { font-size:calc(.68rem * var(--type-item-scale,1)); }
+.shell main .project-disclosure .project-category-copy strong { font-size:calc(.88rem * var(--type-subheading-scale,1)); }
+.shell main .project-disclosure .project-category-copy small { font-size:calc(.7rem * var(--type-item-scale,1)); }
+:root[data-dark="1"] .shell main .project-disclosure,
+:root[data-dark="1"] .shell main .dashboard-metric-card,
+:root[data-dark="1"] .shell main .project-list-row-wrap { border-color:color-mix(in srgb,var(--text-2) 30%,transparent) !important; }
+@media(max-width:850px) {
+  .shell main .dashboard-metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:520px) {
+  .shell main .dashboard-metrics-grid { grid-template-columns:1fr; }
+  .shell main .project-disclosure-content { padding-inline:.05rem; }
+  .shell main .project-summary-facts { grid-template-columns:1fr; }
+}
