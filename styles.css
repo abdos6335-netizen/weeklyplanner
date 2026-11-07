@@ -813,3 +813,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:700px){.project-card-wrap{padding:.7rem}.project-card-wrap .project-progress-phases{grid-template-columns:repeat(auto-fit,minmax(78px,1fr))}.finance-project-card{padding:.7rem}.finance-project-head{align-items:flex-start}.finance-project-ratios{gap:.2rem}.finance-project-card .finance-ring{width:38px;height:38px}.finance-project-card .finance-ring.small{width:32px;height:32px}.finance-project-card .finance-ring-wrap>small{font-size:.55rem}.finance-project-card .finance-ring-wrap>em{font-size:.5rem}.finance-project-compact-values{gap:.25rem .45rem}.finance-project-compact-values>span{font-size:.6rem}.finance-project-compact-values strong{font-size:.65rem}.dashboard-metric-indicators{justify-content:space-evenly}}
 
 
+/* Notion-inspired quiet surface: thin dividers, no enclosing cards. */
+.card.glass:not(.login-card) { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+.project-grid { display:flex; flex-direction:column; gap:0; }
+.project-list-row { width:100%; display:flex; align-items:center; gap:.85rem; min-height:58px; padding:.85rem .15rem; text-align:start; color:var(--text); background:transparent; border:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); border-radius:0; cursor:pointer; font:inherit; }
+.project-list-row:first-child { border-top:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); }
+.project-list-name { flex:1; min-width:0; font-size:.98rem; font-weight:500; }
+.project-list-meta { color:var(--text-2); font-size:.74rem; white-space:nowrap; }
+.project-list-ratios { display:flex; gap:.65rem; color:var(--text-2); font-size:.72rem; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.project-list-chevron { color:var(--text-2); display:inline-flex; opacity:.65; }
+.project-list-row:active { background:color-mix(in srgb,var(--text-2) 5%,transparent); }
+.project-list-row.is-archived { opacity:.65; }
+.project-disclosure { border-bottom:1px solid color-mix(in srgb,var(--text-2) 18%,transparent); }
+.project-disclosure > summary { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:54px; padding:.8rem .1rem; cursor:pointer; list-style:none; color:var(--text); font-weight:500; font-size:.96rem; }
+.project-disclosure > summary::-webkit-details-marker { display:none; }
+.project-disclosure-hint { color:var(--text-2); font-size:.72rem; font-weight:400; }
+.project-disclosure-body { padding:.25rem 0 1rem; animation:projectDisclosureIn .2s ease both; }
+@keyframes projectDisclosureIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+.project-hero { padding-inline:0 !important; }
+.project-hero .project-deliverable-summary { border-block:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); border-radius:0; }
+@media (max-width:560px) { .project-list-row { gap:.5rem; flex-wrap:wrap; } .project-list-meta { display:none; } .project-list-ratios { margin-inline-start:auto; font-size:.68rem; gap:.45rem; } }
