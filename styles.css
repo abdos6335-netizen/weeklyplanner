@@ -945,3 +945,15 @@ html, body, #app { touch-action: pan-x pan-y; }
  .project-transaction-row { grid-template-columns:minmax(0,1fr) auto auto; }
  .project-bottom-sheet { max-height:86dvh; border-radius:16px 16px 0 0; }
 }
+
+/* App-wide typography and surfaces follow the light, restrained reference. */
+.shell h1,.shell h2,.shell h3,.shell h4,.shell .topbar h1 { font-weight:500 !important; letter-spacing:-.012em; }
+.shell .lab { font-weight:500; }
+.shell .chip { background:transparent; border:0; border-radius:0; padding:.1rem 0; color:var(--text-2); font-weight:400; }
+.shell .positive,.shell .negative { font-weight:500 !important; }
+.shell .btn { font-weight:500; box-shadow:none; }
+.shell .card.glass:not(.login-card) { background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+.shell .dashboard-metric-card,.shell .finance-project-card,.shell .finance-overview { background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent) !important; border-radius:0 !important; box-shadow:none !important; }
+.shell .tabbar { border:0; border-top:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); border-radius:0; box-shadow:none; }
+.shell .meeting-tab { border-radius:0; box-shadow:none; }
+.shell .meeting-tab.active { background:transparent; box-shadow:none; border-bottom:1px solid var(--text); }
