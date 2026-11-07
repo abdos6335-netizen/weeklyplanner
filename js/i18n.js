@@ -612,7 +612,7 @@ Object.assign(UI_PHRASES, {
 
 
 Object.assign(UI_PHRASES, {
-  'عميل · متابعة':'Client · Follow-up','متأخرة ·':'Overdue ·',' من ':' of ',
+  'عميل · متابعة':'Client · Follow-up','متأخرة ·':'Overdue ·',
   'الحالة الفنية':'Technical status','مراحل ضمن نطاق العمل':'phases in scope',
   'بند تسليم':'deliverable item','هامش صافي الربح':'Net profit margin',
   'Minutes of Meeting | موضوعات المناقشة':'Minutes of Meeting | Discussion topics',
@@ -653,6 +653,7 @@ function translateNode(node) {
     for (const [from, to] of phraseEntries().sort((a,b) => b[0].length-a[0].length)) {
       if (from.length <= 3 ? value === from : value.includes(from)) value = from.length <= 3 ? to : value.split(from).join(to);
     }
+    if (parent?.closest('.project-phase-detail')) value = current === 'en' ? value.replace(/ من /g, ' of ') : value.replace(/ of /g, ' من ');
     if (value !== trimmed) node.nodeValue = leading + value + trailing;
     return;
   }
