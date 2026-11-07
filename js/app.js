@@ -692,15 +692,6 @@ function renderProjectCard(project) {
       '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button><button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
 }
 
-function renderProjectBottomSheet(project) {
-  if (!project || !S.activeProjectPanel) return '';
-  const ds = S.deliverables.filter(d => d.projectId === project.id).sort((a,b)=>(a.dueDate || '').localeCompare(b.dueDate || ''));
-  const fs = S.financeEntries.filter(x => x.projectId === project.id);
-  const reqs = S.requirements.filter(x => x.projectId === project.id).sort((a,b)=>(b.createdAt || 0) - (a.createdAt || 0));
-  const labels = {summary:'ملخص المشروع',requirements:'متطلبات العميل',technical:'الحالة الفنية',finance:'الحالة المالية',deliverables:'التسليمات واللوحات'};
-  return '<div class="project-sheet-backdrop" data-action="close-project-panel" aria-hidden="true"></div><section class="project-bottom-sheet" role="dialog" aria-modal="true" aria-label="' + labels[S.activeProjectPanel] + '"><header class="project-bottom-sheet-head"><div><span class="project-sheet-handle"></span><h3>' + labels[S.activeProjectPanel] + '</h3><small>' + esc(project.name) + '</small></div><div class="project-sheet-head-actions"><button class="text-action" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button><button class="project-sheet-close" data-action="close-project-panel" type="button" aria-label="إغلاق">×</button></div></header><div class="project-bottom-sheet-body">' + renderProjectPanelContent(project, S.activeProjectPanel, ds, [], reqs) + '</div></section>';
-}
-
 function renderProjects() {
   const allProjects = [...S.projects].sort((a,b)=>(b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
   const projects = allProjects.filter(p => !!p.archivedAt === S.showArchivedProjects);
