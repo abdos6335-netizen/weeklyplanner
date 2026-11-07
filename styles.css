@@ -1251,3 +1251,19 @@ html, body, .shell, .shell * {
   .shell main .execution-item select { max-width:100%; width:100%; }
   .shell main .finance-project-summary { flex-wrap:wrap; }
 }
+
+
+/* One typography source: the selected font in Settings controls every app screen. */
+body .shell *:not(.fontbtn):not(.fontbtn *),
+body .shell *:not(.fontbtn):not(.fontbtn *)::before,
+body .shell *:not(.fontbtn):not(.fontbtn *)::after {
+  font-family:var(--font) !important;
+}
+body .shell .topbar *,
+body .shell .sidebar *,
+body .shell .bottom-nav *,
+body .shell main *,
+body .shell main *::before,
+body .shell main *::after {
+  font-family:var(--font) !important;
+}
