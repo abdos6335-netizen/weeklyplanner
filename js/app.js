@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.29';
+const VERSION = '3.1.30';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -38,6 +38,7 @@ const S = {
   nativeMeetingFileName: null,
   autoProcessMeetingAfterSave: false,
   financeView: 'projects',
+  showArchivedProjects: false,
   ratioEditorContext: 'dashboard',
   expenseMonth: D.todayISO().slice(0,7),
   syncStatus: { state: 'idle', message: 'جارٍ الاتصال…' },
@@ -436,7 +437,7 @@ function renderDashboard() {
   const personalIncome = personalMonthEntries.filter((x) => x.kind === 'income').reduce((n,x) => n + Math.max(0,Number(x.amount)||0),0);
   const personalExpense = personalMonthEntries.filter((x) => x.kind !== 'income').reduce((n,x) => n + Math.max(0,Number(x.amount)||0),0);
   const personalNet = personalIncome - personalExpense;
-  const activeProjects = S.projects.filter((p) => p.status === 'active')
+  const activeProjects = S.projects.filter((p) => p.status === 'active' && !p.archivedAt)
     .sort((a,b) => String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
   const openTasks = S.tasks.filter((x) => x.status !== 'done');
   const lateTasks = openTasks.filter((x) => x.date && x.date < today)
@@ -445,6 +446,8 @@ function renderDashboard() {
     .sort((a,b) => b.priority-a.priority);
   const upcomingTasks = openTasks.filter((x) => x.date && x.date > today)
     .sort((a,b) => a.date.localeCompare(b.date) || b.priority-a.priority);
+  const dueFollowUps = S.projects.filter((p) => !p.archivedAt && p.followUpDate && p.followUpDate <= D.addDays(today, 14))
+    .sort((a,b) => a.followUpDate.localeCompare(b.followUpDate));
   const dashboardWeek = D.weekStartOf(today, startDay());
   const weekTasks = S.tasks.filter((x) => weekOfTask(x) === dashboardWeek);
   const completedWeekTasks = weekTasks.filter((x) => x.status === 'done').length;
@@ -497,6 +500,8 @@ function renderDashboard() {
       ${taskGroup(t('today_tasks'),todayTasks,t('dashboard_no_today_tasks'),'today')}
       ${taskGroup(t('upcoming_tasks'),upcomingTasks,t('dashboard_no_upcoming_tasks'),'upcoming')}
     </div>
+
+    ${dueFollowUps.length ? `<section class="card glass dashboard-followups"><div class="dhead"><div><h2>متابعات العملاء</h2><p class="muted small">المواعيد المتأخرة والقريبة خلال أسبوعين</p></div><span class="chip">${dueFollowUps.length}</span></div><div class="followup-list">${dueFollowUps.slice(0,4).map(p=>`<button class="followup-row" data-action="open-project" data-id="${esc(p.id)}"><span><b>${esc(p.name)}</b><small>${esc(p.client||'عميل')} · ${esc(p.followUpNote||'متابعة')}</small></span><span class="followup-date ${p.followUpDate<today?'late':''}">${esc(p.followUpDate<today?'متأخرة · ':'')}${esc(p.followUpDate)}</span></button>`).join('')}</div></section>` : ''}
 
     <section class="card glass dashboard-panel dashboard-projects-panel">
       <div class="dhead dashboard-section-heading">
@@ -574,11 +579,12 @@ function dashboardMetricCard(title, percent, detail, section, secondary = null) 
 function renderProjectCard(project) {
   const deliverables = S.deliverables.filter((d) => d.projectId === project.id);
   const metadata = [projectTypeLabel(project.type), project.client, ...(project.workScope?.length ? [projectScopeLabel(project.workScope)] : [])].filter(Boolean);
-  return `<article class="card glass project-card-wrap">
+  return `<article class="card glass project-card-wrap ${project.archivedAt?'is-archived':''}">
     <div class="project-card-head"><button class="project-card-open" data-action="open-project" data-id="${esc(project.id)}"><h2>${esc(project.name)}</h2></button><span class="chip">${projectStatusLabel(project.status)}</span></div>
     <p class="project-card-meta muted">${metadata.map(esc).join(' · ')}</p>
+    ${project.followUpDate?`<p class="project-card-followup ${project.followUpDate<D.todayISO()?'late':''}">متابعة العميل · ${esc(project.followUpDate)}${project.followUpNote?' · '+esc(project.followUpNote):''}</p>`:''}
     ${renderProjectProgress(project, deliverables)}
-    <div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(project.id)}">${icon('printer',16)} ${t('print_project')}</button></div>
+    <div class="project-print-actions"><button class="btn sm" data-action="archive-project" data-id="${esc(project.id)}">${project.archivedAt?'إلغاء الأرشفة':'أرشفة'}</button><button class="btn sm" data-action="print-project" data-id="${esc(project.id)}">${icon('printer',16)} ${t('print_project')}</button></div>
   </article>`;
 }
 
@@ -701,6 +707,19 @@ function renderFinanceProjectCard(project) {
   </article>`;
 }
 
+function renderProjectInstallments(project) {
+  const rows=Array.isArray(project.installments)?project.installments:[];
+  const planned=rows.reduce((sum,x)=>sum+Math.max(0,Number(x.amount)||0),0);
+  return `<details class="card glass project-followup-panel project-extra-panel"><summary class="project-panel-summary"><span><b>دفعات الاتفاق</b><small>${rows.length?`${rows.filter(x=>x.status==='paid').length} من ${rows.length} تم تحصيلها`:'أضف دفعات الاتفاق ومواعيدها'}</small></span><span class="chip">${money(planned)} ج.م</span></summary><div class="project-panel-body"><p class="muted small">تعليم الدفعة كمحصلة يضيفها تلقائيًا لسجل ماليات المشروع.</p>
+    <form data-action="add-installment" data-id="${esc(project.id)}" class="entry-form"><div class="form-grid"><div><label class="lab" for="installment-title">اسم الدفعة</label><input class="input" id="installment-title" maxlength="80" placeholder="مثال: مقدم التعاقد" required></div><div><label class="lab" for="installment-amount">المبلغ (جنيه)</label><input class="input" id="installment-amount" type="number" min="0.01" step="0.01" required></div><div><label class="lab" for="installment-date">موعدها</label><input class="input" id="installment-date" type="date"></div></div><button class="btn primary" type="submit">إضافة دفعة</button></form>
+    ${rows.length?`<div class="installment-list">${rows.slice().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')).map(x=>`<article class="installment-row ${x.status==='paid'?'is-paid':''}"><span class="installment-main"><b>${esc(x.title||'دفعة')}</b><small>${x.dueDate?`موعدها ${esc(x.dueDate)}`:'من دون موعد'}${x.status!=='paid'&&x.dueDate&&x.dueDate<D.todayISO()?' · متأخرة':''}</small></span><strong>${money(x.amount)} ج.م</strong><span class="chip">${x.status==='paid'?'تم التحصيل':'مستحقة'}</span><span class="installment-actions">${x.status==='paid'?`<button class="btn sm" data-action="toggle-installment-paid" data-id="${esc(project.id)}" data-installment-id="${esc(x.id)}">تراجع</button>`:`<button class="btn sm" data-action="toggle-installment-paid" data-id="${esc(project.id)}" data-installment-id="${esc(x.id)}">تم التحصيل</button>`}<button class="btn sm danger" data-action="delete-installment" data-id="${esc(project.id)}" data-installment-id="${esc(x.id)}" aria-label="حذف الدفعة">×</button></span></article>`).join('')}</div>`:'<p class="muted small">أضف مواعيد الدفعات المتفق عليها لو محتاج تتابعها.</p>'}</div></details>`;
+}
+
+function renderProjectFollowUp(project) {
+  const date=project.followUpDate||'';
+  return `<details class="card glass project-followup-panel project-extra-panel"><summary class="project-panel-summary"><span><b>متابعة العميل</b><small>${date?`${esc(date)}${project.followUpNote?' · '+esc(project.followUpNote):''}`:'أضف موعدًا لتظهر المتابعة في الرئيسية'}</small></span>${date?`<span class="chip ${date<D.todayISO()?'late':''}">${date<D.todayISO()?'متأخرة':'مجدولة'}</span>`:''}</summary><div class="project-panel-body"><p class="muted small">الموعد والملاحظة يظهران في الرئيسية عند اقتراب الموعد.</p><form data-action="save-project-followup" data-id="${esc(project.id)}" class="entry-form"><div class="form-grid"><div><label class="lab" for="follow-up-date">موعد المتابعة</label><input class="input" id="follow-up-date" type="date" value="${esc(date)}" required></div><div><label class="lab" for="follow-up-note">ملاحظة قصيرة</label><input class="input" id="follow-up-note" maxlength="160" value="${esc(project.followUpNote||'')}" placeholder="مستني رد على التصميم"></div></div><div class="btnrow"><button class="btn primary" type="submit">حفظ الموعد</button>${date?`<button class="btn" type="button" data-action="clear-project-followup" data-id="${esc(project.id)}">مسح المتابعة</button>`:''}</div></form></div></details>`;
+}
+
 function renderProjects() {
   const selected = S.activeProjectId && S.projects.find(p => p.id === S.activeProjectId);
   if (selected) {
@@ -708,15 +727,19 @@ function renderProjects() {
     const fs = S.financeEntries.filter(x => x.projectId === selected.id);
     const reqs = S.requirements.filter(x => x.projectId === selected.id).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
     const income = fs.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), expense = fs.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);
-    return `<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
+    return `<div class="page-tools"><button class="btn sm" data-action="projects-back">← ${t('all_projects')}</button><button class="btn sm" data-action="edit-project" data-id="${esc(selected.id)}">${t('edit')}</button><button class="btn sm" data-action="archive-project" data-id="${esc(selected.id)}">${selected.archivedAt?'إلغاء الأرشفة':'أرشفة المشروع'}</button><button class="btn sm danger" data-action="delete-project" data-id="${esc(selected.id)}">${t('delete')}</button></div>
       <section class="card glass"><div class="project-title"><div><div class="project-heading-line"><h2>${esc(selected.name)}</h2></div><p class="muted">${projectTypeLabel(selected.type)} · ${projectStatusLabel(selected.status)}${selected.workScope?.length?' · '+esc(projectScopeLabel(selected.workScope)):''}</p></div><span class="chip">${esc(selected.location||t('no_location'))}</span></div><div class="stats-grid"><div class="stat"><span>${t('contract_value')}</span><strong>${money(selected.contractValue)} ${t('currency')}</strong></div><div class="stat"><span>${t('collected')}</span><strong>${money(income)} ${t('currency')}</strong></div><div class="stat"><span>${t('expenses')}</span><strong>${money(expense)} ${t('currency')}</strong></div><div class="stat"><span>${t('remaining')}</span><strong>${money(Number(selected.contractValue||0)-income)} ${t('currency')}</strong></div></div>${renderProjectProgress(selected, ds)}<p>${esc(selected.notes||'')}</p></section>
+      ${renderProjectInstallments(selected)}
+      ${renderProjectFollowUp(selected)}
       <section class="card glass"><div class="dhead"><div><h2>Requirements</h2><p class="muted small">طلبات العميل من الاجتماعات أو WhatsApp في مكان واحد.</p></div><span class="chip">${reqs.filter(x=>x.status!=='done').length} مفتوح</span></div><form data-action="add-requirement" class="entry-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="${D.todayISO()}"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>${reqs.length?`<div class="requirements-list">${reqs.map(r=>`<article class="requirement-row"><div><p>${esc(r.text)}</p><small>${r.source==='meeting'?'Meeting':r.source==='whatsapp'?'WhatsApp':'طلب مباشر'} · ${esc(r.date||'—')} ${r.sourceLabel?'· '+esc(r.sourceLabel):''}</small></div><select class="input compact" data-change="requirement-status" data-id="${esc(r.id)}"><option value="open" ${r.status==='open'?'selected':''}>مفتوح</option><option value="doing" ${r.status==='doing'?'selected':''}>قيد التنفيذ</option><option value="done" ${r.status==='done'?'selected':''}>تم</option></select></article>`).join('')}</div>`:'<p class="muted">لا توجد Requirements مسجلة لهذا المشروع.</p>'}<p class="muted small">WhatsApp integration: جاهز لإضافة Webhook/API لاحقًا؛ استقبال الرسائل تلقائيًا غير مفعّل بعد.</p></section>
       <section class="card glass"><h2>${t('transactions')} · ${esc(selected.name)}</h2>${fs.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('date')}</th><th>${t('category')}</th><th>${t('transaction_type')}</th><th>${t('amount')}</th><th></th></tr></thead><tbody>${fs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(x.category||'—')}<small>${esc(x.description||'')}</small></td><td>${x.kind==='income'?t('income'):t('expenses')}</td><td>${money(x.amount)} ${t('currency')}</td><td><button class="btn sm danger" data-action="delete-finance" data-id="${esc(x.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_transactions')}</p>`}</section>
       <section class="card glass"><h2>${t('deliverables')}</h2><form data-action="add-deliverable" class="entry-form"><input type="hidden" id="d-project" value="${esc(selected.id)}"><div class="form-grid">${inputField(t('deliverable_name'),'d-name')}<div><label class="lab" for="d-stage">${t('design_stage')}</label><select class="input" id="d-stage"><option value="concept">${t('stage_concept')}</option><option value="design">${t('stage_design')}</option><option value="technical">${t('stage_technical')}</option><option value="execution">${t('stage_execution')}</option></select></div><div><label class="lab" for="d-kind">${t('deliverable_type')}</label><select class="input" id="d-kind"><optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">${t('type_plan')}</option><option value="section">${t('type_section')}</option><option value="elevation">${t('type_elevation')}</option><option value="detail">${t('type_detail')}</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&amp;E</option></optgroup><option value="3d">3D</option><option value="other">${t('other')}</option></select></div>${inputField(t('due_date'),'d-date','date')}<div><label class="lab" for="d-status">${t('approval_status')}</label><select class="input" id="d-status"><option value="pending">${t('approval_pending')}</option><option value="submitted">${t('approval_submitted')}</option><option value="approved">${t('approval_approved')}</option><option value="revision">${t('approval_revision')}</option></select></div></div><label class="lab" for="d-notes">${t('notes')}</label><input class="input" id="d-notes"><button class="btn primary" type="submit">${t('add_deliverable')}</button></form>
       ${ds.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('deliverable_name')}</th><th>${t('design_stage')}</th><th>${t('due_date')}</th><th>${t('approval_status')}</th><th></th></tr></thead><tbody>${ds.map(d=>`<tr><td><strong>${esc(d.name)}</strong><small>${esc(d.kind||'')} ${d.notes?'· '+esc(d.notes):''}</small></td><td>${esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage]||d.stage||'—')}</td><td>${esc(d.dueDate||'—')}</td><td><select class="input compact" data-change="deliverable-status" data-id="${esc(d.id)}"><option value="pending" ${d.status==='pending'?'selected':''}>${t('approval_pending')}</option><option value="submitted" ${d.status==='submitted'?'selected':''}>${t('approval_submitted')}</option><option value="approved" ${d.status==='approved'?'selected':''}>${t('approval_approved')}</option><option value="revision" ${d.status==='revision'?'selected':''}>${t('approval_revision')}</option></select></td><td><button class="btn sm danger" data-action="delete-deliverable" data-id="${esc(d.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_deliverables')}</p>`}</section>`;
   }
-  const projects = [...S.projects].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  return `<div class="page-tools"><p class="muted">${t('projects_intro')}</p><span class="chip">${projects.length} ${t('projects_count')}</span></div>${projects.length?`<div class="project-grid">${projects.map(renderProjectCard).join('')}</div>`:`<section class="card glass empty-state"><h2>${t('no_projects')}</h2><p class="muted">${t('projects_intro')}</p><button class="btn primary" data-action="new-project">${t('new_project')}</button></section>`}`;
+  const allProjects = [...S.projects].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const projects = allProjects.filter(p=>!!p.archivedAt===S.showArchivedProjects);
+  const activeCount=allProjects.filter(p=>!p.archivedAt).length, archivedCount=allProjects.length-activeCount;
+  return `<div class="projects-toolbar"><p class="muted">${t('projects_intro')}</p><div class="project-filters"><button class="btn sm ${!S.showArchivedProjects?'primary':''}" data-action="show-projects" data-val="active">المشروعات (${activeCount})</button><button class="btn sm ${S.showArchivedProjects?'primary':''}" data-action="show-projects" data-val="archived">الأرشيف (${archivedCount})</button><button class="btn primary" data-action="new-project">${t('new_project')}</button></div></div>${projects.length?`<div class="project-grid">${projects.map(renderProjectCard).join('')}</div>`:`<section class="card glass empty-state"><h2>${S.showArchivedProjects?'الأرشيف فارغ':t('no_projects')}</h2><p class="muted">${S.showArchivedProjects?'المشروعات التي تؤرشفها ستظهر هنا ويمكنك إعادتها في أي وقت.':t('projects_intro')}</p>${!S.showArchivedProjects?`<button class="btn primary" data-action="new-project">${t('new_project')}</button>`:''}</section>`}`;
 }
 function printProjectReport(id, mode) {
   const p = S.projects.find(x => x.id === id); if (!p) return;
@@ -1147,7 +1170,7 @@ function renderFinance() {
   const profitPct = totalIncome > 0 ? totalNet / totalIncome * 100 : null;
   const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const projectCards = [...S.projects].sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+  const projectCards = S.projects.filter(p=>!p.archivedAt).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
   <section class="card glass finance-overview"><div class="dhead"><div><div class="finance-title-line"><h2>ملخص ماليات كل المشروعات</h2></div><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
@@ -1726,6 +1749,44 @@ async function onClick(e) {
     case 'voice-start': startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
     case 'finance-view': S.financeView=v; render(); break;
+    case 'show-projects': S.showArchivedProjects=v==='archived'; render(); break;
+    case 'archive-project': {
+      const project=S.projects.find(p=>p.id===el.dataset.id); if(!project)break;
+      const archivedAt=project.archivedAt?null:Date.now();
+      const updated={...project,archivedAt,updatedAt:Date.now()};
+      try{await S.store.save('projects',updated);S.projects=S.projects.map(p=>p.id===updated.id?updated:p);toast(archivedAt?'تمت أرشفة المشروع ويمكنك إعادته من الأرشيف.':'تمت إعادة المشروع من الأرشيف.');render();}
+      catch(err){toast(t('save_failed',{msg:err.message||err}));}
+      break;
+    }
+    case 'toggle-installment-paid': {
+      const project=S.projects.find(p=>p.id===el.dataset.id);const installment=(project?.installments||[]).find(x=>x.id===el.dataset.installmentId);if(!project||!installment)break;
+      const entryId=`installment_${installment.id}`;
+      try{
+        if(installment.status==='paid'){
+          if(!confirm('سيُحذف قيد التحصيل المرتبط بهذه الدفعة من ماليات المشروع. هل تريد التراجع؟'))break;
+          const updated={...project,installments:project.installments.map(x=>x.id===installment.id?{...x,status:'pending',paidAt:null}:x),updatedAt:Date.now()};
+          await S.store.save('projects',updated);
+          try{if(S.financeEntries.some(x=>x.id===entryId))await S.store.remove('financeEntries',entryId);}catch(err){await S.store.save('projects',project);throw err;}
+          S.projects=S.projects.map(p=>p.id===updated.id?updated:p);toast('تم إلغاء تسجيل التحصيل.');render();
+        } else {
+          await S.store.save('financeEntries',{id:entryId,projectId:project.id,kind:'income',amount:Number(installment.amount)||0,date:D.todayISO(),category:'دفعة تعاقد',description:`تحصيل دفعة: ${installment.title||'دفعة'}`,installmentId:installment.id,createdAt:Date.now()});
+          const updated={...project,installments:project.installments.map(x=>x.id===installment.id?{...x,status:'paid',paidAt:D.todayISO()}:x),updatedAt:Date.now()};
+          try{await S.store.save('projects',updated);}catch(err){await S.store.remove('financeEntries',entryId);throw err;}
+          S.projects=S.projects.map(p=>p.id===updated.id?updated:p);toast('تم تسجيل الدفعة في ماليات المشروع.');render();
+        }
+      }catch(err){if(installment.status!=='paid')await S.store.remove('financeEntries',entryId).catch(()=>{});toast(t('save_failed',{msg:err.message||err}));}
+      break;
+    }
+    case 'delete-installment': {
+      const project=S.projects.find(p=>p.id===el.dataset.id);const installment=(project?.installments||[]).find(x=>x.id===el.dataset.installmentId);if(!project||!installment)break;
+      if(!confirm(installment.status==='paid'?'حذف الدفعة سيحذف قيد التحصيل المرتبط بها أيضًا. هل تريد المتابعة؟':'حذف هذه الدفعة؟'))break;
+      try{const updated={...project,installments:project.installments.filter(x=>x.id!==installment.id),updatedAt:Date.now()};await S.store.save('projects',updated);try{if(installment.status==='paid')await S.store.remove('financeEntries',`installment_${installment.id}`);}catch(err){await S.store.save('projects',project);throw err;}S.projects=S.projects.map(p=>p.id===updated.id?updated:p);toast('تم حذف الدفعة.');render();}catch(err){toast(t('save_failed',{msg:err.message||err}));}
+      break;
+    }
+    case 'clear-project-followup': {
+      const project=S.projects.find(p=>p.id===el.dataset.id);if(!project)break;
+      const updated={...project,followUpDate:null,followUpNote:'',updatedAt:Date.now()};try{await S.store.save('projects',updated);S.projects=S.projects.map(p=>p.id===updated.id?updated:p);toast('تم مسح متابعة العميل.');render();}catch(err){toast(t('save_failed',{msg:err.message||err}));}break;
+    }
     case 'edit-personal-expense': editPersonalExpense(el.dataset.id); break;
     case 'delete-personal-expense': if(confirm('حذف الحركة الشخصية؟')) { await S.store.remove('personalExpenses',el.dataset.id); toast('تم حذف الحركة.'); } break;
     case 'print-project': openPrintChoice(el.dataset.id); break;
@@ -1751,11 +1812,11 @@ async function onClick(e) {
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
-    case 'open-project': S.activeProjectId = el.dataset.id; render(); window.scrollTo(0,0); break;
+    case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; render(); window.scrollTo(0,0); break;
     case 'projects-back': S.activeProjectId = null; render(); break;
     case 'delete-project': { const p=S.projects.find(x=>x.id===el.dataset.id); if(p && confirm(t('confirm_delete_project'))) { for(const d of S.deliverables.filter(x=>x.projectId===p.id)) await S.store.remove('deliverables',d.id); for(const f of S.financeEntries.filter(x=>x.projectId===p.id)) await S.store.remove('financeEntries',f.id); for(const m of S.meetings.filter(x=>x.projectId===p.id)) await S.store.remove('meetings',m.id); for(const r of S.requirements.filter(x=>x.projectId===p.id)) await S.store.remove('requirements',r.id); await S.store.remove('projects',p.id); S.activeProjectId=null; toast(t('project_deleted_ok')); render(); } break; }
     case 'delete-deliverable': if(confirm(t('confirm_delete'))) { await S.store.remove('deliverables',el.dataset.id); toast(t('deleted')); } break;
-    case 'delete-finance': if(confirm(t('confirm_delete'))) { await S.store.remove('financeEntries',el.dataset.id); toast(t('deleted')); } break;
+    case 'delete-finance': if(confirm(t('confirm_delete'))) { const entry=S.financeEntries.find(x=>x.id===el.dataset.id),project=entry?.installmentId?S.projects.find(p=>p.id===entry.projectId):null;try{if(project){const updated={...project,installments:(project.installments||[]).map(x=>x.id===entry.installmentId?{...x,status:'pending',paidAt:null}:x),updatedAt:Date.now()};await S.store.save('projects',updated);try{await S.store.remove('financeEntries',el.dataset.id);}catch(err){await S.store.save('projects',project);throw err;}S.projects=S.projects.map(p=>p.id===updated.id?updated:p);}else await S.store.remove('financeEntries',el.dataset.id);toast(t('deleted'));render();}catch(err){toast(t('save_failed',{msg:err.message||err}));} } break;
     case 'open-settings': S.prevSection = S.section; S.section = 'settings'; render(); window.scrollTo(0, 0); break;
     case 'back': S.section = S.prevSection || 'dashboard'; render(); break;
 
@@ -1852,9 +1913,9 @@ async function onClick(e) {
 
 
 async function onSubmit(e) {
-const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-requirement','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting','update-meeting'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
+const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-requirement','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting','update-meeting','add-installment','save-project-followup'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
     if (a === 'auth-email') { const email=$('#auth-email').value.trim(), password=$('#auth-password').value; if(S.authMode==='signup') await S.store.signUpEmail(email,password); else await S.store.signInEmail(email,password); toast(S.authMode==='signup'?'تم إنشاء الحساب.':'تم تسجيل الدخول.'); }
-    else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), workScope:[...el.querySelectorAll('[name="p-scope"]:checked')].map(x=>x.value), createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
+    else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), workScope:[...el.querySelectorAll('[name="p-scope"]:checked')].map(x=>x.value), archivedAt:old?.archivedAt||null, installments:Array.isArray(old?.installments)?old.installments:[], followUpDate:old?.followUpDate||null, followUpNote:old?.followUpNote||'', createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
       if(duplicate) {
         const openExisting=confirm(`يوجد مشروع باسم «${duplicate.name}» بالفعل. اضغط موافق لفتح المشروع الموجود، أو إلغاء لمراجعة خيار إنشاء نسخة أخرى.`);
         if(openExisting){S.activeProjectId=duplicate.id;closeSheet();render();return;}
@@ -1898,6 +1959,8 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       if(autoProcess){try{await transcribeMeetingAudio(savedMeeting.id);await generateMeetingMinutes(savedMeeting.id);}catch(processError){toast('تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إعداد المحضر: '+(processError.message||processError));}}
     }
     else if (a === 'save-personal-budget') { const amount=Number($('#personal-budget').value); if(amount<0||!Number.isFinite(amount)) throw new Error('أدخل ميزانية صحيحة'); const month=S.expenseMonth; await S.store.save('personalBudgets',{id:month,amount,updatedAt:Date.now()}); toast('تم حفظ الميزانية.'); }
+    else if (a === 'add-installment') { const project=S.projects.find(x=>x.id===el.dataset.id);if(!project)throw new Error('المشروع غير موجود.');const amount=Number($('#installment-amount').value),title=$('#installment-title').value.trim();if(!title||!Number.isFinite(amount)||amount<=0)throw new Error('أدخل اسم الدفعة ومبلغًا صحيحًا.');const installment={id:uid(),title,amount,dueDate:$('#installment-date').value||null,status:'pending',createdAt:Date.now()};const updated={...project,installments:[...(Array.isArray(project.installments)?project.installments:[]),installment],updatedAt:Date.now()};await S.store.save('projects',updated);S.projects=S.projects.map(x=>x.id===updated.id?updated:x);el.reset();render();toast('تمت إضافة الدفعة.'); }
+    else if (a === 'save-project-followup') { const project=S.projects.find(x=>x.id===el.dataset.id);if(!project)throw new Error('المشروع غير موجود.');const updated={...project,followUpDate:$('#follow-up-date').value||null,followUpNote:$('#follow-up-note').value.trim(),updatedAt:Date.now()};await S.store.save('projects',updated);S.projects=S.projects.map(x=>x.id===updated.id?updated:x);render();toast('تم حفظ متابعة العميل.'); }
     else if (a === 'add-personal-expense') { const kind=$('#pe-kind').value==='income'?'income':'expense'; const x={id:uid(),kind,amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast(kind==='income'?'تم تسجيل الدخل.':'تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
     else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); toast('تمت إضافة Requirement للمشروع.'); }
@@ -1975,4 +2038,5 @@ function onKey(e) {
 }
 
 boot();
+
 
