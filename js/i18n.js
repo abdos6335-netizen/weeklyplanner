@@ -612,7 +612,7 @@ Object.assign(UI_PHRASES, {
 
 
 Object.assign(UI_PHRASES, {
-  'عميل':'client','متابعة':'follow-up','متأخرة ·':'Overdue ·',' من ':' of ',
+  'عميل · متابعة':'Client · Follow-up','متأخرة ·':'Overdue ·',' من ':' of ',
   'الحالة الفنية':'Technical status','مراحل ضمن نطاق العمل':'phases in scope',
   'بند تسليم':'deliverable item','هامش صافي الربح':'Net profit margin',
   'Minutes of Meeting | موضوعات المناقشة':'Minutes of Meeting | Discussion topics',
