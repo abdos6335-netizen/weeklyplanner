@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.27';
+const VERSION = '3.1.28';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -136,7 +136,13 @@ async function boot() {
 
 function registerSW() {
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) location.reload();
+    }, { once: true });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then((registration) => registration.update())
+      .catch(() => {});
   }
 }
 
@@ -438,10 +444,8 @@ function renderDashboard() {
   const weekTasks = S.tasks.filter((x) => weekOfTask(x) === dashboardWeek);
   const completedWeekTasks = weekTasks.filter((x) => x.status === 'done').length;
   const taskProgress = weekTasks.length ? Math.round(completedWeekTasks / weekTasks.length * 100) : null;
-  const activeProjectProgress = activeProjects.map((p) => projectProgressData(p)).filter((p) => p.total > 0);
-  const allProjectItems = activeProjectProgress.reduce((sum, p) => sum + p.total, 0);
-  const allProjectDone = activeProjectProgress.reduce((sum, p) => sum + p.done, 0);
-  const projectProgress = allProjectItems ? Math.round(allProjectDone / allProjectItems * 100) : null;
+  const activeProjectProgress = activeProjects.map((p) => projectProgressData(p)).filter((p) => p.percent !== null);
+  const projectProgress = activeProjectProgress.length ? Math.round(activeProjectProgress.reduce((sum, p) => sum + p.percent, 0) / activeProjectProgress.length) : null;
   const projectIds = new Set(S.projects.map((p) => p.id));
   const dashboardEntries = S.financeEntries.filter((x) => projectIds.has(x.projectId));
   const dashboardIncome = dashboardEntries.filter((x) => x.kind === 'income').reduce((n, x) => n + Math.max(0, Number(x.amount) || 0), 0);
@@ -472,8 +476,8 @@ function renderDashboard() {
 
     <div class="dashboard-metrics-grid">
       ${dashboardMetricCard('إنجاز مهام الأسبوع', taskProgress, weekTasks.length ? completedWeekTasks + '/' + weekTasks.length + ' مهمة مكتملة' : 'لا توجد مهام لهذا الأسبوع', 'tasks')}
-      ${dashboardMetricCard('إنجاز المشروعات النشطة', projectProgress, allProjectItems ? allProjectDone + '/' + allProjectItems + ' بند مكتمل' : 'لا توجد بنود إنجاز مسجلة', 'projects')}
-      ${dashboardMetricCard('التحصيل المالي', collectionProgress, dashboardIncome ? 'هامش صافي الربح ' + (profitProgress === null ? '—' : profitProgress + '%') : 'لا توجد تحصيلات مسجلة', 'finance')}
+      ${dashboardMetricCard('متوسط إنجاز المشروعات النشطة', projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' مشروع ضمن المتوسط' : 'لا توجد نطاقات إنجاز مسجلة', 'projects')}
+      ${dashboardMetricCard('نسبة التحصيل', collectionProgress, dashboardIncome ? 'من إجمالي قيمة التعاقدات' : 'لا توجد تحصيلات مسجلة', 'finance', { value: profitProgress, label: 'هامش صافي الربح', metric: 'profit', detail: dashboardIncome ? 'بعد خصم المصروفات' : 'لا توجد بيانات' })}
     </div>
 
     <div class="dashboard-my-tasks-heading"><div><h2>${t('dashboard_my_tasks')}</h2><p class="muted small">${t('dashboard_tasks_hint')}</p></div><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
@@ -494,7 +498,7 @@ function renderDashboard() {
             <span><span class="dashboard-project-heading"><b>${esc(p.name)}</b></span><small>${esc(p.client||projectTypeLabel(p.type))}</small></span>
             <span class="chip">${projectStatusLabel(p.status)}</span>
           </button>
-          ${renderProjectProgress(p)}
+          ${renderProjectProgress(p, S.deliverables, 'dashboard')}
         </article>`).join('')}</div>` : `<p class="muted small dashboard-empty">${t('dashboard_no_active_projects')}</p>`}
     </section>`;
 }
@@ -503,46 +507,68 @@ function money(value) { return new Intl.NumberFormat(locale(), { maximumFraction
 function projectTypeLabel(v) { return ({ residential: t('type_residential'), administrative: t('type_administrative'), commercial: t('type_commercial'), fitout: t('type_fitout') })[v] || v || '—'; }
 function projectStatusLabel(v) { return ({ planning: t('status_planning'), active: t('status_active'), on_hold: t('status_on_hold'), completed: t('status_completed') })[v] || v || '—'; }
 function projectScopeLabel(scope) { const labels={design:'Design','3d':'3D','technical_drawings':'Technical Drawings',execution:'Execution'}; return (Array.isArray(scope)?scope:[]).map(x=>labels[x]||x).join(' + '); }
-const PROJECT_PROGRESS_PHASES = [
-  { key: 'design', scope: 'design', label: 'التصميم', matches: (d) => ['concept', 'design'].includes(d.stage) && d.kind !== '3d' },
-  { key: '3d', scope: '3d', label: '3D', matches: (d) => d.stage === 'design' && d.kind === '3d' },
-  { key: 'technical_drawings', scope: 'technical_drawings', label: 'اللوحات الفنية', matches: (d) => d.stage === 'technical' },
-  { key: 'execution', scope: 'execution', label: 'التنفيذ', matches: (d) => d.stage === 'execution' },
-];
-
 function projectProgressData(project, deliverables = S.deliverables) {
   const rows = deliverables.filter((d) => d.projectId === project.id);
   const selectedScopes = Array.isArray(project.workScope) ? project.workScope : [];
-  const phases = PROJECT_PROGRESS_PHASES
-    .filter((phase) => selectedScopes.length ? selectedScopes.includes(phase.scope) : rows.some(phase.matches))
-    .map((phase) => {
-      const items = rows.filter(phase.matches);
-      const done = items.filter((d) => d.status === 'approved').length;
-      return { ...phase, done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : null };
-    });
-  const total = phases.reduce((sum, phase) => sum + phase.total, 0);
-  const done = phases.reduce((sum, phase) => sum + phase.done, 0);
-  return { phases, done, total, percent: total ? Math.round(done / total * 100) : null };
+  const explicitScopes = selectedScopes.length > 0;
+  const designStages = ['concept', 'design'];
+  const hasDesign = explicitScopes ? selectedScopes.includes('design') : rows.some((d) => designStages.includes(d.stage) && d.kind !== '3d');
+  const has3d = explicitScopes ? selectedScopes.includes('3d') : rows.some((d) => designStages.includes(d.stage) && d.kind === '3d');
+  const phases = [];
+  const completed = (d) => ['submitted', 'approved'].includes(d.status);
+  if (hasDesign) {
+    const items = rows.filter((d) => designStages.includes(d.stage) && (has3d ? d.kind !== '3d' : true));
+    const done = items.filter(completed).length;
+    phases.push({ key: 'design', label: 'التصميم', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+  }
+  if (has3d) {
+    const items = rows.filter((d) => designStages.includes(d.stage) && d.kind === '3d');
+    const done = items.filter(completed).length;
+    phases.push({ key: '3d', label: '3D', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+  }
+  if (explicitScopes ? selectedScopes.includes('technical_drawings') : rows.some((d) => d.stage === 'technical')) {
+    const items = rows.filter((d) => d.stage === 'technical');
+    const done = items.filter(completed).length;
+    phases.push({ key: 'technical_drawings', label: 'اللوحات الفنية', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+  }
+  if (explicitScopes ? selectedScopes.includes('execution') : rows.some((d) => d.stage === 'execution')) {
+    const items = rows.filter((d) => d.stage === 'execution');
+    const done = items.filter(completed).length;
+    phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+  }
+  const percent = phases.length ? Math.round(phases.reduce((sum, phase) => sum + phase.percent, 0) / phases.length) : null;
+  return { phases, percent, done: phases.reduce((sum, phase) => sum + phase.done, 0), total: phases.reduce((sum, phase) => sum + phase.total, 0) };
 }
 
-function renderProjectProgress(project, deliverables = S.deliverables) {
+function renderProjectProgress(project, deliverables = S.deliverables, context = 'projects') {
   const progress = projectProgressData(project, deliverables);
-  if (!progress.phases.length) return '<div class="project-progress-empty muted small">لا توجد بنود إنجاز مسجلة للمشروع.</div>';
-  const pct = progress.percent;
+  if (!progress.phases.length) return '<div class="project-progress-empty muted small">حدد نطاق المشروع أو سجّل بنود الإنجاز لعرض النسب.</div>';
+  const phaseIndicators = progress.phases.map((phase) =>
+    financeRing(phase.percent, phase.label, 'small', 'collection', 100, context, phase.total ? `${phase.done}/${phase.total} تم تسليمه` : 'لا توجد بنود مسجلة')
+  ).join('');
   return `<div class="project-progress-block">
-    <div class="project-progress-overall"><div><small>إنجاز المشروع</small><strong>${pct === null ? '—' : pct + '%'}</strong></div><div class="project-progress-track"><span style="width:${pct || 0}%"></span></div><small>${progress.done}/${progress.total} بنود مكتملة</small></div>
-    <div class="project-progress-phases">${progress.phases.map((phase) => `<div class="project-progress-phase"><div><span>${phase.label}</span><strong>${phase.percent === null ? '—' : phase.percent + '%'}</strong></div><div class="project-progress-track"><span style="width:${phase.percent || 0}%"></span></div><small>${phase.total ? phase.done + '/' + phase.total + ' مكتمل' : 'لا توجد بنود مسجلة'}</small></div>`).join('')}</div>
+    <div class="project-progress-overall"><div><small>متوسط إنجاز نطاقات المشروع</small><strong>${progress.percent}%</strong></div><div class="project-progress-track"><span style="width:${progress.percent}%"></span></div></div>
+    <div class="project-progress-phases">${phaseIndicators}</div>
   </div>`;
 }
 
-function dashboardMetricCard(title, percent, detail, section, secondary = '') {
-  const value = percent === null ? '—' : percent + '%';
-  return `<article class="dashboard-metric-card"><div class="dashboard-metric-head"><div><small>${title}</small><strong>${value}</strong></div>${secondary ? `<span>${secondary}</span>` : ''}</div><div class="project-progress-track"><span style="width:${percent || 0}%"></span></div><small>${detail}</small><button class="btn sm" data-action="nav" data-section="${section}">عرض التفاصيل</button></article>`;
+function dashboardMetricCard(title, percent, detail, section, secondary = null) {
+  const primaryRatio = financeRing(percent, title, 'small', 'collection', 100, 'dashboard', detail);
+  const secondaryRatio = secondary
+    ? financeRing(secondary.value, secondary.label, 'small', secondary.metric || 'profit', 100, 'dashboard', secondary.detail)
+    : '';
+  return `<article class="dashboard-metric-card"><div class="dashboard-metric-indicators">${primaryRatio}${secondaryRatio}</div><button class="btn sm" data-action="nav" data-section="${section}">عرض التفاصيل</button></article>`;
 }
 
 function renderProjectCard(project) {
   const deliverables = S.deliverables.filter((d) => d.projectId === project.id);
-  return `<article class="project-card-wrap"><button class="card glass project-card" data-action="open-project" data-id="${esc(project.id)}"><div class="project-title"><span class="badge">${badge('projects',22)}</span><span class="chip">${projectStatusLabel(project.status)}</span></div><h2>${esc(project.name)}</h2><p class="muted">${projectTypeLabel(project.type)}${project.client ? ' · ' + esc(project.client) : ''}${project.workScope?.length ? ' · ' + esc(projectScopeLabel(project.workScope)) : ''}</p></button><div class="project-list-progress">${renderProjectProgress(project, deliverables)}</div><div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(project.id)}">${icon('printer',16)} ${t('print_project')}</button></div></article>`;
+  const metadata = [projectTypeLabel(project.type), project.client, ...(project.workScope?.length ? [projectScopeLabel(project.workScope)] : [])].filter(Boolean);
+  return `<article class="card glass project-card-wrap">
+    <div class="project-card-head"><button class="project-card-open" data-action="open-project" data-id="${esc(project.id)}"><h2>${esc(project.name)}</h2></button><span class="chip">${projectStatusLabel(project.status)}</span></div>
+    <p class="project-card-meta muted">${metadata.map(esc).join(' · ')}</p>
+    ${renderProjectProgress(project, deliverables)}
+    <div class="project-print-actions"><button class="btn sm" data-action="print-project" data-id="${esc(project.id)}">${icon('printer',16)} ${t('print_project')}</button></div>
+  </article>`;
 }
 
 function inputField(label, id, type='text', value='', extra='') { return `<label class="lab" for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(value)}" ${extra}>`; }
@@ -575,7 +601,7 @@ function projectFinanceTotals(project, entries = S.financeEntries) {
   };
 }
 
-function financeRing(value, label, size = 'large', metric = 'collection', target = 100, context = 'finance') {
+function financeRing(value, label, size = 'large', metric = 'collection', target = 100, context = 'finance', detail = null) {
   const safeTarget = Number.isFinite(Number(target)) ? Math.min(100, Math.max(1, Number(target))) : 100;
   const targetLabel = lang() === 'ar' ? `الهدف ${safeTarget}%` : `Target ${safeTarget}%`;
   const look = ratioLookFor(context);
@@ -602,7 +628,8 @@ function financeRing(value, label, size = 'large', metric = 'collection', target
     visual = `<div class="ratio-visual ratio-badge" style="${styleVars}"><b>${rounded}</b></div>`;
   }
   const emptyNote = lang() === 'ar' ? 'لا توجد بيانات' : 'No data';
-  return `<div class="finance-ring-wrap ${size} ${style === 'ring' ? 'ratio-wrap-ring' : 'ratio-wrap-' + style}" style="--ratio-color:${color};">${visual}<small>${esc(label)}</small><em>${isEmpty ? emptyNote + ' · ' : ''}${targetLabel}</em></div>`;
+  const detailText = detail === null ? (isEmpty ? emptyNote + ' · ' + targetLabel : targetLabel) : detail;
+  return `<div class="finance-ring-wrap ${size} ${style === 'ring' ? 'ratio-wrap-ring' : 'ratio-wrap-' + style}" style="--ratio-color:${color};">${visual}<small>${esc(label)}</small><em>${esc(detailText)}</em></div>`;
 }
 
 function ratioLookFor(context = 'finance') {
@@ -653,9 +680,13 @@ function renderProjectFinanceMetrics(project, entries = S.financeEntries, compac
 
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
+  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
+  const ratioSettings = `<div class="finance-project-ratios">${financeRing(metrics.collectionPct, 'التحصيل', 'small', 'collection', targets.collection, 'finance')}${financeRing(metrics.profitPct, 'صافي الربح', 'small', 'profit', targets.profit, 'finance')}</div>`;
+  const scope = project.workScope?.length ? projectScopeLabel(project.workScope) : '';
+  const meta = [projectTypeLabel(project.type), scope, projectStatusLabel(project.status)].filter(Boolean).join(' · ');
   return `<article class="card glass finance-project-card">
-    <div class="dhead"><div><div class="finance-title-line"><h3>${esc(project.name)}</h3>${ratioTitlePair(metrics, 'finance')}</div><p class="muted small">${projectTypeLabel(project.type)}${project.workScope?.length ? ' · ' + esc(projectScopeLabel(project.workScope)) : ''} · ${projectStatusLabel(project.status)}</p></div><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
-    <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span></div>
+    <div class="finance-project-head"><div class="finance-project-identity"><h3>${esc(project.name)}</h3><p class="muted small">${esc(meta)}</p></div>${ratioSettings}</div>
+    <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>المصروف <strong>${money(metrics.expense)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div>
   </article>`;
 }
 
@@ -1107,7 +1138,7 @@ function renderFinance() {
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const projectCards = [...S.projects].sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
-  <section class="card glass finance-overview"><div class="dhead"><div><div class="finance-title-line"><h2>ملخص ماليات كل المشروعات</h2>${ratioTitlePair({collectionPct,profitPct}, 'finance')}</div><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
+  <section class="card glass finance-overview"><div class="dhead"><div><div class="finance-title-line"><h2>ملخص ماليات كل المشروعات</h2></div><p class="muted small">النسب محسوبة من إجمالي المبالغ الفعلية.</p></div></div>
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
     <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large','collection',targets.collection,'finance')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit',targets.profit,'finance')}</div>
   </section>
