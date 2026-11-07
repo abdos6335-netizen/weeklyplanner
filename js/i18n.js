@@ -527,10 +527,10 @@ function phraseEntries() {
 }
 function translateNode(node) {
   if (!node) return;
-  const skip = (el) => el && /^(SCRIPT|STYLE|TEXTAREA|INPUT|CODE|PRE)$/i.test(el.tagName);
+  const skip = (el) => el && /^(SCRIPT|STYLE|CODE|PRE)$/i.test(el.tagName);
   if (node.nodeType === 3) {
     const parent = node.parentElement;
-    if (skip(parent) || parent?.closest('[data-user-content],.user-content,.task-title,.ttl,.tnote,.transcript-content,.meeting-user-text,.project-list-name,.meeting-card h3,.meeting-card p,.project-summary-facts strong,.project-deliverable-row strong,.requirement-row p')) return;
+    if (skip(parent) || /^(TEXTAREA|INPUT)$/i.test(parent?.tagName || '') || parent?.closest('[data-user-content],.user-content,.task-title,.ttl,.tnote,.transcript-content,.meeting-user-text,.project-list-name,.meeting-card h3,.meeting-card p,.project-summary-facts strong,.project-deliverable-row strong,.requirement-row p,.dashboard-project-heading,.finance-project-summary strong,.meeting-day-event b')) return;
     const original = node.nodeValue;
     const trimmed = original.trim();
     if (!trimmed) return;
@@ -553,6 +553,7 @@ function translateNode(node) {
     for (const [from,to] of phraseEntries().sort((a,b)=>b[0].length-a[0].length)) if (next.includes(from)) next = next.split(from).join(to);
     if (next !== old) el.setAttribute(attr,next);
   }
+  if (/^(TEXTAREA|INPUT)$/i.test(el.tagName || '')) return;
   for (const child of [...(el.childNodes || [])]) translateNode(child);
 }
 function installDomTranslation() {
