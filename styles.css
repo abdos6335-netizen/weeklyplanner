@@ -877,3 +877,324 @@ html, body, #app { touch-action: pan-x pan-y; }
 .finance-project-head { border:0; background:transparent; }
 .finance-project-compact-values > span { border:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); border-radius:0; background:transparent; }
 .finance-switch { border:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); border-radius:0; background:transparent; }
+
+/* Project workspace: minimal Notion-like rows and an animated bottom detail sheet. */
+.project-page { position:relative; min-height:60vh; }
+.project-page .projects-toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:.25rem 0 .9rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); }
+.project-page .project-filters { display:flex; gap:.5rem; flex-wrap:wrap; }
+.project-page .project-grid { display:flex; flex-direction:column; gap:0; }
+.project-accordion { border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); background:transparent !important; border-radius:0 !important; box-shadow:none !important; }
+.project-accordion:first-child { border-top:1px solid color-mix(in srgb,var(--text-2) 17%,transparent); }
+.project-list-row-wrap { display:flex; align-items:center; gap:.65rem; min-height:58px; border:0; }
+.project-list-row-wrap .project-list-row { flex:1; display:flex; align-items:center; gap:.8rem; min-height:56px; padding:.8rem .15rem; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; color:var(--text); text-align:start; font:inherit; cursor:pointer; }
+.project-list-name { flex:1; min-width:0; font-size:.96rem; font-weight:500; }
+.project-list-ratios { display:flex; gap:.7rem; align-items:center; color:var(--text-2); font-size:.72rem; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.project-list-chevron { display:inline-flex; color:var(--text-2); transition:transform .22s ease; }
+.project-accordion.is-expanded .project-list-chevron { transform:rotate(180deg); }
+.project-list-report { padding:.45rem .3rem; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text-2); font:inherit; font-size:.74rem; cursor:pointer; }
+.project-list-report:hover { color:var(--text); text-decoration:underline; }
+.project-accordion-meta { display:flex; flex-wrap:wrap; gap:.45rem 1rem; padding:0 .15rem .55rem; color:var(--text-2); font-size:.72rem; }
+.project-accordion-content { padding:0 .15rem .75rem; animation:projectAccordionIn .22s ease both; transform-origin:top; }
+@keyframes projectAccordionIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+.project-category-row { display:flex; align-items:center; gap:.85rem; width:100%; min-height:54px; padding:.65rem .15rem; border:0; border-top:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); border-radius:0; background:transparent; color:var(--text); text-align:start; font:inherit; cursor:pointer; }
+.project-category-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:.12rem; }
+.project-category-copy strong { font-size:.88rem; font-weight:500; }
+.project-category-copy small { color:var(--text-2); font-size:.7rem; font-weight:400; }
+.project-category-percent { color:var(--text-2); font-size:.8rem; font-weight:500; font-variant-numeric:tabular-nums; }
+.project-category-chevron { display:inline-flex; color:var(--text-2); opacity:.7; }
+.project-accordion-actions { display:flex; flex-wrap:wrap; gap:1rem; padding:.75rem .15rem .2rem; border-top:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+.text-action { padding:.35rem 0; border:0; background:transparent; color:var(--text-2); font:inherit; font-size:.75rem; cursor:pointer; }
+.text-action:hover { color:var(--text); text-decoration:underline; }
+.text-action.danger { color:var(--danger,#b45a55); }
+.project-empty-line { padding:1.5rem .15rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+.project-panel-intro { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.2rem .1rem .75rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); color:var(--text-2); font-size:.78rem; }
+.project-panel-intro strong { color:var(--text); font-weight:500; font-size:.9rem; }
+.project-summary-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1.5rem; }
+.project-summary-facts > div { display:flex; justify-content:space-between; gap:.7rem; padding:.75rem .1rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); }
+.project-summary-facts span { color:var(--text-2); font-size:.76rem; }
+.project-summary-facts strong { text-align:end; font-size:.8rem; font-weight:500; }
+.project-summary-notes { padding:.8rem .1rem; color:var(--text-2); font-size:.82rem; line-height:1.7; }
+.project-minimal-form { padding:1rem 0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); }
+.project-requirements-list,.project-deliverables-list,.project-transactions-list { display:flex; flex-direction:column; }
+.project-deliverable-row,.project-transaction-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; align-items:center; gap:.7rem; padding:.7rem .1rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 13%,transparent); font-size:.77rem; }
+.project-deliverable-row > div,.project-transaction-row > div { display:flex; min-width:0; flex-direction:column; gap:.15rem; }
+.project-deliverable-row strong,.project-transaction-row strong { font-size:.8rem; font-weight:500; }
+.project-deliverable-row small,.project-transaction-row small { color:var(--text-2); font-size:.68rem; }
+.project-deliverable-row > span { color:var(--text-2); font-size:.7rem; }
+.project-transactions-heading { display:flex; justify-content:space-between; padding:1rem .1rem .35rem; border-top:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); font-size:.85rem; }
+.project-transactions-heading span { color:var(--text-2); font-size:.72rem; }
+.project-accordion .project-deliverable-summary,.project-accordion .project-finance-summary,.project-accordion .project-phase-row,.project-accordion .project-followup-panel { border-radius:0 !important; box-shadow:none !important; }
+@media (max-width:600px) {
+ .project-list-row-wrap .project-list-row { gap:.45rem; }
+ .project-list-ratios { gap:.4rem; font-size:.66rem; }
+ .project-summary-facts { grid-template-columns:1fr; }
+ .project-deliverable-row { grid-template-columns:minmax(0,1fr) auto; }
+ .project-deliverable-row > span { display:none; }
+ .project-transaction-row { grid-template-columns:minmax(0,1fr) auto auto; }
+}
+
+/* App-wide typography and surfaces follow the light, restrained reference. */
+.shell h1,.shell h2,.shell h3,.shell h4,.shell .topbar h1 { font-weight:500 !important; letter-spacing:-.012em; }
+.shell .lab { font-weight:500; }
+.shell .chip { background:transparent; border:0; border-radius:0; padding:.1rem 0; color:var(--text-2); font-weight:400; }
+.shell .positive,.shell .negative { font-weight:500 !important; }
+.shell .btn { font-weight:500; box-shadow:none; }
+.shell .card.glass:not(.login-card) { background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+.shell .dashboard-metric-card,.shell .finance-project-card,.shell .finance-overview { background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent) !important; border-radius:0 !important; box-shadow:none !important; }
+.shell .tabbar { border:0; border-top:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); border-radius:0; box-shadow:none; }
+.shell .meeting-tab { border-radius:0; box-shadow:none; }
+.shell .meeting-tab.active { background:transparent; box-shadow:none; border-bottom:1px solid var(--text); }
+
+/* Minimal, title-led surfaces: no card frames or boxed text. */
+.shell main h1,.shell main .page-title,.shell main .section-title,
+.shell main h2 { font-size:1.38rem !important; line-height:1.35; font-weight:500 !important; letter-spacing:-.025em; }
+.shell main h3,.shell main h4 { font-size:1.08rem !important; font-weight:500 !important; }
+.shell main .card,.shell main .card.glass,.shell main .dashboard-metric-card,
+.shell main .finance-project-card,.shell main .finance-overview,
+.shell main .project-accordion,.shell main .meeting-card,
+.shell main .task-card,.shell main .list-card {
+ background:transparent !important; border:0 !important; border-radius:0 !important;
+ box-shadow:none !important;
+}
+.shell main .card + .card,.shell main .project-accordion,
+.shell main .dashboard-metric-card,.shell main .finance-project-card,
+.shell main .meeting-card,.shell main .task-card,.shell main .list-card {
+ border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent) !important;
+}
+.shell main .projects-toolbar { padding:0 0 .45rem; border:0; background:transparent; }
+.shell main .project-filters { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; }
+.shell main .minimal-text-action { appearance:none; background:transparent; border:0; border-radius:0;
+ padding:.35rem 0; color:var(--text-2); font:inherit; font-size:.84rem; font-weight:400; }
+.shell main .minimal-text-action.is-active { color:var(--text); border-bottom:1px solid currentColor; }
+.shell main .project-list-row-wrap { border:0 !important; background:transparent !important; box-shadow:none !important; }
+.shell main .project-list-row,.shell main .finance-project-summary {
+ background:transparent !important; border:0 !important; border-radius:0 !important;
+ box-shadow:none !important; padding-block:.9rem;
+}
+.shell main .project-list-name { font-size:1.12rem !important; font-weight:500 !important; }
+.shell main .project-list-ratios { font-size:.72rem !important; font-weight:400 !important; }
+.shell main .project-list-report { background:transparent !important; border:0 !important; box-shadow:none !important; }
+.shell main .project-accordion .project-accordion-content,
+.shell main .project-accordion .project-panel-section,
+.shell main .project-category-row,.shell main .project-phase-row,
+.shell main .project-deliverable-summary,.shell main .project-finance-summary {
+ background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent) !important;
+ border-radius:0 !important; box-shadow:none !important;
+}
+.shell main button:not(.input):not([type="submit"]) { box-shadow:none !important; }
+
+/* Compact dashboard metrics and user-controlled typography hierarchy. */
+.shell main h1,.shell main .topbar h1,.shell main .dashboard-intro h2,.shell main .page-title { font-size:calc(1.38rem * var(--type-heading-scale,1)) !important; }
+.shell main h2,.shell main .section-title { font-size:calc(1.2rem * var(--type-heading-scale,1)) !important; }
+.shell main h3,.shell main h4,.shell main summary { font-size:calc(1rem * var(--type-subheading-scale,1)) !important; }
+.shell main p,.shell main li,.shell main small,.shell main label,.shell main input,.shell main textarea,.shell main select,.shell main .project-list-name { font-size:calc(.88rem * var(--type-item-scale,1)); }
+.shell main .dashboard-metric-card { flex-direction:row; align-items:baseline; justify-content:space-between; gap:.7rem; padding:.85rem .15rem; }
+.shell main .dashboard-metric-title { color:var(--text); font-size:calc(.9rem * var(--type-subheading-scale,1)); }
+.shell main .dashboard-metric-value { font-size:calc(.9rem * var(--type-item-scale,1)); font-weight:500; }
+.shell main .dashboard-metric-secondary { font-size:.72rem; }
+.shell main button:not(.fab):not(.voice-fab):not(.icon-btn) { box-shadow:none !important; }
+.shell main .btn:not(.danger),.shell main .btn.primary,.shell main .btn.ghost { border:0 !important; background:transparent !important; color:var(--text) !important; }
+.shell main input[type=checkbox] { accent-color:#e58a32; }
+
+/* Reference-style checklist marks and quiet expandable dashboard headings. */
+.shell main .task .ring-c { width:1.15rem; height:1.15rem; border-radius:4px !important; border:1.5px solid color-mix(in srgb,var(--text-2) 65%,transparent); background:transparent !important; color:transparent; box-shadow:none !important; }
+.shell main .task.done .ring-c { border-color:#e58a32 !important; color:#e58a32 !important; background:transparent !important; }
+.shell main .task.done .ring-c .ic { color:#e58a32 !important; }
+.shell main .dashboard-task-summary { display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.65rem .1rem; list-style:none; cursor:pointer; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+.shell main .dashboard-task-summary::-webkit-details-marker { display:none; }
+.shell main .dashboard-task-summary::after { content:'⌄'; color:var(--text-2); font-size:.9rem; transition:transform .2s ease; }
+.shell main .dashboard-task-group[open] .dashboard-task-summary::after { transform:rotate(180deg); }
+.shell main .dashboard-task-summary h3 { margin:0; font-weight:500; }
+.shell main .dashboard-task-group-content { padding:.2rem .1rem .6rem; }
+.shell main .dashboard-task-group { padding:0; border-top:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+
+
+/* ================================================================
+   WEEKLYPLANNER — Reference visual system (flat, monochrome, editorial)
+   Based on the supplied checklist and dark dashboard references.
+   ================================================================ */
+:root {
+  --bg: #f1f1f1;
+  --surface: #f1f1f1;
+  --surface-2: #e7e7e7;
+  --text: #292929;
+  --text-2: #777777;
+  --accent: #a43b46;
+  --accent-text: #91323d;
+  --accent-soft: #eadbdd;
+  --primary: #a43b46;
+  --primary-text: #ffffff;
+  --btn: transparent;
+  --btn-ring: #bdbdbd;
+  --font: "Roboto Condensed", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --r-lg: 0;
+  --r-md: 0;
+}
+:root[data-dark="1"] {
+  --surface: #242424;
+  --surface-2: #303030;
+}
+html, body { background:var(--bg) !important; }
+body { font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important; }
+body::before { display:none !important; background:none !important; }
+.shell, .shell .main, .shell .rail, .shell .tabbar { background:var(--bg) !important; }
+.shell .main { max-width:1180px; }
+.shell .rail { border-inline-end:1px solid color-mix(in srgb,var(--text-2) 24%,transparent); }
+.shell .tabbar {
+  inset-inline:0; bottom:0; max-width:none; height:calc(4rem + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom); border-top:1px solid color-mix(in srgb,var(--text-2) 24%,transparent);
+  background:var(--bg) !important;
+}
+.shell .tab, .shell .nav-item { border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
+.shell .tab.on, .shell .nav-item.on { color:var(--accent) !important; background:transparent !important; }
+.shell .tab.on::after, .shell .nav-item.on::after {
+  content:""; display:block; width:18px; height:2px; margin-top:3px; background:var(--accent);
+}
+.shell .topbar h1, .shell main h1, .shell main h2, .shell main h3, .shell main h4,
+.shell main .page-title, .shell main .section-title, .shell main .dashboard-intro h2 {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
+  font-weight:800 !important; letter-spacing:-.025em; color:var(--text);
+}
+.shell .topbar h1, .shell main h1, .shell main .page-title { font-size:clamp(1.65rem,3vw,2.1rem) !important; line-height:1.12; }
+.shell main h2, .shell main .section-title { font-size:1.42rem !important; line-height:1.2; }
+.shell main h3, .shell main h4 { font-size:1.08rem !important; line-height:1.3; }
+.shell main p, .shell main li, .shell main label, .shell main input, .shell main textarea,
+.shell main select, .shell main small, .shell main .muted, .shell main .project-list-name,
+.shell main .task .ttl {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
+}
+.shell main .card, .shell main .card.glass, .shell main .glass,
+.shell main .dashboard-metric-card, .shell main .finance-project-card,
+.shell main .finance-overview, .shell main .project-accordion,
+.shell main .meeting-card, .shell main .task-card, .shell main .list-card,
+.shell main .sheet,
+.shell .login-card {
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+}
+.shell main .card { padding-inline:0; }
+.shell main .card + .card, .shell main .project-accordion,
+.shell main .dashboard-metric-card, .shell main .finance-project-card,
+.shell main .finance-overview, .shell main .meeting-card,
+.shell main .task-card, .shell main .list-card {
+  border-bottom:1px solid color-mix(in srgb,var(--text-2) 28%,transparent) !important;
+}
+.shell main .btn, .shell main .btn.primary, .shell main .btn.ghost,
+.shell main button:not(.fab):not(.voice-fab):not(.icon-btn),
+  background:transparent !important; color:var(--text) !important; border:0 !important;
+  border-radius:0 !important; box-shadow:none !important;
+}
+.shell main .btn.danger, .shell main .text-action.danger { color:#b0444c !important; }
+.shell main input:not([type=checkbox]), .shell main textarea, .shell main select,
+.shell main .input, .shell main .textarea {
+  background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 42%,transparent) !important;
+  border-radius:0 !important; box-shadow:none !important;
+}
+.shell main .task { border-radius:0 !important; padding:.42rem 0; }
+.shell main .task .ring-c {
+  width:1.05rem !important; height:1.05rem !important; border-radius:2px !important;
+  border:1.5px solid #858585 !important; background:transparent !important;
+  color:transparent !important; box-shadow:none !important;
+}
+.shell main .task.done .ring-c {
+  border-color:#e36b35 !important; background:#e36b35 !important;
+  color:#fff !important;
+}
+.shell main .task.done .ring-c .ic { color:#fff !important; font-size:12px !important; }
+.shell main .task.done .ttl { color:var(--text-2) !important; text-decoration:line-through; text-decoration-thickness:1px; }
+.shell main .dashboard-task-group, .shell main .dashboard-task-summary,
+.shell main .project-disclosure, .shell main .project-phase-row,
+.shell main .project-category-row, .shell main .meeting-tab,
+.shell main .finance-switch {
+  border-radius:0 !important; background:transparent !important; box-shadow:none !important;
+}
+.shell main .dashboard-task-summary, .shell main .project-disclosure > summary,
+.shell main .project-phase-row > summary {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",system-ui,sans-serif !important;
+  font-weight:700 !important; color:var(--text);
+}
+.shell main .project-list-row, .shell main .project-list-row-wrap .project-list-row,
+.shell main .finance-project-summary { background:transparent !important; border-radius:0 !important; }
+.shell main .project-list-name { font-size:1.12rem !important; font-weight:700 !important; }
+.shell main .project-list-row-wrap, .shell main .project-category-row,
+.shell main .project-phase-row, .shell main .project-deliverable-row,
+.shell main .project-transaction-row { border-color:color-mix(in srgb,var(--text-2) 28%,transparent) !important; }
+.shell main .dashboard-metrics-grid { border-block-color:color-mix(in srgb,var(--text-2) 28%,transparent); }
+.shell main .dashboard-metric-card + .dashboard-metric-card { border-inline-start-color:color-mix(in srgb,var(--text-2) 28%,transparent); }
+.shell main .dashboard-metric-title { font-weight:700 !important; }
+.shell main .dashboard-metric-value { font-weight:700 !important; }
+.shell main .chip, .shell main .badge { background:transparent !important; border-radius:0 !important; }
+.shell main .fab, .shell main .voice-fab { border-radius:50% !important; background:var(--accent) !important; color:#fff !important; }
+.shell main .overlay { background:rgb(0 0 0 / .38); }
+.shell main .sheet { background:var(--bg) !important; border-top:1px solid color-mix(in srgb,var(--text-2) 28%,transparent) !important; }
+:root[data-dark="1"] .shell main .task .ring-c { border-color:#a1a1a1 !important; }
+:root[data-dark="1"] .shell main .task.done .ring-c { border-color:#e36b35 !important; background:#e36b35 !important; }
+@media (max-width:650px) {
+  .shell main .dashboard-metrics-grid { grid-template-columns:1fr; }
+  .shell main .dashboard-metric-card + .dashboard-metric-card { border-inline-start:0; }
+}
+
+
+/* Phase 1 — compact four-part dashboard indicators */
+.shell main .dashboard-metrics-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:0 1rem}
+.shell main .dashboard-metric-card{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:.55rem;min-height:76px;padding:.7rem .15rem}
+.shell main .dashboard-metric-copy{display:grid;gap:.18rem;min-width:0}
+.shell main .dashboard-metric-title{font-size:.82rem!important;font-weight:600!important;line-height:1.35}
+.shell main .dashboard-metric-copy>small{font-size:.68rem;line-height:1.35;color:var(--text-2)}
+.shell main .dashboard-metric-indicator{display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.shell main .dashboard-metric-indicator .finance-ring-wrap{min-width:0;gap:0}
+.shell main .dashboard-metric-indicator .finance-ring{width:44px;height:44px}
+.shell main .dashboard-metric-indicator .finance-ring::before{inset:4px}
+.shell main .dashboard-metric-indicator .finance-ring>span{font-size:.68rem}
+.shell main .dashboard-metric-indicator .finance-ring-wrap>small,
+.shell main .dashboard-metric-indicator .finance-ring-wrap>em{display:none}
+.shell main .dashboard-metric-secondary{font-size:.65rem}
+@media(max-width:850px){.shell main .dashboard-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shell main .dashboard-metric-card:nth-child(3){border-inline-start:0;padding-inline-start:.15rem}.shell main .dashboard-metric-card:nth-child(n+3){border-top:1px solid color-mix(in srgb,var(--text-2) 14%,transparent)}}
+@media(max-width:520px){.shell main .dashboard-metrics-grid{grid-template-columns:1fr}.shell main .dashboard-metric-card{min-height:64px}.shell main .dashboard-metric-card+.dashboard-metric-card{border-inline-start:0;padding-inline-start:.15rem}}
+
+
+/* Phase 1 — project headings disclose content directly beneath the heading */
+.shell main .project-disclosure{border-bottom:1px solid color-mix(in srgb,var(--text-2) 18%,transparent)}
+.shell main .project-disclosure>summary{display:flex;align-items:center;gap:.65rem;list-style:none;cursor:pointer}
+.shell main .project-disclosure>summary::-webkit-details-marker{display:none}
+.shell main .project-disclosure .project-category-copy{display:grid;gap:.15rem;min-width:0;flex:1}
+.shell main .project-disclosure .project-category-copy strong{font-size:.88rem;font-weight:600}
+.shell main .project-disclosure .project-category-copy small{font-size:.7rem;color:var(--text-2)}
+.shell main .project-disclosure .project-category-chevron{transition:transform var(--motion-duration,.26s) ease}
+.shell main .project-disclosure[open] .project-category-chevron{transform:rotate(-90deg)}
+.shell main .project-disclosure-content{padding:.55rem .15rem .9rem}
+.shell main .project-disclosure-content .project-panel-intro{margin-bottom:.6rem}
+
+
+/* Phase 2/3 — typography controls and bilingual editorial type system */
+:root { --type-heading-scale:1; --type-subheading-scale:1; --type-item-scale:1; }
+html,body,.shell { font-family:var(--font) !important; }
+.shell main h1,.shell main h2,.shell main .page-title,.shell main .section-title {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",var(--font),system-ui,sans-serif !important;
+  font-size:calc(1.38rem * var(--type-heading-scale,1)) !important;
+}
+.shell main h3,.shell main h4,.shell main .section-heading,.shell main .dashboard-task-summary {
+  font-family:"Roboto Condensed","IBM Plex Sans Arabic",var(--font),system-ui,sans-serif !important;
+  font-size:calc(1.08rem * var(--type-subheading-scale,1)) !important;
+}
+.shell main p,.shell main small,.shell main label,.shell main input,.shell main select,
+.shell main textarea,.shell main button,.shell main .muted,.shell main .helper-text {
+  font-size:calc(1em * var(--type-item-scale,1));
+}
+
+.shell main .projects-page .page-description { display:none !important; }
+.shell main .dashboard-metric-title { font-size:calc(.82rem * var(--type-item-scale,1)) !important; }
+.shell main .dashboard-metric-copy>small { font-size:calc(.68rem * var(--type-item-scale,1)); }
+.shell main .project-disclosure .project-category-copy strong { font-size:calc(.88rem * var(--type-subheading-scale,1)); }
+.shell main .project-disclosure .project-category-copy small { font-size:calc(.7rem * var(--type-item-scale,1)); }
+:root[data-dark="1"] .shell main .project-disclosure,
+:root[data-dark="1"] .shell main .dashboard-metric-card,
+:root[data-dark="1"] .shell main .project-list-row-wrap { border-color:color-mix(in srgb,var(--text-2) 30%,transparent) !important; }
+@media(max-width:850px) {
+  .shell main .dashboard-metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:520px) {
+  .shell main .dashboard-metrics-grid { grid-template-columns:1fr; }
+  .shell main .project-disclosure-content { padding-inline:.05rem; }
+  .shell main .project-summary-facts { grid-template-columns:1fr; }
+}
