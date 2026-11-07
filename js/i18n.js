@@ -288,6 +288,195 @@ const en = {
   stage: 'Version 2: tasks, projects, deliverables and finance',
 };
 
+
+const UI_PHRASES = {
+  'جارٍ الاتصال…':'Connecting…',
+  'ملخص اليوم':'Today’s summary','لوحة المتابعة':'Dashboard overview',
+  'قيد التنفيذ':'In progress','اليوم':'Today','لا توجد مهام لليوم':'No tasks today','عرض كل المهام':'View all tasks',
+  'لا توجد مشروعات نشطة':'No active projects','عرض المشروعات':'View projects','تحصيل مسجل':'Collection recorded',
+  'لا توجد تحصيلات مسجلة':'No collections recorded','افتح سجل الماليات':'Open finance log','اجتماع':'Meeting','افتح سجل الاجتماعات':'Open meeting log',
+  'تصغير القائمة':'Collapse navigation','توسيع القائمة':'Expand navigation','عرض مختصر':'Quick preview',
+  'إنشاء حساب':'Create account','دخول بالبريد':'Sign in with email','لديك حساب؟ تسجيل الدخول':'Already have an account? Sign in',
+  'إنشاء حساب جديد':'Create a new account','العربية':'Arabic','تم إنجاز المهمة':'Task completed','Mark task done':'تم إنجاز المهمة',
+  'حركتك الشخصية هذا الشهر':'Your personal activity this month','دخل ومصروفاتك الشخصية':'Your personal income and expenses',
+  'إدارة الماليات':'Manage finances','الدخل الشخصي':'Personal income','المصروف الشخصي':'Personal expenses','الصافي':'Net balance',
+  'متابعات العملاء':'Client follow-ups','المواعيد المتأخرة والقريبة خلال أسبوعين':'Overdue and upcoming dates over the next two weeks',
+  'متأخرة':'Overdue','التصميم':'Design','اللوحات الفنية':'Technical drawings','التنفيذ':'Execution',
+  'حدد نطاق المشروع أو سجّل بنود الإنجاز لعرض النسب.':'Set the project scope or add work items to show progress.',
+  'تم تسليمه':'submitted','لا توجد بنود مسجلة':'No items recorded',
+  'متطلبات العميل':'Client requirements','مفتوح':'Open','طلب جديد من العميل':'New client requirement','إضافة Requirement':'Add requirement',
+  'طلب مباشر':'Direct request','قيد التنفيذ':'In progress','تم':'Done','لا توجد متطلبات مسجلة لهذا المشروع حتى الآن.':'No requirements have been recorded for this project yet.',
+  'ربط WhatsApp التلقائي غير مفعّل بعد؛ يمكنك تسجيل المتطلبات يدويًا أو من محاضر الاجتماعات.':'Automatic WhatsApp linking is not enabled yet. You can add requirements manually or from meeting minutes.',
+  'لا توجد تسليمات مسجلة لهذا المشروع.':'No deliverables recorded for this project.','لا توجد مراحل فنية محددة لهذا المشروع. حدّد نطاق العمل من تعديل المشروع.':'No technical phases are defined for this project. Set the work scope in Edit Project.',
+  'لم يبدأ':'Not started','تجهيز الخامات':'Materials preparation','تم نقل الخامات':'Materials transferred','في المصنع':'At factory',
+  'جاري التصنيع':'Manufacturing','جاهز للتوريد':'Ready for delivery','تم التوريد للموقع':'Delivered to site','جاري التركيب':'Installation in progress','تم التنفيذ':'Completed',
+  'قيد العمل':'In progress','تم الإرسال':'Submitted','معتمد':'Approved','مطلوب تعديل':'Revision required','بند مكتمل':'items completed',
+  'العميل':'Client','نوع المشروع':'Project type','الحالة':'Status','الموقع':'Location','نطاق العمل':'Work scope',
+  'لا توجد ملاحظات إضافية للمشروع.':'No additional project notes.','إنجاز المراحل الفنية':'Technical progress','إنجاز فني':'Technical progress',
+  'تقرير':'Report','تسليمات':'deliverables','ملخص المشروع':'Project overview','بيانات المشروع ومتابعة العميل':'Project details and client follow-up',
+  'لا توجد متطلبات مسجلة':'No requirements recorded','مراحل ضمن نطاق العمل':'phases in scope','لم يتم تحديد نطاق فني':'No technical scope defined',
+  'التسليمات واللوحات':'Deliverables and drawings','بند تسليم':'deliverable items','أضف بنود التسليم':'Add deliverable items',
+  'تعديل المشروع':'Edit project','إلغاء الأرشفة':'Unarchive','أرشفة':'Archive','المشروعات':'Projects','الأرشيف':'Archive','الأرشيف فارغ':'Archive is empty',
+  'التحصيل':'Collected','المحصّل':'Collected','المصروف':'Expenses','صافي الربح':'Net profit','دفعات الاتفاق':'Agreed installments',
+  'تم تحصيلها':'collected','أضف دفعات الاتفاق ومواعيدها':'Add agreed installments and due dates','اسم الدفعة':'Installment name',
+  'مثال: مقدم التعاقد':'Example: Contract deposit','دفعة':'Installment','موعدها':'Due','من دون موعد':'No due date',
+  'تم التحصيل':'Collected','مستحقة':'Due','تراجع':'Undo','حذف الدفعة':'Delete installment','أضف مواعيد الدفعات المتفق عليها لو محتاج تتابعها.':'Add agreed installment dates to track them.',
+  'متابعة العميل':'Client follow-up','أضف موعدًا لتظهر المتابعة في الرئيسية':'Add a date to show the follow-up on the dashboard',
+  'مجدولة':'Scheduled','الموعد والملاحظة يظهران في الرئيسية عند اقتراب الموعد.':'The date and note appear on the dashboard as the follow-up approaches.',
+  'التقرير المالي للمشروع':'Project financial report','تقرير موقف المشروع':'Project status report','قيمة التعاقد':'Contract value',
+  'إجمالي التحصيلات':'Total collections','إجمالي المصروفات':'Total expenses','صافي التدفق النقدي':'Net cash flow',
+  'المتبقي للتحصيل':'Remaining to collect','التاريخ':'Date','البند':'Item','الحركة':'Transaction','المبلغ':'Amount','الوصف':'Description',
+  'التسليم':'Deliverable','المرحلة':'Stage','النوع':'Type','الموعد':'Due date','الاعتماد':'Approval','ملاحظات':'Notes',
+  'التقرير الشامل':'Full report','تاريخ التقرير':'Report date','الإنجاز الفني':'Technical progress','نسبة التحصيل':'Collection rate',
+  'إجمالي التحصيل':'Total collected','إجمالي المصروف':'Total expenses','مراحل الإنجاز الفني':'Technical progress stages',
+  'المنجز':'Completed','النسبة':'Progress','المتطلب':'Requirement','المصدر':'Source','الحالة':'Status',
+  'لا توجد مراحل فنية محددة.':'No technical phases defined.','لا توجد متطلبات مسجلة.':'No requirements recorded.',
+  'لا توجد تسليمات مسجلة.':'No deliverables recorded.','الحركة المالية':'Financial transactions','لا توجد حركات مالية مسجلة.':'No financial transactions recorded.',
+  'تم إنشاء التقرير من WeeklyPlanner':'Report generated by WeeklyPlanner','تسجيل الاجتماع':'Meeting recording',
+  'لم أتعرف على اسم مشروع موجود. افتح المشروع المطلوب أو اكتب اسمه كما هو.':'I could not identify an existing project. Open the project or enter its exact name.',
+  'تم حفظ المهمة.':'Task saved.','لازم تحدد مشروعًا ومبلغًا صحيحًا قبل تسجيل الحركة المالية.':'Select a project and enter a valid amount before recording the transaction.',
+  'اذكر اسم المشروع بوضوح، ثم أعد المحاولة.':'Enter the project name clearly and try again.',
+  'هل تريد إنشاء مشروع جديد باسم':'Do you want to create a new project named','تم إلغاء الحفظ لتجنب التكرار.':'Save cancelled to avoid a duplicate.',
+  'تم إنشاء المشروع. راجع بياناته وأكمل العميل وقيمة التعاقد عند الحاجة.':'Project created. Review its details and add the client and contract value if needed.',
+  'حدد المشروع أولًا أو اذكر اسمه المطابق في الأمر.':'Select a project first or mention its exact name in the command.',
+  'لم أستطع تحديد اسم اللوحة بدقة. اكتب اسم اللوحة في النص ثم أعد المحاولة.':'I could not identify the drawing name. Include its name in the text and try again.',
+  'تم تسجيل تحديث التسليم.':'Deliverable update recorded.','الاجتماع غير موجود.':'Meeting not found.',
+  'التسجيل غير موجود على هذا الجهاز. افتح التطبيق على الجهاز الذي تم عليه التسجيل.':'The recording is not available on this device. Open the app on the device where it was recorded.',
+  'جارٍ إرسال التسجيل للتفريغ الصوتي…':'Sending the recording for transcription…','لم يُرجع التفريغ أي نص واضح.':'Transcription returned no clear text.',
+  'تم تفريغ التسجيل وحفظ النص. راجعه ثم أنشئ محضر الاجتماع.':'Recording transcribed and text saved. Review it, then generate the meeting minutes.',
+  'لا يوجد نص للاجتماع. فرّغ التسجيل أولًا أو أضف النص يدويًا.':'There is no meeting text. Transcribe the recording first or enter the text manually.',
+  'تم إعداد المحضر. راجع بيانات المشروع والعميل قبل الاعتماد.':'Minutes prepared. Review the project and client details before approval.',
+  'تم إعداد المحضر وحفظه — راجعه قبل الطباعة.':'Minutes prepared and saved. Review them before printing.',
+  'اسمح بالنوافذ المنبثقة لتشغيل التسجيل.':'Allow pop-ups to play the recording.',
+  'لا يوجد ملف صوتي محفوظ لهذا الاجتماع على هذا الجهاز.':'No audio file for this meeting is saved on this device.',
+  'هل تريد حذف التسجيل الصوتي لهذا الاجتماع نهائيًا؟':'Permanently delete this meeting recording?',
+  'تم حذف التسجيل الصوتي.':'Recording deleted.','تسجيل الصوت الكامل غير مدعوم في هذا المتصفح.':'Full audio recording is not supported in this browser.',
+  'تم إنهاء التسجيل — جارٍ حفظ الاجتماع والتجهيز للتفريغ.':'Recording stopped. Saving the meeting and preparing transcription.',
+  '● جارٍ تسجيل صوت الاجتماع.':'● Recording meeting audio.','تعذر بدء التسجيل. تحقق من صلاحية الميكروفون.':'Could not start recording. Check microphone permissions.',
+  'تم حفظ التسجيل على الجهاز. اختر المشروع ثم اضغط «حفظ محضر الاجتماع» لإضافته إلى السجل.':'Recording saved on this device. Select a project and save the meeting minutes to add it to the log.',
+  'التسجيل محفوظ. اختر المشروع ثم احفظ الاجتماع لإرفاق التسجيل.':'Recording saved. Select a project and save the meeting to attach it.',
+  'تعذر الوصول إلى التسجيل':'Could not access the recording','اسم المستخدم غير متاح':'User name unavailable',
+  'عرض الاجتماعات':'Meeting views','التقويم الأسبوعي':'Weekly calendar','الاجتماعات القادمة':'Upcoming meetings','الاجتماعات السابقة':'Past meetings',
+  'الأسبوع السابق':'Previous week','الأسبوع التالي':'Next week','هذا الأسبوع':'This week','بدون وقت':'No time set',
+  'كل محاضر الاجتماعات في مكان واحد، مرتبطة بمشروعاتها وقابلة للبحث والطباعة.':'All meeting minutes in one place, linked to projects and ready to search or print.',
+  'يمكنك تفريغ التسجيل وصياغة محضر الاجتماع بعد الحفظ، ثم مراجعته قبل الاعتماد. عند طلب التفريغ يُرسل الصوت إلى خدمة معالجة خارجية؛ ولا يتم إرساله تلقائيًا.':'Transcribe recordings and draft minutes after saving, then review before approval. Audio is sent to an external processing service only when you request transcription.',
+  'تسجيل اجتماع جديد':'Record a new meeting','افتح النموذج عند الحاجة فقط':'Open the form only when needed','المشروع':'Project',
+  'اختر المشروع':'Choose project','أو إنشاء مشروع جديد':'Or create a new project','اسم المشروع الجديد':'New project name',
+  'اسم العميل / الطرف الثاني':'Client / second party','يُراجع إذا لم يكن واضحًا من سياق الاجتماع':'Review if unclear from the meeting context',
+  'تاريخ الاجتماع':'Meeting date','الوقت':'Time','نوع الاجتماع':'Meeting mode','تصنيف الاجتماع':'Meeting category',
+  'عنوان الاجتماع':'Meeting title','مثال: مراجعة الشوب دروينج والتعديلات':'Example: Shop drawing review and revisions',
+  'الطرف الأول — المستخدم الحالي':'First party — current user','الحضور الآخرون':'Other attendees','اسم العميل أو الحضور الآخرين':'Client or other attendees',
+  '● بدء تسجيل الاجتماع':'● Start meeting recording','إيقاف التسجيل':'Stop recording',
+  'يُحفظ التسجيل محليًا على الجهاز ويرتبط بالاجتماع بعد الحفظ.':'The recording is saved locally and linked to the meeting after saving.',
+  'Speech language':'لغة الإملاء الصوتي','إملاء صوتي للنص':'Dictate text','إيقاف الإملاء':'Stop dictation',
+  'Client Requirements — طلبات العميل (كل طلب في سطر)':'Client requirements (one per line)',
+  'Transcript — نص الاجتماع':'Transcript — meeting text','أضف النص المستخرج أو الملاحظات بعد الاجتماع':'Add the transcript or notes after the meeting',
+  'Minutes of Meeting — موضوعات المناقشة':'Minutes of Meeting — discussion topics',
+  'Agreements & Decisions — تم الاتفاق على':'Agreements & Decisions','Action Items — المهام والمسؤوليات والمواعيد':'Action Items — tasks, owners and due dates',
+  'المهمة — المسؤول — الموعد (إن ذُكر)':'Task — owner — due date (if mentioned)','حفظ محضر الاجتماع':'Save meeting minutes',
+  'سجل Minutes of Meeting':'Minutes of Meeting log','جميع الاجتماعات من كل المشروعات في صفحة واحدة.':'All meetings from every project in one page.',
+  'مشروع غير محدد':'No project selected','العميل غير محدد':'No client selected','تفريغ التسجيل':'Transcribe recording',
+  'إنشاء محضر الاجتماع':'Generate meeting minutes','طباعة MOM':'Print MOM','تشغيل الصوت':'Play audio','تنزيل الصوت':'Download audio',
+  'حذف التسجيل':'Delete recording','مراجعة وتعديل المحضر والنص':'Review and edit minutes and transcript',
+  'Transcript — النص الكامل':'Transcript — full text','Agreements & Decisions — الاتفاقات والقرارات':'Agreements & Decisions',
+  'Action Items — المهام':'Action Items','حفظ التعديلات':'Save changes','لا توجد محاضر اجتماعات حتى الآن. سجّل أول اجتماع من النموذج أعلاه.':'No meeting minutes yet. Record your first meeting using the form above.',
+  'Minutes of Meeting':'محضر الاجتماع','Agreements & Decisions':'الاتفاقات والقرارات','Action Items':'المهام والمسؤوليات',
+  'Design / 3D Design':'تصميم / تصميم ثلاثي الأبعاد','Shop Drawings':'لوحات تنفيذية','Site Execution':'تنفيذ الموقع',
+  'Colors & Materials':'الألوان والخامات','Client Review / Approval':'مراجعة / اعتماد العميل','General Meeting':'اجتماع عام',
+  'Offline':'بدون اتصال','Online':'عبر الإنترنت','Existing':'قائم','Masonry':'مباني','Demolish':'إزالة','Furniture':'أثاث',
+  'Dimension':'أبعاد','Floor plan':'مسقط أفقي','Interior elevation':'واجهة داخلية','Section':'قطاع','Reflected ceiling plan (RCP)':'سقف منعكس (RCP)',
+  'Detail':'تفصيلة','Other':'أخرى','Design':'تصميم','3D Visualization':'تصميم ثلاثي الأبعاد','Technical Drawings':'لوحات تنفيذية','Execution':'تنفيذ',
+  'ماليات المشروعات':'Project finances','المصروف الشخصي':'Personal expenses','ملخص ماليات كل المشروعات':'All-project finance summary',
+  'نسبة التحصيل الإجمالية':'Overall collection rate','هامش صافي الربح الإجمالي':'Overall net profit margin',
+  'تسجيل حركة مالية':'Record financial transaction','لا توجد مشروعات مسجلة.':'No projects recorded.',
+  'ميزانية الشهر':'Monthly budget','الميزانية الشهرية (جنيه)':'Monthly budget (EGP)','مثال: 5000':'Example: 5000',
+  'حفظ الميزانية':'Save budget','الميزانية':'Budget','المتبقي':'Remaining','المستهلك من الميزانية':'Budget used',
+  'تنبيه: المصروف تجاوز الميزانية الشهرية، ويمكنك الاستمرار في التسجيل.':'Warning: expenses exceed the monthly budget. You can still continue recording.',
+  'إضافة حركة شخصية':'Add personal transaction','نوع الحركة':'Transaction type','دخل':'Income','مصروف':'Expense',
+  'المبلغ (جنيه)':'Amount (EGP)','التصنيف':'Category','أخرى':'Other','الوصف':'Description',
+  'مثال: أتعاب مشروع، مواصلات، مشتريات البيت':'Example: project fee, transport, household shopping','إضافة الحركة':'Add transaction',
+  'تحليل المصروفات حسب التصنيف':'Expenses by category','سجّل مصروفات لتظهر تفاصيل التصنيفات هنا.':'Record expenses to see category details here.',
+  'سجل الحركات الشخصية':'Personal transaction log','إجراءات':'Actions','لا توجد حركات شخصية مسجلة في هذا الشهر.':'No personal transactions recorded this month.',
+  'المبلغ الجديد:':'New amount:','وصف الدخل:':'Income description:','وصف المصروف:':'Expense description:',
+  'بيانات غير صحيحة.':'Invalid data.','تم تحديث الدخل.':'Income updated.','تم تحديث المصروف.':'Expense updated.',
+  'نظام الأيقونات':'Icon system','Phosphor Icons — Regular للأيقونات العادية وFill للحالة النشطة، بدون دوائر أو خلفيات.':'Phosphor Icons — Regular for standard icons and Fill for active states, without circles or backgrounds.',
+  'تظل النسب الفعلية محسوبة من المبالغ المسجلة. يحدد الهدف امتلاء الحلقة فقط.':'Actual ratios are calculated from recorded amounts. The target only controls the ring fill.',
+  'هدف نسبة التحصيل':'Collection target','هدف هامش صافي الربح':'Net profit margin target','عام لكل التبويبات':'Global for all tabs',
+  'تخصيص لكل تبويب':'Customize per tab','التبويب':'Tab','الرئيسية':'Dashboard','المشروعات':'Projects','المالية':'Finance',
+  'شكل المؤشر':'Indicator style','ألوان المؤشرات':'Indicator colors','نسبة التحصيل':'Collection rate','هامش الربح':'Profit margin',
+  'معاينة مباشرة':'Live preview','استعادة الافتراضي':'Restore defaults','اختر شكلًا وألوانًا عامة أو خصصها لكل تبويب. المعاينة تستخدم نسبًا تجريبية.':'Choose global styles and colors or customize each tab. Preview uses sample percentages.',
+  'حلقة':'Ring','شريط':'Bar','كبسولة':'Pill','عداد':'Gauge','شرائح':'Blocks','شارة':'Badge',
+  'نطاق التخصيص':'Customization scope','تحكم في الفرق بين أحجام العناوين والعناصر.':'Control the size difference between headings and content.',
+  'العناوين الرئيسية':'Main headings','العناوين الفرعية':'Subheadings','العناصر والمعلومات':'Content and information',
+  'أسلوب الحركة':'Motion style','ناعم':'Smooth','هادئ':'Subtle','تقليل الحركة':'Reduced motion','سرعة الحركة':'Motion speed',
+  'بطيئة':'Slow','متوازنة':'Normal','سريعة':'Fast','تتحكم هذه الاختيارات في انتقالات الصفحات والقوائم والنوافذ والتفاعلات.':'These settings control page, menu, dialog and interaction transitions.',
+  'معاينة الحركة':'Motion preview','تخصيص النسب المالية':'Finance ratio customization','شكل وألوان مؤشرات النسب':'Ratio indicator style and colors',
+  'أحجام الخطوط':'Font sizes','الحركة والانتقالات':'Motion and transitions','نطاق الخدمات المطلوبة في المشروع':'Project service scope',
+  'اختار خدمة واحدة أو اجمع أكثر من خدمة حسب الاتفاق مع العميل.':'Choose one service or combine several based on the client agreement.',
+  'نقل أو نسخ المهمة':'Move or copy task','إغلاق':'Close','تم نسخ المهمة إلى اليوم المحدد.':'Task copied to the selected day.',
+  'تم نقل المهمة إلى اليوم المحدد.':'Task moved to the selected day.','تعذر حفظ التغيير:':'Could not save the change:',
+  'تم إنشاء الحساب.':'Account created.','تم تسجيل الدخول.':'Signed in.','تم تحديث المشروع بنجاح.':'Project updated successfully.',
+  'تم إنشاء المشروع بنجاح.':'Project created successfully.','تم حفظ تعديلات محضر الاجتماع.':'Meeting minutes updated.',
+  'ظهر أكثر من مشروع في نص الاجتماع. اختر المشروع الصحيح يدويًا.':'More than one project was found in the meeting text. Select the correct project manually.',
+  'اختر مشروعًا أو اكتب اسم مشروع جديد.':'Choose a project or enter a new project name.',
+  'تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إعداد المحضر:':'Meeting and recording saved, but transcription or minutes generation failed:',
+  'أدخل ميزانية صحيحة':'Enter a valid budget','تم حفظ الميزانية.':'Budget saved.','أدخل اسم الدفعة ومبلغًا صحيحًا.':'Enter a valid installment name and amount.',
+  'تمت إضافة الدفعة.':'Installment added.','تم حفظ متابعة العميل.':'Client follow-up saved.','أدخل وصفًا ومبلغًا صحيحًا':'Enter a valid description and amount',
+  'تم تسجيل الدخل.':'Income recorded.','تم تسجيل المصروف.':'Expense recorded.','اكتب الطلب وتأكد من فتح المشروع.':'Enter the requirement and make sure the project is open.',
+  'تم تسجيل بيانات التسليم بنجاح.':'Deliverable saved successfully.','تم تسجيل الحركة المالية بنجاح.':'Financial transaction saved successfully.',
+  'تم تحديث مرحلة التنفيذ.':'Execution stage updated.','تم إنجاز المهمة بنجاح.':'Task completed successfully.',
+  'تم حفظ التسجيل وحفظ النص.':'Recording and transcript saved.','تعديل':'Edit','حذف':'Delete','حفظ':'Save','إلغاء':'Cancel'
+};
+
+let domObserver = null;
+function phraseEntries() {
+  const pairs = Object.entries(UI_PHRASES);
+  return current === 'ar' ? pairs.map(([arText, enText]) => [enText, arText]) : pairs;
+}
+function translateNode(node) {
+  if (!node) return;
+  const skip = (el) => el && /^(SCRIPT|STYLE|TEXTAREA|INPUT|CODE|PRE)$/i.test(el.tagName);
+  if (node.nodeType === 3) {
+    const parent = node.parentElement;
+    if (skip(parent) || parent?.closest('[data-user-content],.user-content,.task-title,.ttl,.tnote,.transcript-content,.meeting-user-text')) return;
+    const original = node.nodeValue;
+    const trimmed = original.trim();
+    if (!trimmed) return;
+    const leading = original.match(/^\s*/)?.[0] || '';
+    const trailing = original.match(/\s*$/)?.[0] || '';
+    let value = trimmed;
+    for (const [from, to] of phraseEntries().sort((a,b) => b[0].length-a[0].length)) {
+      if (value === from) { value = to; break; }
+    }
+    if (value !== trimmed) node.nodeValue = leading + value + trailing;
+    return;
+  }
+  if (node.nodeType !== 1 && node !== document) return;
+  const el = node.nodeType === 1 ? node : document.body;
+  if (!el || skip(el)) return;
+  for (const attr of ['placeholder','title','aria-label','alt']) {
+    const old = el.getAttribute?.(attr);
+    if (!old) continue;
+    let next = old;
+    for (const [from,to] of phraseEntries().sort((a,b)=>b[0].length-a[0].length)) if (next === from) { next = to; break; }
+    if (next !== old) el.setAttribute(attr,next);
+  }
+  for (const child of [...(el.childNodes || [])]) translateNode(child);
+}
+function installDomTranslation() {
+  if (typeof document === 'undefined') return;
+  translateNode(document.body);
+  if (domObserver || !document.body || typeof MutationObserver === 'undefined') return;
+  domObserver = new MutationObserver((records) => {
+    for (const record of records) {
+      if (record.type === 'characterData') translateNode(record.target);
+      else if (record.type === 'attributes') translateNode(record.target);
+      else for (const added of record.addedNodes) translateNode(added);
+    }
+  });
+  domObserver.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','title','aria-label','alt']});
+}
+
 const DICT = { ar, en };
 let current = 'ar';
 
@@ -300,10 +489,11 @@ export function setLang(l) {
   current = DICT[l] ? l : 'ar';
   document.documentElement.lang = current;
   document.documentElement.dir = dir();
+  installDomTranslation();
 }
 
 export function t(key, vars) {
-  let s = DICT[current][key] ?? DICT.ar[key] ?? key;
+  let s = DICT[current][key] ?? key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
   return s;
 }
