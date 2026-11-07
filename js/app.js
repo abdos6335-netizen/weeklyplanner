@@ -482,6 +482,8 @@ function renderDashboard() {
   const dashboardContracts = S.projects.reduce((n, p) => n + Math.max(0, Number(p.contractValue) || 0), 0);
   const collectionProgress = dashboardContracts ? Math.round(dashboardIncome / dashboardContracts * 100) : null;
   const profitProgress = dashboardIncome ? Math.round((dashboardIncome - dashboardExpense) / dashboardIncome * 100) : null;
+  const meetingsWithMinutes = S.meetings.filter((meeting) => String(meeting.minutes || '').trim()).length;
+  const meetingProgress = S.meetings.length ? Math.round(meetingsWithMinutes / S.meetings.length * 100) : null;
   const dashboardTaskRow = (x) => {
     const detail = x.date ? D.fmt(x.date, locale(), { day: 'numeric', month: 'short' }) : t('no_date');
     const projectName = S.projects.find((p) => p.id === x.projectId)?.name;
@@ -510,7 +512,7 @@ function renderDashboard() {
       ${dashboardMetricCard('إنجاز مهام الأسبوع', taskProgress, weekTasks.length ? completedWeekTasks + '/' + weekTasks.length + ' مهمة مكتملة' : 'لا توجد مهام لهذا الأسبوع', 'tasks', 'collection', 'dashboard')}
       ${dashboardMetricCard('إنجاز المشروعات النشطة', projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' مشروع ضمن المتوسط' : 'لا توجد نطاقات إنجاز مسجلة', 'projects', 'collection', 'dashboard')}
       ${dashboardMetricCard('نسبة التحصيل', collectionProgress, dashboardIncome ? 'من إجمالي قيمة التعاقدات' : 'لا توجد تحصيلات مسجلة', 'finance', 'collection', 'dashboard', { value: profitProgress, label: 'هامش صافي الربح', metric: 'profit' })}
-      ${dashboardMetricCard('الاجتماعات', null, S.meetings.length ? S.meetings.length + ' اجتماع مسجل' : 'لا توجد اجتماعات مسجلة', 'meetings', 'collection', 'dashboard')}
+      ${dashboardMetricCard('اكتمال محاضر الاجتماعات', meetingProgress, S.meetings.length ? meetingsWithMinutes + ' من ' + S.meetings.length + ' محضر مكتمل' : 'لا توجد اجتماعات مسجلة', 'meetings', 'collection', 'dashboard')}
     </div>
 
     <section class="card glass dashboard-personal-cashflow">
