@@ -56,16 +56,16 @@ export function mix(a, b, t) {
 
 // ------------------------------------------------------------------ الخطوط
 export const FONTS = {
-  almarai: { label: 'Almarai', family: 'Almarai', stack: '"Inter","Almarai"', gf: 'Almarai:wght@400;700;800' },
+  almarai: { label: 'Almarai', family: 'Almarai', stack: '"Almarai"', gf: 'Almarai:wght@300;400;500;600;700;800' },
   cairo: { label: 'Cairo', family: 'Cairo', stack: '"Cairo"', gf: 'Cairo:wght@400;600;700' },
   tajawal: { label: 'Tajawal', family: 'Tajawal', stack: '"Tajawal"', gf: 'Tajawal:wght@400;500;700' },
-  ibm: { label: 'IBM Plex Arabic', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600' },
-  inter: { label: 'Inter', family: 'Inter', stack: '"Inter","Almarai"', gf: 'Inter:wght@400;500;600;700' },
-  editorial: { label: 'IBM Plex Arabic + Roboto Condensed', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic","Roboto Condensed"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700;800' },
+  ibm: { label: 'IBM Plex Arabic', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@300;400;500;600;700' },
+  inter: { label: 'Inter', family: 'Inter', stack: '"Inter"', gf: 'Inter:wght@300;400;500;600;700;800' },
+  editorial: { label: 'IBM Plex Sans Arabic', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@300;400;500;600;700' },
   system: { label: 'System', family: 'system-ui', stack: 'system-ui', gf: null },
 };
 
-const loadedFonts = new Set(['almarai', 'inter', 'ibm', 'editorial']); // IBM Plex Sans Arabic وRoboto Condensed محمّلان من index.html
+const loadedFonts = new Set();
 export function ensureFont(id) {
   const f = FONTS[id];
   if (!f || !f.gf || loadedFonts.has(id)) return;
