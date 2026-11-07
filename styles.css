@@ -865,3 +865,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .project-list-row-wrap .project-list-row { border-bottom:0 !important; }
 @media (max-width:650px) { .dashboard-metrics-grid { grid-template-columns:1fr; } .dashboard-metric-card + .dashboard-metric-card { border-inline-start:0; border-top:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); padding-inline-start:.15rem; } .project-finance-summary { grid-template-columns:1fr; } }
 html, body, #app { touch-action: pan-x pan-y; }
+
+/* Finance progress is presented as quiet inline percentages, not rings or cards. */
+.finance-project-ratios,.finance-overview-ratios { display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; align-items:baseline; padding:.65rem .1rem; border-block:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
+.finance-project-ratios span,.finance-overview-ratios span { color:var(--text-2); font-size:.78rem; }
+.finance-project-ratios b,.finance-overview-ratios strong { color:var(--text); font-size:.92rem; font-weight:500; margin-inline-start:.3rem; font-variant-numeric:tabular-nums; }
+.finance-project-card,.finance-overview { background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent) !important; border-radius:0 !important; box-shadow:none !important; }
+.finance-project-summary { background:transparent; border:0; border-radius:0; box-shadow:none; font-weight:500; }
+.finance-project-details { border:0; box-shadow:none; background:transparent; }
+.finance-overview-details { border:0; box-shadow:none; background:transparent; }
+.finance-project-head { border:0; background:transparent; }
+.finance-project-compact-values > span { border:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); border-radius:0; background:transparent; }
+.finance-switch { border:0; border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); border-radius:0; background:transparent; }

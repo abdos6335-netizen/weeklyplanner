@@ -709,7 +709,7 @@ function renderProjectFinanceMetrics(project, entries = S.financeEntries, compac
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
   const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
-  const ratioSettings = `<div class="finance-project-ratios">${financeRing(metrics.collectionPct, 'التحصيل', 'small', 'collection', targets.collection, 'finance')}${financeRing(metrics.profitPct, 'صافي الربح', 'small', 'profit', targets.profit, 'finance')}</div>`;
+  const ratioSettings = `<div class="finance-project-ratios"><span>التحصيل <b>${metrics.collectionPct === null ? '—' : Math.round(metrics.collectionPct) + '%'}</b></span><span>صافي الربح <b>${metrics.profitPct === null ? '—' : Math.round(metrics.profitPct) + '%'}</b></span></div>`;
   const scope = project.workScope?.length ? projectScopeLabel(project.workScope) : '';
   const meta = [projectTypeLabel(project.type), scope, projectStatusLabel(project.status)].filter(Boolean).join(' · ');
   const expanded = S.expandedFinanceProjectId === project.id;
@@ -1212,14 +1212,13 @@ function renderFinance() {
   const totalNet = totalIncome - totalExpense;
   const collectionPct = contracts > 0 ? totalIncome / contracts * 100 : null;
   const profitPct = totalIncome > 0 ? totalNet / totalIncome * 100 : null;
-  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
   const summaryExpanded = S.expandedFinanceSummary;
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const projectCards = S.projects.filter(p=>!p.archivedAt).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
   return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
   <section class="card glass finance-overview ${summaryExpanded?'is-expanded':''}"><button class="finance-project-summary" data-action="toggle-finance-summary" aria-expanded="${summaryExpanded}"><strong>ملخص ماليات كل المشروعات</strong><span>${summaryExpanded?'−':'+'}</span></button><div class="finance-overview-details">
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
-    <div class="finance-rings finance-overview-rings">${financeRing(collectionPct,'نسبة التحصيل الإجمالية','large','collection',targets.collection,'finance')}${financeRing(profitPct,'هامش صافي الربح الإجمالي','small','profit',targets.profit,'finance')}</div>
+    <div class="finance-overview-ratios"><div><span>نسبة التحصيل الإجمالية</span><strong>${collectionPct === null ? '—' : Math.round(collectionPct) + '%'}</strong></div><div><span>هامش صافي الربح الإجمالي</span><strong>${profitPct === null ? '—' : Math.round(profitPct) + '%'}</strong></div></div>
   </div></section>
   <section class="finance-project-list"><div class="dhead"><div><h2>مؤشرات كل مشروع</h2><p class="muted small">كل مشروع له نسبة تحصيل وهامش ربح مستقلان.</p></div><span class="chip">${projectCards.length} مشروع</span></div>
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
