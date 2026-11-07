@@ -16,7 +16,7 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString
 const RATIO_CONTEXTS = ['dashboard', 'projects', 'finance'];
 const RATIO_STYLES = ['ring', 'bar', 'pill', 'gauge', 'blocks', 'badge'];
 const DEFAULT_RATIO_LOOK = { style: 'ring', collectionColor: '#a7e8bd', profitColor: '#24965b' };
-const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
+const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, typography: { heading: 112, subheading: 100, item: 92 }, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
 
 const S = {
   store: null,
@@ -69,6 +69,8 @@ function mergeSettings(saved) {
   s.theme = mergeTheme(saved && saved.theme);
   const oldDefaultTheme = saved?.theme?.preset === 'quiet' && saved.theme.accent === '#1a73e8' && !saved.theme.bg?.light && !saved.theme.bg?.dark;
   if (oldDefaultTheme) s.theme = mergeTheme({ ...saved.theme, preset: 'monochrome', accent: DEFAULT_THEME.accent, bg: DEFAULT_THEME.bg, sat: 0 });
+  s.typography = { ...DEFAULT_SETTINGS.typography, ...(saved?.typography || {}) };
+  for (const key of ['heading','subheading','item']) { const n = Number(s.typography[key]); s.typography[key] = Number.isFinite(n) ? Math.min(130, Math.max(80, Math.round(n))) : DEFAULT_SETTINGS.typography[key]; }
   s.motion = { ...DEFAULT_SETTINGS.motion, ...(saved?.motion || {}) };
   s.financeTargets = { ...DEFAULT_SETTINGS.financeTargets, ...(saved?.financeTargets || {}) };
   for (const key of ['collection', 'profit']) {
@@ -187,6 +189,7 @@ function applySettings(rerender) {
   document.documentElement.dataset.density = 'compact';
   S.settings.theme = applyTheme(S.settings.theme);
   applyMotionSettings();
+  applyTypographySettings();
   document.title = t('app');
   cacheSettings();
   if (rerender && S.user) render();
@@ -198,6 +201,14 @@ function applyMotionSettings() {
   root.dataset.motion = motion.style;
   root.dataset.motionSpeed = motion.speed;
   root.style.setProperty('--motion-duration', motion.speed === 'slow' ? '420ms' : motion.speed === 'fast' ? '160ms' : '260ms');
+}
+
+function applyTypographySettings() {
+  const typography = S.settings.typography || DEFAULT_SETTINGS.typography;
+  const root = document.documentElement;
+  root.style.setProperty('--type-heading-scale', String(typography.heading / 100));
+  root.style.setProperty('--type-subheading-scale', String(typography.subheading / 100));
+  root.style.setProperty('--type-item-scale', String(typography.item / 100));
 }
 
 function cacheSettings() {
