@@ -607,6 +607,40 @@ function renderProjectDeliverablesPanel(project, deliverables) {
     (rows.length ? '<div class="project-deliverables-list">' + rows.map(d => '<article class="project-deliverable-row"><div><strong>' + esc(d.name) + '</strong><small>' + esc(d.kind || '') + (d.notes ? ' · ' + esc(d.notes) : '') + '</small></div><span>' + esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage] || d.stage || '—') + '</span><span>' + esc(d.dueDate || '—') + '</span><select class="input compact" data-change="deliverable-status" data-id="' + esc(d.id) + '"><option value="pending" ' + (d.status === 'pending' ? 'selected' : '') + '>' + t('approval_pending') + '</option><option value="submitted" ' + (d.status === 'submitted' ? 'selected' : '') + '>' + t('approval_submitted') + '</option><option value="approved" ' + (d.status === 'approved' ? 'selected' : '') + '>' + t('approval_approved') + '</option><option value="revision" ' + (d.status === 'revision' ? 'selected' : '') + '>' + t('approval_revision') + '</option></select><button class="text-action danger" data-action="delete-deliverable" data-id="' + esc(d.id) + '" type="button">حذف</button></article>').join('') + '</div>' : '<p class="muted small">لا توجد تسليمات مسجلة لهذا المشروع.</p>');
 }
 
+function renderProjectPhaseRows(project, deliverables) {
+  const progress = projectProgressData(project, deliverables);
+  if (!progress.phases.length) return '<p class="muted small">لا توجد مراحل فنية محددة لهذا المشروع. حدّد نطاق العمل من تعديل المشروع.</p>';
+  return '<div class="project-phase-list">' + progress.phases.map(phase => {
+    const rows = deliverables.filter(d => phase.key === 'design' ? ['concept','design'].includes(d.stage) && d.kind !== '3d' : phase.key === '3d' ? ['concept','design'].includes(d.stage) && d.kind === '3d' : phase.key === 'technical_drawings' ? d.stage === 'technical' : phase.key === 'execution' ? d.stage === 'execution' : false);
+    return '<details class="project-phase-row"><summary><span>' + esc(phase.label) + '</span><span class="project-phase-percent">' + (phase.total ? phase.percent + '%' : '—') + '</span></summary><div class="project-phase-detail"><span class="muted small">' + phase.done + ' من ' + phase.total + ' بند تم تسليمه</span>' + (rows.length ? '<ul>' + rows.map(d => '<li>' + esc(d.name) + ' <small>' + esc(({pending:'قيد العمل',submitted:'تم الإرسال',approved:'معتمد',revision:'مطلوب تعديل'})[d.status] || d.status || '—') + '</small></li>').join('') + '</ul>' : '<p class="muted small">لم تُضف بنود لهذه المرحلة بعد.</p>') + '</div></details>';
+  }).join('') + '</div>';
+}
+
+function renderProjectFinanceSummary(project, entries) {
+  const m = projectFinanceTotals(project, entries);
+  const pct = v => v === null ? '—' : Math.round(v) + '%';
+  return '<div class="project-finance-summary">' +
+    '<div><span>نسبة التحصيل</span><strong>' + pct(m.collectionPct) + '</strong></div>' +
+    '<div><span>هامش صافي الربح</span><strong>' + pct(m.profitPct) + '</strong></div>' +
+    '<div><span>قيمة التعاقد</span><strong>' + money(m.contract) + ' ج.م</strong></div>' +
+    '<div><span>إجمالي التحصيل</span><strong>' + money(m.income) + ' ج.م</strong></div>' +
+    '<div><span>إجمالي المصروف</span><strong>' + money(m.expense) + ' ج.م</strong></div>' +
+    '<div><span>صافي الربح</span><strong>' + money(m.net) + ' ج.م</strong></div></div>';
+}
+
+function renderProjectInstallments(project) {
+  const rows=Array.isArray(project.installments)?project.installments:[];
+  const planned=rows.reduce((sum,x)=>sum+Math.max(0,Number(x.amount)||0),0);
+  return `<details class="card glass project-followup-panel project-extra-panel"><summary class="project-panel-summary"><span><b>دفعات الاتفاق</b><small>${rows.length?`${rows.filter(x=>x.status==='paid').length} من ${rows.length} تم تحصيلها`:'أضف دفعات الاتفاق ومواعيدها'}</small></span><span class="chip">${money(planned)} ج.م</span></summary><div class="project-panel-body"><p class="muted small">تعليم الدفعة كمحصلة يضيفها تلقائيًا لسجل ماليات المشروع.</p>
+    <form data-action="add-installment" data-id="${esc(project.id)}" class="entry-form"><div class="form-grid"><div><label class="lab" for="installment-title">اسم الدفعة</label><input class="input" id="installment-title" maxlength="80" placeholder="مثال: مقدم التعاقد" required></div><div><label class="lab" for="installment-amount">المبلغ (جنيه)</label><input class="input" id="installment-amount" type="number" min="0.01" step="0.01" required></div><div><label class="lab" for="installment-date">موعدها</label><input class="input" id="installment-date" type="date"></div></div><button class="btn primary" type="submit">إضافة دفعة</button></form>
+    ${rows.length?`<div class="installment-list">${rows.slice().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')).map(x=>`<article class="installment-row ${x.status==='paid'?'is-paid':''}"><span class="installment-main"><b>${esc(x.title||'دفعة')}</b><small>${x.dueDate?`موعدها ${esc(x.dueDate)}`:'من دون موعد'}${x.status!=='paid'&&x.dueDate&&x.dueDate<D.todayISO()?' · متأخرة':''}</small></span><strong>${money(x.amount)} ج.م</strong><span class="chip">${x.status==='paid'?'تم التحصيل':'مستحقة'}</span><span class="installment-actions">${x.status==='paid'?`<button class="btn sm" data-action="toggle-installment-paid" data-id="${esc(project.id)}" data-installment-id="${esc(x.id)}">تراجع</button>`:`<button class="btn sm" data-action="toggle-installment-paid" data-id="${esc(project.id)}" data-installment-id="${esc(x.id)}">تم التحصيل</button>`}<button class="btn sm danger" data-action="delete-installment" data-id="${esc(project.id)}" data-installment-id="${esc(x.id)}" aria-label="حذف الدفعة">×</button></span></article>`).join('')}</div>`:'<p class="muted small">أضف مواعيد الدفعات المتفق عليها لو محتاج تتابعها.</p>'}</div></details>`;
+}
+
+function renderProjectFollowUp(project) {
+  const date=project.followUpDate||'';
+  return `<details class="card glass project-followup-panel project-extra-panel"><summary class="project-panel-summary"><span><b>متابعة العميل</b><small>${date?`${esc(date)}${project.followUpNote?' · '+esc(project.followUpNote):''}`:'أضف موعدًا لتظهر المتابعة في الرئيسية'}</small></span>${date?`<span class="chip ${date<D.todayISO()?'late':''}">${date<D.todayISO()?'متأخرة':'مجدولة'}</span>`:''}</summary><div class="project-panel-body"><p class="muted small">الموعد والملاحظة يظهران في الرئيسية عند اقتراب الموعد.</p><form data-action="save-project-followup" data-id="${esc(project.id)}" class="entry-form"><div class="form-grid"><div><label class="lab" for="follow-up-date">موعد المتابعة</label><input class="input" id="follow-up-date" type="date" value="${esc(date)}" required></div><div><label class="lab" for="follow-up-note">ملاحظة قصيرة</label><input class="input" id="follow-up-note" maxlength="160" value="${esc(project.followUpNote||'')}" placeholder="مستني رد على التصميم"></div></div><div class="btnrow"><button class="btn primary" type="submit">حفظ الموعد</button>${date?`<button class="btn" type="button" data-action="clear-project-followup" data-id="${esc(project.id)}">مسح المتابعة</button>`:''}</div></form></div></details>`;
+}
+
 function renderProjectFinancePanel(project, entries) {
   const rows = entries.slice().sort((a,b)=>(b.date || '').localeCompare(a.date || ''));
   return renderProjectFinanceSummary(project, entries) + renderProjectInstallments(project) +
