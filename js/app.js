@@ -8,7 +8,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.28';
+const VERSION = '3.1.29';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -165,7 +165,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('projects', (docs) => { S.projects = docs; if (S.section === 'projects' || S.section === 'finance' || S.section === 'dashboard') render(); }));
   S.unsubs.push(S.store.watch('deliverables', (docs) => { S.deliverables = docs; if (S.section === 'projects' || S.section === 'dashboard') render(); }));
   S.unsubs.push(S.store.watch('financeEntries', (docs) => { S.financeEntries = docs; if (S.section === 'finance' || S.section === 'projects' || S.section === 'dashboard') render(); }));
-  S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance') render(); }));
+  S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance' || S.section === 'dashboard') render(); }));
   S.unsubs.push(S.store.watch('personalBudgets', (docs) => { S.personalBudgets = docs; if (S.section === 'finance') render(); }));
   S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
@@ -431,6 +431,11 @@ function renderTasks() {
 
 function renderDashboard() {
   const today = D.todayISO();
+  const currentMonth = today.slice(0,7);
+  const personalMonthEntries = S.personalExpenses.filter((x) => (x.date || '').slice(0,7) === currentMonth);
+  const personalIncome = personalMonthEntries.filter((x) => x.kind === 'income').reduce((n,x) => n + Math.max(0,Number(x.amount)||0),0);
+  const personalExpense = personalMonthEntries.filter((x) => x.kind !== 'income').reduce((n,x) => n + Math.max(0,Number(x.amount)||0),0);
+  const personalNet = personalIncome - personalExpense;
   const activeProjects = S.projects.filter((p) => p.status === 'active')
     .sort((a,b) => String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
   const openTasks = S.tasks.filter((x) => x.status !== 'done');
@@ -455,10 +460,11 @@ function renderDashboard() {
   const profitProgress = dashboardIncome ? Math.round((dashboardIncome - dashboardExpense) / dashboardIncome * 100) : null;
   const dashboardTaskRow = (x) => {
     const detail = x.date ? D.fmt(x.date, locale(), { day: 'numeric', month: 'short' }) : t('no_date');
+    const projectName = S.projects.find((p) => p.id === x.projectId)?.name;
     return `
       <div class="dashboard-row dashboard-task-row">
         <span class="dashboard-dot ${x.date && x.date < today ? 'late' : x.priority === 3 ? 'high' : ''}"></span>
-        <div><b>${esc(x.title)}</b><small>${esc(detail)} · ${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}</small></div>
+        <div><b>${esc(x.title)}</b><small>${esc(detail)} · ${x.priority===3?t('p_high'):x.status==='doing'?t('in_progress'):t('s_todo')}${projectName?` · ${esc(projectName)}`:''}</small></div>
         <button class="btn sm dashboard-done" data-action="dashboard-task-done" data-id="${esc(x.id)}" aria-label="${lang()==='ar'?'تم إنجاز المهمة':'Mark task done'}">Done</button>
       </div>`;
   };
@@ -479,6 +485,11 @@ function renderDashboard() {
       ${dashboardMetricCard('متوسط إنجاز المشروعات النشطة', projectProgress, activeProjectProgress.length ? activeProjectProgress.length + ' مشروع ضمن المتوسط' : 'لا توجد نطاقات إنجاز مسجلة', 'projects')}
       ${dashboardMetricCard('نسبة التحصيل', collectionProgress, dashboardIncome ? 'من إجمالي قيمة التعاقدات' : 'لا توجد تحصيلات مسجلة', 'finance', { value: profitProgress, label: 'هامش صافي الربح', metric: 'profit', detail: dashboardIncome ? 'بعد خصم المصروفات' : 'لا توجد بيانات' })}
     </div>
+
+    <section class="card glass dashboard-personal-cashflow">
+      <div class="dhead"><div><h2>حركتك الشخصية هذا الشهر</h2><p class="muted small">دخل ومصروفاتك الشخصية · ${esc(currentMonth)}</p></div><button class="btn sm" data-action="nav" data-section="finance">إدارة الماليات</button></div>
+      <div class="dashboard-cashflow-values"><div><small>الدخل الشخصي</small><strong class="positive">${money(personalIncome)} ج.م</strong></div><div><small>المصروف الشخصي</small><strong class="negative">${money(personalExpense)} ج.م</strong></div><div><small>الصافي</small><strong class="${personalNet<0?'negative':'positive'}">${personalNet<0?'−':''}${money(Math.abs(personalNet))} ج.م</strong></div></div>
+    </section>
 
     <div class="dashboard-my-tasks-heading"><div><h2>${t('dashboard_my_tasks')}</h2><p class="muted small">${t('dashboard_tasks_hint')}</p></div><button class="btn sm" data-action="nav" data-section="tasks">${t('all_tasks')}</button></div>
     <div class="dashboard-task-groups">
@@ -1152,21 +1163,25 @@ function renderFinance() {
 async function editPersonalExpense(id) {
   const x=S.personalExpenses.find(v=>v.id===id); if(!x)return;
   const amount=prompt('المبلغ الجديد:',String(x.amount)); if(amount===null)return;
-  const description=prompt('وصف المصروف:',x.description||''); if(description===null)return;
+  const description=prompt(x.kind==='income'?'وصف الدخل:':'وصف المصروف:',x.description||''); if(description===null)return;
   const value=Number(amount); if(!Number.isFinite(value)||value<=0||!description.trim()){toast('بيانات غير صحيحة.');return;}
-  try { await S.store.save('personalExpenses',{...x,amount:value,description:description.trim(),updatedAt:Date.now()}); toast('تم تحديث المصروف.'); }
+  try { await S.store.save('personalExpenses',{...x,amount:value,description:description.trim(),updatedAt:Date.now()}); toast(x.kind==='income'?'تم تحديث الدخل.':'تم تحديث المصروف.'); }
   catch(err){toast(t('save_failed',{msg:err.message||err}));}
 }
 function renderPersonalExpenses() {
   const month = S.expenseMonth || D.todayISO().slice(0,7);
   const budget = Number(S.personalBudgets.find(x=>x.id===month)?.amount || 0);
   const rows = S.personalExpenses.filter(x=>(x.date||'').slice(0,7)===month).sort((a,b)=>(b.date||'').localeCompare(a.date||'') || (b.createdAt||0)-(a.createdAt||0));
-  const spent = rows.reduce((n,x)=>n+Number(x.amount||0),0);
+  const incomeRows=rows.filter(x=>x.kind==='income');
+  const expenseRows=rows.filter(x=>x.kind!=='income');
+  const personalIncome=incomeRows.reduce((n,x)=>n+Number(x.amount||0),0);
+  const spent = expenseRows.reduce((n,x)=>n+Number(x.amount||0),0);
+  const net=personalIncome-spent;
   const remaining = budget-spent;
-  const categoryTotals = rows.reduce((acc,x)=>{const key=(x.category||'أخرى').trim()||'أخرى';acc[key]=(acc[key]||0)+Number(x.amount||0);return acc;},{});
+  const categoryTotals = expenseRows.reduce((acc,x)=>{const key=(x.category||'أخرى').trim()||'أخرى';acc[key]=(acc[key]||0)+Number(x.amount||0);return acc;},{});
   const categoryRows = Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]);
   const personalCategories = ['سكن وفواتير','مواصلات','طعام ومشروبات','مشتريات البيت','صحة','تعليم','ترفيه','ملابس','التزامات وديون','أخرى'];
-  return `<div class="finance-switch"><button class="btn" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn primary" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
+  return `<div class="finance-switch"><button class="btn" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn primary" data-action="finance-view" data-val="personal">الماليات الشخصية</button></div>
   <section class="card glass">
     <div class="dhead"><h2>ميزانية الشهر</h2><input class="input compact" id="expense-month" type="month" value="${esc(month)}" aria-label="الشهر"></div>
     <form data-action="save-personal-budget" class="entry-form">
@@ -1175,26 +1190,28 @@ function renderPersonalExpenses() {
     </form>
     <div class="stats-grid personal-stats">
       <div class="card glass stat"><span>الميزانية</span><strong>${money(budget)} ج.م</strong></div>
+      <div class="card glass stat"><span>الدخل الشخصي</span><strong class="positive">${money(personalIncome)} ج.م</strong></div>
       <div class="card glass stat"><span>المصروف</span><strong>${money(spent)} ج.م</strong></div>
       <div class="card glass stat"><span>المتبقي</span><strong class="${remaining<0?'negative':'positive'}">${money(remaining)} ج.م</strong></div>
-      <div class="card glass stat"><span>المستهلك</span><strong>${budget>0?Math.round(spent/budget*100):0}%</strong></div>
+      <div class="card glass stat"><span>الصافي</span><strong class="${net<0?'negative':'positive'}">${net<0?'−':''}${money(Math.abs(net))} ج.م</strong></div>
+      <div class="card glass stat"><span>المستهلك من الميزانية</span><strong>${budget>0?Math.round(spent/budget*100):0}%</strong></div>
     </div>
     ${budget>0&&spent>budget?'<p class="expense-warning">تنبيه: المصروف تجاوز الميزانية الشهرية، ويمكنك الاستمرار في التسجيل.</p>':''}
   </section>
-  <section class="card glass"><h2>تسجيل مصروف</h2>
+  <section class="card glass"><h2>إضافة حركة شخصية</h2>
     <form data-action="add-personal-expense" class="entry-form">
-      <div class="form-grid"><div><label class="lab" for="pe-amount">المبلغ (جنيه)</label><input class="input" id="pe-amount" type="number" min="0.01" step="0.01" required></div>
+      <div class="form-grid"><div><label class="lab" for="pe-kind">نوع الحركة</label><select class="input" id="pe-kind"><option value="expense">مصروف</option><option value="income">دخل</option></select></div><div><label class="lab" for="pe-amount">المبلغ (جنيه)</label><input class="input" id="pe-amount" type="number" min="0.01" step="0.01" required></div>
       <div><label class="lab" for="pe-date">التاريخ</label><input class="input" id="pe-date" type="date" value="${D.todayISO()}" required></div></div>
-      <label class="lab" for="pe-category">تصنيف المصروف</label><select class="input" id="pe-category" required>${personalCategories.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>
-      <label class="lab" for="pe-description">وصف المصروف</label><input class="input" id="pe-description" maxlength="180" placeholder="مثال: مواصلات، مشتريات البيت" required>
-      <button class="btn primary" type="submit">إضافة المصروف</button>
+      <label class="lab" for="pe-category">التصنيف</label><select class="input" id="pe-category" required>${personalCategories.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>
+      <label class="lab" for="pe-description">الوصف</label><input class="input" id="pe-description" maxlength="180" placeholder="مثال: أتعاب مشروع، مواصلات، مشتريات البيت" required>
+      <button class="btn primary" type="submit">إضافة الحركة</button>
     </form>
   </section>
   <section class="card glass"><h2>تحليل المصروفات حسب التصنيف</h2>
     ${categoryRows.length?`<div class="category-breakdown">${categoryRows.map(([name,total])=>`<div class="category-row"><div class="category-row-head"><strong>${esc(name)}</strong><span>${money(total)} ج.م · ${spent>0?Math.round(total/spent*100):0}%</span></div><div class="category-track"><span style="width:${spent>0?Math.min(100,total/spent*100):0}%"></span></div></div>`).join('')}</div>`:'<p class="muted">سجّل مصروفات لتظهر تفاصيل التصنيفات هنا.</p>'}
   </section>
-  <section class="card glass"><h2>سجل المصروفات · ${esc(month)}</h2>
-    ${rows.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>التاريخ</th><th>الوصف</th><th>المبلغ</th><th>إجراءات</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.description||'—')}</td><td class="negative">${money(x.amount)} ج.م</td><td><button class="btn sm" data-action="edit-personal-expense" data-id="${esc(x.id)}">تعديل</button> <button class="btn sm danger" data-action="delete-personal-expense" data-id="${esc(x.id)}">حذف</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">لا توجد مصروفات مسجلة في هذا الشهر.</p>'}
+  <section class="card glass"><h2>سجل الحركات الشخصية · ${esc(month)}</h2>
+    ${rows.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>المبلغ</th><th>إجراءات</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.date)}</td><td>${x.kind==='income'?'دخل':'مصروف'}</td><td>${esc(x.description||'—')}<small>${esc(x.category||'—')}</small></td><td class="${x.kind==='income'?'positive':'negative'}">${x.kind==='income'?'+':'−'}${money(x.amount)} ج.م</td><td><button class="btn sm" data-action="edit-personal-expense" data-id="${esc(x.id)}">تعديل</button> <button class="btn sm danger" data-action="delete-personal-expense" data-id="${esc(x.id)}">حذف</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">لا توجد حركات شخصية مسجلة في هذا الشهر.</p>'}
   </section>`;
 }
 
@@ -1710,7 +1727,7 @@ async function onClick(e) {
     case 'close-voice': $('#layer').innerHTML=''; break;
     case 'finance-view': S.financeView=v; render(); break;
     case 'edit-personal-expense': editPersonalExpense(el.dataset.id); break;
-    case 'delete-personal-expense': if(confirm('حذف المصروف؟')) { await S.store.remove('personalExpenses',el.dataset.id); toast('تم حذف المصروف.'); } break;
+    case 'delete-personal-expense': if(confirm('حذف الحركة الشخصية؟')) { await S.store.remove('personalExpenses',el.dataset.id); toast('تم حذف الحركة.'); } break;
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
@@ -1881,7 +1898,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       if(autoProcess){try{await transcribeMeetingAudio(savedMeeting.id);await generateMeetingMinutes(savedMeeting.id);}catch(processError){toast('تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إعداد المحضر: '+(processError.message||processError));}}
     }
     else if (a === 'save-personal-budget') { const amount=Number($('#personal-budget').value); if(amount<0||!Number.isFinite(amount)) throw new Error('أدخل ميزانية صحيحة'); const month=S.expenseMonth; await S.store.save('personalBudgets',{id:month,amount,updatedAt:Date.now()}); toast('تم حفظ الميزانية.'); }
-    else if (a === 'add-personal-expense') { const x={id:uid(),amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast('تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
+    else if (a === 'add-personal-expense') { const kind=$('#pe-kind').value==='income'?'income':'expense'; const x={id:uid(),kind,amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast(kind==='income'?'تم تسجيل الدخل.':'تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
     else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); toast('تمت إضافة Requirement للمشروع.'); }
     else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast('تم تسجيل بيانات التسليم بنجاح.'); }
@@ -1916,6 +1933,11 @@ function onInput(e) {
 
 function onChange(e) {
   const el = e.target;
+  if (el.id === 'pe-kind') {
+    const category=$('#pe-category');
+    if(category){const options=el.value==='income'?['دخل من عميل','راتب أو دخل عمل','دخل آخر']:['سكن وفواتير','مواصلات','طعام ومشروبات','مشتريات البيت','صحة','تعليم','ترفيه','ملابس','التزامات وديون','أخرى'];category.innerHTML=options.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');}
+    return;
+  }
   if (el.id === 'voice-target') { const box=$('#voice-finance-fields'); if(box) box.hidden=el.value!=='finance'; return; }
   if(el.id==='expense-month' && /^\d{4}-\d{2}$/.test(el.value)){S.expenseMonth=el.value;render();return;}
   const changed = el.closest('[data-change]');
@@ -1953,3 +1975,4 @@ function onKey(e) {
 }
 
 boot();
+
