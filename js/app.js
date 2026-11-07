@@ -47,6 +47,8 @@ const S = {
   expandedTaskId: null,
   expandedFinanceProjectId: null,
   expandedFinanceSummary: false,
+  expandedPersonalBudget: false,
+  expandedPersonalEntry: false,
   settings: mergeSettings(null),
   section: 'dashboard',
   prevSection: 'dashboard',
@@ -144,10 +146,7 @@ async function boot() {
 
 function registerSW() {
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    const hadController = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (hadController) location.reload();
-    }, { once: true });
+    // لا نعيد تحميل التطبيق تلقائيًا عند تحديث Service Worker حتى لا نفقد الصفحة المفتوحة أو حالة المستخدم.
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
       .then((registration) => registration.update())
       .catch(() => {});
@@ -559,23 +558,19 @@ function projectProgressData(project, deliverables = S.deliverables) {
   const completed = (d) => ['submitted', 'approved'].includes(d.status);
   if (hasDesign) {
     const items = rows.filter((d) => designStages.includes(d.stage) && (has3d ? d.kind !== '3d' : true));
-    const done = items.filter(completed).length;
-    phases.push({ key: 'design', label: 'التصميم', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+    if (items.length) { const done = items.filter(completed).length; phases.push({ key: 'design', label: 'التصميم', done, total: items.length, percent: Math.round(done / items.length * 100) }); }
   }
   if (has3d) {
     const items = rows.filter((d) => designStages.includes(d.stage) && d.kind === '3d');
-    const done = items.filter(completed).length;
-    phases.push({ key: '3d', label: '3D', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+    if (items.length) { const done = items.filter(completed).length; phases.push({ key: '3d', label: '3D', done, total: items.length, percent: Math.round(done / items.length * 100) }); }
   }
   if (explicitScopes ? selectedScopes.includes('technical_drawings') : rows.some((d) => d.stage === 'technical')) {
     const items = rows.filter((d) => d.stage === 'technical');
-    const done = items.filter(completed).length;
-    phases.push({ key: 'technical_drawings', label: 'اللوحات الفنية', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+    if (items.length) { const done = items.filter(completed).length; phases.push({ key: 'technical_drawings', label: 'اللوحات الفنية', done, total: items.length, percent: Math.round(done / items.length * 100) }); }
   }
   if (explicitScopes ? selectedScopes.includes('execution') : rows.some((d) => d.stage === 'execution')) {
     const items = rows.filter((d) => d.stage === 'execution');
-    const done = items.filter(completed).length;
-    phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
+    if (items.length) { const done = items.filter((d) => d.executionStatus === 'completed' || completed(d)).length; phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: Math.round(done / items.length * 100) }); }
   }
   const done = phases.reduce((sum, phase) => sum + phase.done, 0);
   const total = phases.reduce((sum, phase) => sum + phase.total, 0);
@@ -628,7 +623,11 @@ function renderProjectPhaseRows(project, deliverables) {
   if (!progress.phases.length) return '<p class="muted small">لا توجد مراحل فنية محددة لهذا المشروع. حدّد نطاق العمل من تعديل المشروع.</p>';
   return '<div class="project-phase-list">' + progress.phases.map(phase => {
     const rows = deliverables.filter(d => phase.key === 'design' ? ['concept','design'].includes(d.stage) && d.kind !== '3d' : phase.key === '3d' ? ['concept','design'].includes(d.stage) && d.kind === '3d' : phase.key === 'technical_drawings' ? d.stage === 'technical' : phase.key === 'execution' ? d.stage === 'execution' : false);
-    return '<details class="project-phase-row"><summary><span>' + esc(phase.label) + '</span><span class="project-phase-percent">' + (phase.total ? phase.percent + '%' : '—') + '</span></summary><div class="project-phase-detail"><span class="muted small">' + phase.done + ' من ' + phase.total + ' بند تم تسليمه</span>' + (rows.length ? '<ul>' + rows.map(d => '<li>' + esc(d.name) + ' <small>' + esc(({pending:'قيد العمل',submitted:'تم الإرسال',approved:'معتمد',revision:'مطلوب تعديل'})[d.status] || d.status || '—') + '</small></li>').join('') + '</ul>' : '<p class="muted small">لم تُضف بنود لهذه المرحلة بعد.</p>') + '</div></details>';
+    const executionLabels = { not_started:'لم يبدأ', materials_preparation:'تجهيز الخامات', materials_transferred:'تم نقل الخامات', factory:'في المصنع', manufacturing:'جاري التصنيع', ready_delivery:'جاهز للتوريد', delivered_site:'تم التوريد للموقع', installation:'جاري التركيب', completed:'تم التنفيذ' };
+    const itemRows = rows.map(d => phase.key === 'execution'
+      ? '<li class="execution-item"><span>' + esc(d.name) + '</span><select class="input compact" data-change="execution-status" data-id="' + esc(d.id) + '">' + Object.entries(executionLabels).map(([value,label]) => '<option value="' + value + '" ' + ((d.executionStatus || 'not_started') === value ? 'selected' : '') + '>' + label + '</option>').join('') + '</select></li>'
+      : '<li>' + esc(d.name) + ' <small>' + esc(({pending:'قيد العمل',submitted:'تم الإرسال',approved:'معتمد',revision:'مطلوب تعديل'})[d.status] || d.status || '—') + '</small></li>').join('');
+    return '<details class="project-phase-row"><summary><span>' + esc(phase.label) + '</span><span class="project-phase-percent">' + phase.percent + '%</span></summary><div class="project-phase-detail"><span class="muted small">' + phase.done + ' من ' + phase.total + ' بند مكتمل</span><ul>' + itemRows + '</ul></div></details>';
   }).join('') + '</div>';
 }
 
@@ -762,7 +761,7 @@ function ratioTitlePair(metrics, context = 'finance') {
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
   const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
-  const ratioSettings = `<div class="finance-project-ratios"><span>التحصيل <b>${metrics.collectionPct === null ? '—' : Math.round(metrics.collectionPct) + '%'}</b></span><span>صافي الربح <b>${metrics.profitPct === null ? '—' : Math.round(metrics.profitPct) + '%'}</b></span></div>`;
+  const ratioSettings = `<div class="finance-project-ratios"><span>التحصيل <b>${metrics.collectionPct === null ? '—' : Math.round(metrics.collectionPct) + '%'}</b></span></div>`;
   const scope = project.workScope?.length ? projectScopeLabel(project.workScope) : '';
   const meta = [projectTypeLabel(project.type), scope, projectStatusLabel(project.status)].filter(Boolean).join(' · ');
   const expanded = S.expandedFinanceProjectId === project.id;
@@ -1230,15 +1229,15 @@ function renderFinance() {
   const summaryExpanded = S.expandedFinanceSummary;
   const entries=[...S.financeEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const projectCards = S.projects.filter(p=>!p.archivedAt).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
-  return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'primary':''}" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'primary':''}" data-action="finance-view" data-val="personal">المصروف الشخصي</button></div>
+  return `<div class="finance-switch"><button class="btn ${S.financeView==='projects'?'is-active':''}" data-action="finance-view" data-val="projects" aria-pressed="${S.financeView==='projects'}">ماليات المشروعات</button><button class="btn ${S.financeView==='personal'?'is-active':''}" data-action="finance-view" data-val="personal" aria-pressed="${S.financeView==='personal'}">المصروف الشخصي</button></div>
   <section class="card glass finance-overview ${summaryExpanded?'is-expanded':''}"><button class="finance-project-summary" data-action="toggle-finance-summary" aria-expanded="${summaryExpanded}"><strong>ملخص ماليات كل المشروعات</strong><span>${summaryExpanded?'−':'+'}</span></button><div class="finance-overview-details">
     <div class="stats-grid"><div class="card glass stat"><span>${t('contracts_total')}</span><strong>${money(contracts)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('collected')}</span><strong>${money(totalIncome)} ${t('currency')}</strong></div><div class="card glass stat"><span>${t('expenses')}</span><strong>${money(totalExpense)} ${t('currency')}</strong></div><div class="card glass stat"><span>صافي الربح</span><strong class="${totalNet<0?'negative':'positive'}">${totalNet<0?'−':''}${money(Math.abs(totalNet))} ${t('currency')}</strong></div></div>
     <div class="finance-overview-ratios"><div><span>نسبة التحصيل الإجمالية</span><strong>${collectionPct === null ? '—' : Math.round(collectionPct) + '%'}</strong></div><div><span>هامش صافي الربح الإجمالي</span><strong>${profitPct === null ? '—' : Math.round(profitPct) + '%'}</strong></div></div>
   </div></section>
-  <section class="finance-project-list"><div class="dhead"><div><h2>مؤشرات كل مشروع</h2><p class="muted small">كل مشروع له نسبة تحصيل وهامش ربح مستقلان.</p></div><span class="chip">${projectCards.length} مشروع</span></div>
+  <section class="finance-project-list">
     ${projectCards.length ? projectCards.map(renderFinanceProjectCard).join('') : '<p class="muted">لا توجد مشروعات مسجلة.</p>'}
   </section>
-  <section class="card glass"><h2>${t('add_finance_entry')}</h2><form data-action="add-finance" class="entry-form"><div class="form-grid"><div><label class="lab" for="f-project">${t('project')}</label><select class="input" id="f-project" required><option value="">${t('choose_project')}</option>${S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div><div><label class="lab" for="f-kind">${t('transaction_type')}</label><select class="input" id="f-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select></div>${inputField(t('amount'),'f-amount','number','', 'min="0.01" step="0.01" required')}${inputField(t('date'),'f-fin-date','date',D.todayISO())}<div><label class="lab" for="f-category">${t('category')}</label><select class="input" id="f-category"><option>${t('general')}</option><option>${t('design')}</option><option>${t('materials')}</option><option>${t('labor')}</option><option>${t('transport')}</option><option>${t('other')}</option></select></div></div><label class="lab" for="f-description">${t('description')}</label><input class="input" id="f-description"><button class="btn primary" type="submit">${t('save_entry')}</button></form></section>
+  <details class="finance-disclosure"><summary><strong>تسجيل حركة مالية</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass"><form data-action="add-finance" class="entry-form"><div class="form-grid"><div><label class="lab" for="f-project">${t('project')}</label><select class="input" id="f-project" required><option value="">${t('choose_project')}</option>${S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div><div><label class="lab" for="f-kind">${t('transaction_type')}</label><select class="input" id="f-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select></div>${inputField(t('amount'),'f-amount','number','', 'min="0.01" step="0.01" required')}${inputField(t('date'),'f-fin-date','date',D.todayISO())}<div><label class="lab" for="f-category">${t('category')}</label><select class="input" id="f-category"><option>${t('general')}</option><option>${t('design')}</option><option>${t('materials')}</option><option>${t('labor')}</option><option>${t('transport')}</option><option>${t('other')}</option></select></div></div><label class="lab" for="f-description">${t('description')}</label><input class="input" id="f-description"><button class="btn primary" type="submit">${t('save_entry')}</button></form></section></details>
   <section class="card glass"><h2>${t('transactions')}</h2>${entries.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>${t('date')}</th><th>${t('project')}</th><th>${t('category')}</th><th>${t('transaction_type')}</th><th>${t('amount')}</th><th></th></tr></thead><tbody>${entries.map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(S.projects.find(p=>p.id===x.projectId)?.name||t('project_deleted'))}</td><td>${esc(x.category||'—')}<small>${esc(x.description||'')}</small></td><td>${x.kind==='income'?t('income'):t('expenses')}</td><td class="${x.kind==='income'?'positive':'negative'}">${x.kind==='income'?'+':'−'}${money(x.amount)} ${t('currency')}</td><td><button class="btn sm danger" data-action="delete-finance" data-id="${esc(x.id)}">×</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted">${t('no_transactions')}</p>`}</section>`;
 }
 
@@ -1263,9 +1262,9 @@ function renderPersonalExpenses() {
   const categoryTotals = expenseRows.reduce((acc,x)=>{const key=(x.category||'أخرى').trim()||'أخرى';acc[key]=(acc[key]||0)+Number(x.amount||0);return acc;},{});
   const categoryRows = Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]);
   const personalCategories = ['سكن وفواتير','مواصلات','طعام ومشروبات','مشتريات البيت','صحة','تعليم','ترفيه','ملابس','التزامات وديون','أخرى'];
-  return `<div class="finance-switch"><button class="btn" data-action="finance-view" data-val="projects">ماليات المشروعات</button><button class="btn primary" data-action="finance-view" data-val="personal">الماليات الشخصية</button></div>
-  <section class="card glass">
-    <div class="dhead"><h2>ميزانية الشهر</h2><input class="input compact" id="expense-month" type="month" value="${esc(month)}" aria-label="الشهر"></div>
+  return `<div class="finance-switch"><button class="btn" data-action="finance-view" data-val="projects" aria-pressed="false">ماليات المشروعات</button><button class="btn is-active" data-action="finance-view" data-val="personal" aria-pressed="true">المصروف الشخصي</button></div>
+  <details class="finance-disclosure" ${S.expandedPersonalBudget?'open':''}><summary><strong>ميزانية الشهر</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass">
+    <div class="dhead"><input class="input compact" id="expense-month" type="month" value="${esc(month)}" aria-label="الشهر"></div>
     <form data-action="save-personal-budget" class="entry-form">
       <label class="lab" for="personal-budget">الميزانية الشهرية (جنيه)</label>
       <div class="form-grid"><input class="input" id="personal-budget" type="number" min="0" step="0.01" value="${budget||''}" placeholder="مثال: 5000" required><button class="btn primary" type="submit">حفظ الميزانية</button></div>
@@ -1279,8 +1278,8 @@ function renderPersonalExpenses() {
       <div class="card glass stat"><span>المستهلك من الميزانية</span><strong>${budget>0?Math.round(spent/budget*100):0}%</strong></div>
     </div>
     ${budget>0&&spent>budget?'<p class="expense-warning">تنبيه: المصروف تجاوز الميزانية الشهرية، ويمكنك الاستمرار في التسجيل.</p>':''}
-  </section>
-  <section class="card glass"><h2>إضافة حركة شخصية</h2>
+  </section></details>
+  <details class="finance-disclosure" ${S.expandedPersonalEntry?'open':''}><summary><strong>إضافة حركة شخصية</strong><span class="disclosure-chevron">⌄</span></summary><section class="card glass">
     <form data-action="add-personal-expense" class="entry-form">
       <div class="form-grid"><div><label class="lab" for="pe-kind">نوع الحركة</label><select class="input" id="pe-kind"><option value="expense">مصروف</option><option value="income">دخل</option></select></div><div><label class="lab" for="pe-amount">المبلغ (جنيه)</label><input class="input" id="pe-amount" type="number" min="0.01" step="0.01" required></div>
       <div><label class="lab" for="pe-date">التاريخ</label><input class="input" id="pe-date" type="date" value="${D.todayISO()}" required></div></div>
@@ -1288,7 +1287,7 @@ function renderPersonalExpenses() {
       <label class="lab" for="pe-description">الوصف</label><input class="input" id="pe-description" maxlength="180" placeholder="مثال: أتعاب مشروع، مواصلات، مشتريات البيت" required>
       <button class="btn primary" type="submit">إضافة الحركة</button>
     </form>
-  </section>
+  </section></details>
   <section class="card glass"><h2>تحليل المصروفات حسب التصنيف</h2>
     ${categoryRows.length?`<div class="category-breakdown">${categoryRows.map(([name,total])=>`<div class="category-row"><div class="category-row-head"><strong>${esc(name)}</strong><span>${money(total)} ج.م · ${spent>0?Math.round(total/spent*100):0}%</span></div><div class="category-track"><span style="width:${spent>0?Math.min(100,total/spent*100):0}%"></span></div></div>`).join('')}</div>`:'<p class="muted">سجّل مصروفات لتظهر تفاصيل التصنيفات هنا.</p>'}
   </section>
@@ -2055,7 +2054,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
     else if (a === 'add-personal-expense') { const kind=$('#pe-kind').value==='income'?'income':'expense'; const x={id:uid(),kind,amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast(kind==='income'?'تم تسجيل الدخل.':'تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
     else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); toast('تمت إضافة Requirement للمشروع.'); }
-    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast('تم تسجيل بيانات التسليم بنجاح.'); }
+    else if (a === 'add-deliverable') { const stage=$('#d-stage').value; const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, executionStatus:stage==='execution'?'not_started':null, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast('تم تسجيل بيانات التسليم بنجاح.'); }
     else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast('تم تسجيل الحركة المالية بنجاح.'); }
   } catch(err) { S.autoProcessMeetingAfterSave=false;toast(t('save_failed',{msg:err.message||err})); }
   finally { if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=submitBtn.dataset.oldText||'حفظ';} }
@@ -2109,6 +2108,7 @@ function onChange(e) {
     updateSettings({ financeTargets });
   } else if (k === 'requirement-status') { const r=S.requirements.find(x=>x.id===el.dataset.id); if(r) S.store.save('requirements',{...r,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
   else if (k === 'deliverable-status') { const d=S.deliverables.find(x=>x.id===el.dataset.id); if(d) S.store.save('deliverables',{...d,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
+  else if (k === 'execution-status') { const d=S.deliverables.find(x=>x.id===el.dataset.id); if(d) S.store.save('deliverables',{...d,executionStatus:el.value,updatedAt:Date.now()}).then(()=>toast('تم تحديث مرحلة التنفيذ.')).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
   else if (k === 'glass') updateTheme((x) => { x.glass = el.checked; }, { render: true });
   else if (k === 'text-auto') {
     const mode = effectiveMode(S.settings.theme);
