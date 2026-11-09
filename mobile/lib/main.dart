@@ -77,6 +77,8 @@ class _PlannerWebViewState extends State<PlannerWebView> {
         },
       ))
       ..loadRequest(Uri.parse('https://abdos6335-netizen.github.io/weeklyplanner/'));
+    // منع التكبير بالإصبعين داخل WebView (الصفحة نفسها تمنعه أيضًا).
+    web.enableZoom(false).catchError((_) {});
   }
 
   Future<void> reloadPage() async {

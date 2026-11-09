@@ -29,6 +29,7 @@ const S = {
   personalBudgets: [],
   meetings: [],
   requirements: [],
+  projectPanel: null,
   meetingView: 'calendar',
   meetingWeek: null,
   activeMeetingProjectId: null,
@@ -249,7 +250,7 @@ function render() {
   if (!S.user) return;
   const y = window.scrollY;
   const animate = S.animateNextRender;
-  const paint = () => { S.animateNextRender = animate; $('#app').innerHTML = shell(); window.scrollTo(0, y); };
+  const paint = () => { S.animateNextRender = animate; $('#app').innerHTML = shell(); window.scrollTo(0, y); refreshProjectPanel(); };
   if (animate && document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const transition = document.startViewTransition(paint);
     transition.finished.then(() => window.scrollTo(0, 0));
@@ -601,10 +602,88 @@ function dashboardMetricCard(title, percent, detail, section, metric = 'collecti
   return `<button class="dashboard-metric-card" data-action="nav" data-section="${section}"><span class="dashboard-metric-copy"><strong class="dashboard-metric-title">${esc(title)}</strong><small>${esc(detail || '')}</small>${extra}</span><span class="dashboard-metric-indicator">${indicator}</span></button>`;
 }
 
-function renderProjectCategoryRow(project, label, description, panel, percent = null, deliverables = [], requirements = []) {
-  const value = percent === null || percent === undefined ? '' : '<span class="project-category-percent">' + Math.round(percent) + '%</span>';
-  const content = renderProjectPanelContent(project, panel, deliverables, requirements);
-  return '<details class="project-disclosure"><summary class="project-category-row"><span class="project-category-copy"><strong>' + esc(label) + '</strong><small>' + esc(description) + '</small></span>' + value + '<span class="project-category-chevron">' + icon('chevL', 16) + '</span></summary><div class="project-disclosure-content">' + content + '</div></details>';
+function projectCategories(project, ds, reqs) {
+  const technical = projectProgressData(project, ds);
+  const handed = ds.filter(d => ['submitted', 'approved'].includes(d.status)).length;
+  const financial = projectFinanceTotals(project);
+  const collectionText = financial.collectionPct === null ? '—' : Math.round(financial.collectionPct) + '%';
+  const profitText = financial.profitPct === null ? '—' : Math.round(financial.profitPct) + '%';
+  return [
+    { key: 'summary', label: 'ملخص المشروع', description: 'بيانات المشروع ومتابعة العميل', percent: null },
+    { key: 'requirements', label: 'متطلبات العميل', description: reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', percent: reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null },
+    { key: 'technical', label: 'الحالة الفنية', description: technical.phases.length ? technical.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', percent: technical.percent },
+    { key: 'finance', label: 'الحالة المالية', description: financial.contract > 0 ? 'تحصيل ' + collectionText + ' · صافي ' + profitText : 'لا توجد قيمة تعاقد مسجلة', percent: financial.collectionPct },
+    { key: 'deliverables', label: 'التسليمات واللوحات', description: ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', percent: ds.length ? Math.round(handed / ds.length * 100) : null },
+  ];
+}
+
+function renderProjectCategoryRow(project, cat) {
+  const value = cat.percent === null || cat.percent === undefined ? '' : '<span class="project-category-percent">' + Math.round(cat.percent) + '%</span>';
+  return '<button class="project-category-row" type="button" data-action="open-panel" data-id="' + esc(project.id) + '" data-panel="' + cat.key + '"><span class="project-category-copy"><strong>' + esc(cat.label) + '</strong><small>' + esc(cat.description) + '</small></span>' + value + '<span class="project-category-chevron">' + icon('chevL', 16) + '</span></button>';
+}
+
+// ---- لوحة تفاصيل القسم: تظهر من أسفل الشاشة وتصغّر الصفحة التي خلفها.
+function panelData() {
+  const pp = S.projectPanel; if (!pp) return null;
+  const project = S.projects.find(p => p.id === pp.projectId); if (!project) return null;
+  const ds = S.deliverables.filter(d => d.projectId === project.id);
+  const reqs = S.requirements.filter(x => x.projectId === project.id);
+  const cat = projectCategories(project, ds, reqs).find(c => c.key === pp.panel); if (!cat) return null;
+  return { project, ds, reqs, cat };
+}
+
+function panelMarkup(d) {
+  const pct = d.cat.percent === null || d.cat.percent === undefined ? '' : '<span class="panel-percent">' + Math.round(d.cat.percent) + '%</span>';
+  return '<header class="panel-head"><div class="panel-title"><small>' + esc(d.project.name) + '</small><h2>' + esc(d.cat.label) + '</h2></div>' + pct + '<button class="panel-close" type="button" data-action="close-panel" aria-label="' + t('cancel') + '">' + icon('close', 18) + '</button></header>' +
+    '<div class="shell"><main class="panel-body">' + renderProjectPanelContent(d.project, S.projectPanel.panel, d.ds, d.reqs) + '</main></div>';
+}
+
+function panelDuration() {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-duration'));
+  return Number.isFinite(v) ? v : 260;
+}
+
+function openProjectPanel(projectId, panel) {
+  S.projectPanel = { projectId, panel };
+  const d = panelData();
+  if (!d) { S.projectPanel = null; return; }
+  let host = $('#panel');
+  if (!host) { host = document.createElement('div'); host.id = 'panel'; document.body.appendChild(host); }
+  host.classList.remove('is-open');
+  host.innerHTML = '<div class="panel-backdrop" data-action="close-panel"></div><section class="panel-sheet" role="dialog" aria-modal="true" aria-label="' + esc(d.cat.label) + '"><div class="panel-grip" aria-hidden="true"></div><div class="panel-content">' + panelMarkup(d) + '</div></section>';
+  const main = document.querySelector('#app .main');
+  if (main) main.style.transformOrigin = '50% ' + Math.round(window.scrollY + window.innerHeight * 0.45) + 'px';
+  document.body.classList.add('panel-open');
+  void host.offsetWidth;
+  host.classList.add('is-open');
+}
+
+function closeProjectPanel(immediate = false) {
+  const host = $('#panel');
+  S.projectPanel = null;
+  document.body.classList.remove('panel-open');
+  if (!host) return;
+  host.classList.remove('is-open');
+  const finish = () => { if (!S.projectPanel) host.innerHTML = ''; };
+  if (immediate) finish(); else setTimeout(finish, panelDuration() + 80);
+}
+
+function refreshProjectPanel(opts = {}) {
+  if (!S.projectPanel) return;
+  const d = panelData();
+  if (!d) { closeProjectPanel(true); return; }
+  const c = document.querySelector('#panel .panel-content'); if (!c) return;
+  const body = c.querySelector('.panel-body');
+  const top = body ? body.scrollTop : 0;
+  const ae = document.activeElement;
+  const focusId = !opts.reset && ae && c.contains(ae) ? ae.id : '';
+  const sel = focusId && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
+  const vals = {};
+  if (!opts.reset) c.querySelectorAll('input[id],textarea[id],select[id]').forEach(el => { vals[el.id] = el.value; });
+  c.innerHTML = panelMarkup(d);
+  Object.entries(vals).forEach(([id, v]) => { const el = c.querySelector('#' + CSS.escape(id)); if (el && el.type !== 'hidden') el.value = v; });
+  const nb = c.querySelector('.panel-body'); if (nb) nb.scrollTop = top;
+  if (focusId) { const f = c.querySelector('#' + CSS.escape(focusId)); if (f) { f.focus({ preventScroll: true }); if (sel) try { f.setSelectionRange(sel[0], sel[1]); } catch { /* تجاهل */ } } }
 }
 
 function renderProjectRequirementsPanel(project, requirements) {
@@ -681,11 +760,7 @@ function renderProjectCard(project) {
   return '<article class="project-accordion ' + (expanded ? 'is-expanded' : '') + (project.archivedAt ? ' is-archived' : '') + '">' +
     '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>فني ' + techText + '</span><span>تحصيل ' + collectionText + '</span><span>صافي ' + profitText + '</span></span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
     (expanded ? '<div class="project-accordion-content"><div class="project-accordion-meta"><span>' + esc(projectTypeLabel(project.type)) + '</span><span>' + esc(projectStatusLabel(project.status)) + '</span><span>' + ds.length + ' تسليمات</span></div>' +
-      renderProjectCategoryRow(project, 'ملخص المشروع', 'بيانات المشروع ومتابعة العميل', 'summary', null, ds, reqs) +
-      renderProjectCategoryRow(project, 'متطلبات العميل', reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', 'requirements', reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null, ds, reqs) +
-      renderProjectCategoryRow(project, 'الحالة الفنية', progress.phases.length ? progress.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', 'technical', technical, ds, reqs) +
-      renderProjectCategoryRow(project, 'الحالة المالية', financial.contract > 0 ? 'تحصيل ' + collectionText + ' · صافي ' + profitText : 'لا توجد قيمة تعاقد مسجلة', 'finance', financial.collectionPct, ds, reqs) +
-      renderProjectCategoryRow(project, 'التسليمات واللوحات', ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', 'deliverables', ds.length ? Math.round(ds.filter(d => ['submitted','approved'].includes(d.status)).length / ds.length * 100) : null, ds, reqs) +
+      projectCategories(project, ds, reqs).map(cat => renderProjectCategoryRow(project, cat)).join('') +
       '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button><button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
 }
 
@@ -1830,6 +1905,26 @@ function bindEvents() {
     const dx = touch.clientX - start.x, dy = touch.clientY - start.y;
     if (Math.abs(dx) > 76 && Math.abs(dy) < 52) { S.activeProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); }
   }, { passive: true });
+  let panelDrag = null;
+  document.addEventListener('touchstart', e => {
+    if (!S.projectPanel || !e.target.closest('.panel-grip, .panel-head')) return;
+    const sheet = $('#panel .panel-sheet'); if (!sheet) return;
+    panelDrag = { y: e.touches[0].clientY, dy: 0, sheet }; sheet.style.transition = 'none';
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!panelDrag) return;
+    panelDrag.dy = Math.max(0, e.touches[0].clientY - panelDrag.y);
+    panelDrag.sheet.style.transform = 'translateY(' + panelDrag.dy + 'px)';
+  }, { passive: true });
+  const endPanelDrag = () => {
+    if (!panelDrag) return;
+    const { sheet, dy } = panelDrag; panelDrag = null;
+    sheet.style.transition = '';
+    if (dy > 90) { closeProjectPanel(); }
+    sheet.style.transform = '';
+  };
+  document.addEventListener('touchend', endPanelDrag, { passive: true });
+  document.addEventListener('touchcancel', endPanelDrag, { passive: true });
   bindTaskDragEvents();
 }
 
@@ -1859,7 +1954,7 @@ async function onClick(e) {
     case 'auth-toggle': S.authMode=S.authMode==='signup'?'signin':'signup'; renderLogin(); break;
     case 'auth-reset': { const email=$('#auth-email')?.value.trim(); if(!email){toast('اكتب بريدك الإلكتروني أولًا.');break;} try{await S.store.resetPassword(email);toast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.');}catch(err){toast(err.message||'تعذر إرسال الرابط.');} break; }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
-    case 'nav': S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'nav': closeProjectPanel(true); S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'nav-expand': S.navOpenSection=S.navOpenSection===el.dataset.section?'':el.dataset.section; if(!S.navExpanded){S.navExpanded=true;localStorage.setItem('wp1:nav-expanded','1');} render(); break;
     case 'nav-collapse': S.navExpanded=!S.navExpanded; localStorage.setItem('wp1:nav-expanded',S.navExpanded?'1':'0'); render(); break;
     case 'voice-open': openVoiceSheet(); break;
@@ -1931,12 +2026,14 @@ async function onClick(e) {
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
     case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
-    case 'toggle-project': S.activeProjectId = S.activeProjectId === el.dataset.id ? null : el.dataset.id; S.animateNextRender = true; render(); break;
-    case 'projects-back': S.activeProjectId = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'toggle-project': closeProjectPanel(true); S.activeProjectId = S.activeProjectId === el.dataset.id ? null : el.dataset.id; S.animateNextRender = true; render(); break;
+    case 'open-panel': S.activeProjectId = el.dataset.id; openProjectPanel(el.dataset.id, el.dataset.panel); break;
+    case 'close-panel': closeProjectPanel(); break;
+    case 'projects-back': closeProjectPanel(true); S.activeProjectId = null; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
     case 'toggle-task-details': S.expandedTaskId = S.expandedTaskId === el.dataset.id ? null : el.dataset.id; render(); break;
     case 'toggle-finance-project': S.expandedFinanceProjectId = S.expandedFinanceProjectId === el.dataset.id ? null : el.dataset.id; render(); break;
     case 'toggle-finance-summary': S.expandedFinanceSummary = !S.expandedFinanceSummary; render(); break;
-    case 'scroll-deliverable-form': $('#d-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => $('#d-name')?.focus({ preventScroll: true }), 260); break;
+    case 'scroll-deliverable-form': { const pid = S.activeProjectId; if (pid) { if (!S.projectPanel || S.projectPanel.panel !== 'deliverables') openProjectPanel(pid, 'deliverables'); setTimeout(() => $('#d-name')?.focus({ preventScroll: true }), panelDuration() + 60); } break; }
     case 'delete-project': { const p=S.projects.find(x=>x.id===el.dataset.id); if(p && confirm(t('confirm_delete_project'))) { for(const d of S.deliverables.filter(x=>x.projectId===p.id)) await S.store.remove('deliverables',d.id); for(const f of S.financeEntries.filter(x=>x.projectId===p.id)) await S.store.remove('financeEntries',f.id); for(const m of S.meetings.filter(x=>x.projectId===p.id)) await S.store.remove('meetings',m.id); for(const r of S.requirements.filter(x=>x.projectId===p.id)) await S.store.remove('requirements',r.id); await S.store.remove('projects',p.id); S.activeProjectId=null; toast(t('project_deleted_ok')); render(); } break; }
     case 'delete-deliverable': if(confirm(t('confirm_delete'))) { await S.store.remove('deliverables',el.dataset.id); toast(t('deleted')); } break;
     case 'delete-finance': if(confirm(t('confirm_delete'))) { const entry=S.financeEntries.find(x=>x.id===el.dataset.id),project=entry?.installmentId?S.projects.find(p=>p.id===entry.projectId):null;try{if(project){const updated={...project,installments:(project.installments||[]).map(x=>x.id===entry.installmentId?{...x,status:'pending',paidAt:null}:x),updatedAt:Date.now()};await S.store.save('projects',updated);try{await S.store.remove('financeEntries',el.dataset.id);}catch(err){await S.store.save('projects',project);throw err;}S.projects=S.projects.map(p=>p.id===updated.id?updated:p);}else await S.store.remove('financeEntries',el.dataset.id);toast(t('deleted'));render();}catch(err){toast(t('save_failed',{msg:err.message||err}));} } break;
@@ -2086,8 +2183,8 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
     else if (a === 'save-project-followup') { const project=S.projects.find(x=>x.id===el.dataset.id);if(!project)throw new Error('المشروع غير موجود.');const updated={...project,followUpDate:$('#follow-up-date').value||null,followUpNote:$('#follow-up-note').value.trim(),updatedAt:Date.now()};await S.store.save('projects',updated);S.projects=S.projects.map(x=>x.id===updated.id?updated:x);render();toast('تم حفظ متابعة العميل.'); }
     else if (a === 'add-personal-expense') { const kind=$('#pe-kind').value==='income'?'income':'expense'; const x={id:uid(),kind,amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast(kind==='income'?'تم تسجيل الدخل.':'تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
-    else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); toast('تمت إضافة Requirement للمشروع.'); }
-    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); toast('تم تسجيل بيانات التسليم بنجاح.'); }
+    else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); refreshProjectPanel({ reset: true }); toast('تمت إضافة Requirement للمشروع.'); }
+    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); refreshProjectPanel({ reset: true }); toast('تم تسجيل بيانات التسليم بنجاح.'); }
     else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast('تم تسجيل الحركة المالية بنجاح.'); }
   } catch(err) { S.autoProcessMeetingAfterSave=false;toast(t('save_failed',{msg:err.message||err})); }
   finally { if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=submitBtn.dataset.oldText||'حفظ';} }
@@ -2153,6 +2250,7 @@ function onChange(e) {
 }
 
 function onKey(e) {
+  if (e.key === 'Escape' && S.projectPanel) { closeProjectPanel(); return; }
   if (e.key === 'Escape' && $('#layer')?.innerHTML) { $('#layer').innerHTML=''; if (S.sheet) S.sheet=null; return; }
   if (e.key === 'Escape' && S.sheet) { closeSheet(); return; }
   if (e.key === 'Escape' && S.activeProjectId) { S.activeProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); return; }
