@@ -1198,3 +1198,25 @@ html,body,.shell { font-family:var(--font) !important; }
   .shell main .project-disclosure-content { padding-inline:.05rem; }
   .shell main .project-summary-facts { grid-template-columns:1fr; }
 }
+
+
+/* Project financial status — compact, flat rows matching the Minimal project list. */
+.shell main .project-list-ratios { display:flex; flex-wrap:wrap; align-items:center; gap:.35rem .65rem; white-space:normal; }
+.shell main .project-list-ratios > span { font-variant-numeric:tabular-nums; }
+.shell main .project-finance-panel { display:grid; gap:.85rem; }
+.shell main .project-finance-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1.25rem; }
+.shell main .project-finance-metrics > div { display:flex; justify-content:space-between; align-items:baseline; gap:.75rem; padding:.55rem .1rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 14%,transparent); }
+.shell main .project-finance-metrics > div > span { color:var(--text-2); font-size:.78rem; }
+.shell main .project-finance-metrics > div > strong { font-size:.82rem; font-weight:500; font-variant-numeric:tabular-nums; text-align:end; }
+.shell main .project-finance-panel .project-panel-intro { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+.shell main .project-finance-panel .ratio-title-pair { display:flex; gap:1rem; }
+.shell main .project-finance-entry-heading { color:var(--text-2); font-size:.78rem; padding-top:.35rem; }
+.shell main .project-finance-entry { display:grid; grid-template-columns:6.5rem minmax(0,1fr) auto; align-items:center; gap:.75rem; padding:.6rem .1rem; border-bottom:1px solid color-mix(in srgb,var(--text-2) 13%,transparent); font-size:.78rem; }
+.shell main .project-finance-entry > span:first-child { color:var(--text-2); font-variant-numeric:tabular-nums; }
+.shell main .project-finance-entry > strong { font-size:.78rem; font-weight:500; white-space:nowrap; font-variant-numeric:tabular-nums; }
+@media(max-width:520px) {
+  .shell main .project-finance-metrics { grid-template-columns:1fr; }
+  .shell main .project-list-ratios { gap:.2rem .45rem; font-size:.66rem; }
+  .shell main .project-finance-entry { grid-template-columns:4.5rem minmax(0,1fr); gap:.25rem .6rem; }
+  .shell main .project-finance-entry > strong { grid-column:2; }
+}
