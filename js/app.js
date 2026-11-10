@@ -558,7 +558,7 @@ function projectProgressData(project, deliverables = S.deliverables) {
   const phases = [];
   const completed = (d) => ['submitted', 'approved'].includes(d.status);
   if (hasDesign) {
-    const items = rows.filter((d) => designStages.includes(d.stage) && (has3d ? d.kind !== '3d' : true));
+    const items = rows.filter((d) => designStages.includes(d.stage) && d.kind !== '3d');
     const done = items.filter(completed).length;
     phases.push({ key: 'design', label: 'التصميم', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
   }
@@ -632,11 +632,39 @@ function renderProjectPhaseRows(project, deliverables) {
   }).join('') + '</div>';
 }
 
+function renderProjectFinancePanel(project) {
+  const totals = projectFinanceTotals(project);
+  const rows = S.financeEntries
+    .filter(entry => entry.projectId === project.id)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+    .slice(0, 8);
+  const remaining = totals.contract - totals.income;
+  const amount = value => money(Math.abs(value)) + ' ' + t('currency');
+  const rowMarkup = rows.length
+    ? '<div class="project-finance-entries">' + rows.map(entry =>
+        '<div class="project-finance-entry"><span>' + esc(entry.date || '—') + '</span><span>' + esc(entry.category || entry.description || (entry.kind === 'income' ? 'تحصيل' : 'مصروف')) + '</span><strong class="' + (entry.kind === 'income' ? 'positive' : 'negative') + '">' + (entry.kind === 'income' ? '+' : '−') + amount(Number(entry.amount) || 0) + '</strong></div>'
+      ).join('') + '</div>'
+    : '<p class="muted small">لا توجد حركات مالية مسجلة لهذا المشروع.</p>';
+  return '<div class="project-finance-panel">' +
+    '<div class="project-finance-metrics">' +
+      '<div><span>قيمة التعاقد</span><strong>' + amount(totals.contract) + '</strong></div>' +
+      '<div><span>إجمالي التحصيل</span><strong>' + amount(totals.income) + '</strong></div>' +
+      '<div><span>إجمالي المصروفات</span><strong>' + amount(totals.expense) + '</strong></div>' +
+      '<div><span>صافي الربح</span><strong class="' + (totals.net < 0 ? 'negative' : 'positive') + '">' + (totals.net < 0 ? '−' : '') + amount(totals.net) + '</strong></div>' +
+      '<div><span>المتبقي للتحصيل</span><strong>' + (remaining < 0 ? '−' : '') + amount(remaining) + '</strong></div>' +
+    '</div>' +
+    '<div class="project-panel-intro"><span>نسب الماليات</span>' + ratioTitlePair(totals, 'projects') + '</div>' +
+    '<div class="project-finance-entry-heading">آخر الحركات المالية</div>' + rowMarkup +
+    '<button class="text-action" data-action="nav" data-section="finance" type="button">فتح صفحة الماليات</button>' +
+  '</div>';
+}
+
 function renderProjectPanelContent(project, panel, deliverables, requirements) {
   if (panel === 'summary') return '<div class="project-summary-facts"><div><span>العميل</span><strong>' + esc(project.client || '—') + '</strong></div><div><span>نوع المشروع</span><strong>' + esc(projectTypeLabel(project.type)) + '</strong></div><div><span>الحالة</span><strong>' + esc(projectStatusLabel(project.status)) + '</strong></div><div><span>الموقع</span><strong>' + esc(project.location || '—') + '</strong></div><div><span>نطاق العمل</span><strong>' + esc(projectScopeLabel(project.workScope || []) || '—') + '</strong></div></div>' + (project.notes ? '<p class="project-summary-notes">' + esc(project.notes) + '</p>' : '<p class="muted small">لا توجد ملاحظات إضافية للمشروع.</p>') + renderProjectFollowUp(project);
   if (panel === 'requirements') return renderProjectRequirementsPanel(project, requirements);
   if (panel === 'technical') return '<div class="project-panel-intro"><span>إنجاز المراحل الفنية</span><strong>' + (projectProgressData(project, deliverables).percent === null ? '—' : projectProgressData(project, deliverables).percent + '%') + '</strong></div>' + renderProjectPhaseRows(project, deliverables);
   if (panel === 'deliverables') return renderProjectDeliverablesPanel(project, deliverables);
+  if (panel === 'finance') return renderProjectFinancePanel(project);
   return '';
 }
 
@@ -645,14 +673,18 @@ function renderProjectCard(project) {
   const technical = projectProgressData(project, S.deliverables).percent;
   const ds = S.deliverables.filter(d => d.projectId === project.id);
   const reqs = S.requirements.filter(x => x.projectId === project.id);
+  const financial = projectFinanceTotals(project);
   const techText = technical === null ? '—' : technical + '%';
+  const collectionText = financial.collectionPct === null ? '—' : Math.round(financial.collectionPct) + '%';
+  const profitText = financial.profitPct === null ? '—' : Math.round(financial.profitPct) + '%';
   const progress = projectProgressData(project, ds);
   return '<article class="project-accordion ' + (expanded ? 'is-expanded' : '') + (project.archivedAt ? ' is-archived' : '') + '">' +
-    '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>إنجاز فني ' + techText + '</span></span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
+    '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>فني ' + techText + '</span><span>تحصيل ' + collectionText + '</span><span>صافي ' + profitText + '</span></span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
     (expanded ? '<div class="project-accordion-content"><div class="project-accordion-meta"><span>' + esc(projectTypeLabel(project.type)) + '</span><span>' + esc(projectStatusLabel(project.status)) + '</span><span>' + ds.length + ' تسليمات</span></div>' +
       renderProjectCategoryRow(project, 'ملخص المشروع', 'بيانات المشروع ومتابعة العميل', 'summary', null, ds, reqs) +
       renderProjectCategoryRow(project, 'متطلبات العميل', reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', 'requirements', reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null, ds, reqs) +
       renderProjectCategoryRow(project, 'الحالة الفنية', progress.phases.length ? progress.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', 'technical', technical, ds, reqs) +
+      renderProjectCategoryRow(project, 'الحالة المالية', financial.contract > 0 ? 'تحصيل ' + collectionText + ' · صافي ' + profitText : 'لا توجد قيمة تعاقد مسجلة', 'finance', financial.collectionPct, ds, reqs) +
       renderProjectCategoryRow(project, 'التسليمات واللوحات', ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', 'deliverables', ds.length ? Math.round(ds.filter(d => ['submitted','approved'].includes(d.status)).length / ds.length * 100) : null, ds, reqs) +
       '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button><button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
 }
