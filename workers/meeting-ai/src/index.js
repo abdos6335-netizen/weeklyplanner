@@ -57,7 +57,7 @@ export default {
   if(origin && origin!==ALLOWED_ORIGIN)return new Response("Forbidden origin",{status:403});
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});
   const url=new URL(request.url);
-  if(request.method!=="POST"||!["/transcribe","/minutes"].includes(url.pathname))return json({error:"Not found"},404,origin);
+  if(request.method!=="POST"||!["/transcribe","/minutes","/manager"].includes(url.pathname))return json({error:"Not found"},404,origin);
   try{
     await authorize(request,env);
     if(url.pathname==="/transcribe"){
@@ -69,11 +69,18 @@ export default {
       const result=await groq("/audio/transcriptions",{method:"POST",body:upload},env);
       return json({text:String(result.text||""),model:"whisper-large-v3-turbo"},200,origin);
     }
+    if(url.pathname==="/manager"){
+      const input=await request.json();
+      const ctx=JSON.stringify(input).slice(0,24000);
+      const system="You are the AI manager of a freelance interior designer's planner. From the JSON context (priorities, alerts, finance per project) write short, concrete advice: 1) what to do first today and why, 2) risks and delays, 3) financial actions (collections, margins). Never invent data not in the context. Max 180 words, numbered lines, no markdown headings. Reply in Arabic when language is ar, otherwise English.";
+      const completion=await groq("/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:0.2,messages:[{role:"system",content:system},{role:"user",content:ctx}]})},env);
+      return json({advice:String(completion.choices?.[0]?.message?.content||"")},200,origin);
+    }
     const input=await request.json();
     const transcript=String(input.transcript||"").trim();
     if(transcript.length<20||transcript.length>120000)return json({error:"نص الاجتماع فارغ أو أطول من الحد المسموح."},400,origin);
     const projects=Array.isArray(input.projects)?input.projects.slice(0,100).map(p=>({id:String(p.id||""),name:String(p.name||"").slice(0,160),client:String(p.client||"").slice(0,120)})):[];
-    const system="You create precise professional Minutes of Meeting for interior design, fit-out, and construction meetings. Return ONLY valid JSON. Never invent facts, names, deadlines, approvals, or agreements. Put only explicitly agreed decisions in decisions. Separate discussion summary from decisions and action items. If uncertain use empty strings or arrays and add reviewNotes. projectName must be one of the supplied project names or empty. confidence is 0..1 and reflects certainty of extracting meeting metadata, not writing quality. Categories: design, shop-drawings, site, materials, client-review, general. Output schema: {title:string,projectName:string,clientName:string,category:string,minutes:string,decisions:string,actions:string,attendees:string[],confidence:number,reviewNotes:string[]}. Write clear Arabic unless the transcript is predominantly English. Use numbered headings and concise bullets in minutes; numbered list in decisions; action lines as task — owner — deadline, leaving unknown owner/deadline blank.";
+    const system="You create precise professional Minutes of Meeting for interior design, fit-out, and construction meetings. Return ONLY valid JSON. Never invent facts, names, deadlines, approvals, or agreements. Put only explicitly agreed decisions in decisions. Separate discussion summary from decisions and action items. If uncertain use empty strings or arrays and add reviewNotes. projectName must be one of the supplied project names or empty. confidence is 0..1 and reflects certainty of extracting meeting metadata, not writing quality. Categories: design, shop-drawings, site, materials, client-review, general. Output schema: {title:string,purpose:string,projectName:string,clientName:string,category:string,topics:string[],minutes:string,decisions:string,requirements:string[],actions:string,attendees:string[],confidence:number,reviewNotes:string[]}. purpose is one short sentence stating why the meeting was held; topics are short subject headings; requirements are explicit client requests only. Write clear Arabic unless the transcript is predominantly English. Use numbered headings and concise bullets in minutes; numbered list in decisions; action lines as task — owner — deadline, leaving unknown owner/deadline blank.";
     const user={transcript,knownProjects:projects,currentProjectId:input.currentProjectId||"",existingClient:input.existingClient||""};
     const completion=await groq("/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:0.1,response_format:{type:"json_object"},messages:[{role:"system",content:system},{role:"user",content:JSON.stringify(user)}]})},env);
     const content=completion.choices?.[0]?.message?.content||"{}";
