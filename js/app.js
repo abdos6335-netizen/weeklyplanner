@@ -1,10 +1,12 @@
 // WeeklyPlanner — المهام الأسبوعية والمشروعات والتسليمات والماليات والإدخال الصوتي.
 import { createStore } from './store.js';
 import { t, setLang, lang, dir, locale } from './i18n.js';
+import { translateText } from './i18n-en.js';
+import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
 import {
-  applyTheme, mergeTheme, DEFAULT_THEME, PRESETS, FONTS, ensureFont,
+  applyTheme, mergeTheme, DEFAULT_THEME, PRESETS, FONTS, ensureFont, fontKey,
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
@@ -16,6 +18,44 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString
 const RATIO_CONTEXTS = ['dashboard', 'projects', 'finance'];
 const RATIO_STYLES = ['ring', 'bar', 'pill', 'gauge', 'blocks', 'badge'];
 const DEFAULT_RATIO_LOOK = { style: 'ring', collectionColor: '#a7e8bd', profitColor: '#24965b' };
+// ---- ترجمة النصوص الثابتة عند تفعيل الإنجليزية (قاموس js/i18n-en.js) ----
+const TR_ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
+let trBusy = false;
+function translateNode(root) {
+  if (lang() !== 'en' || !root) return;
+  trBusy = true;
+  try {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode())) {
+      const p = n.parentElement;
+      if (!p || ['SCRIPT', 'STYLE', 'TEXTAREA'].includes(p.tagName) || p.closest('[data-no-tr]')) continue;
+      const v = translateText(n.nodeValue);
+      if (v !== n.nodeValue) n.nodeValue = v;
+    }
+    const els = root.nodeType === 1 ? [root, ...root.querySelectorAll('*')] : [];
+    for (const el of els) for (const a of TR_ATTRS) {
+      const v = el.getAttribute?.(a);
+      if (v && /[\u0600-\u06FF]/.test(v)) { const nv = translateText(v); if (nv !== v) el.setAttribute(a, nv); }
+    }
+  } finally { trBusy = false; }
+}
+function installTranslator() {
+  const obs = new MutationObserver((muts) => {
+    if (trBusy || lang() !== 'en') return;
+    for (const m of muts) {
+      if (m.type === 'characterData') translateNode(m.target.parentElement);
+      else m.addedNodes.forEach((nd) => translateNode(nd.nodeType === 3 ? nd.parentElement : nd));
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+  for (const k of ['alert', 'confirm', 'prompt']) {
+    const orig = window[k].bind(window);
+    window[k] = (msg, ...rest) => orig(lang() === 'en' ? translateText(String(msg ?? '')) : msg, ...rest);
+  }
+  translateNode(document.body);
+}
+
 const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, typography: { heading: 112, subheading: 100, item: 92 }, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
 
 const S = {
@@ -505,7 +545,7 @@ function renderDashboard() {
   return `
     <div class="dashboard-intro">
       <div><h2>${t('dashboard_title')}</h2><p class="muted">${esc(D.fmt(today,locale(),{weekday:'long',day:'numeric',month:'long'}))}</p></div>
-      <button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button>
+      <div class="dashboard-intro-actions"><button class="btn" data-action="mgr-open">${icon('sparkles', 17)} ${L('المدير الذكي', 'AI Manager')}</button><button class="btn primary" data-action="nav" data-section="tasks">${icon('plus',17)} ${t('add_task_day')}</button></div>
     </div>
 
     <div class="dashboard-metrics-grid">
@@ -691,7 +731,7 @@ function renderProjectRequirementsPanel(project, requirements) {
   return '<div class="project-panel-intro"><span>متطلبات العميل</span><strong>' + openCount + ' مفتوح</strong></div>' +
     '<form data-action="add-requirement" class="entry-form project-minimal-form"><label class="lab" for="req-text">طلب جديد من العميل</label><textarea class="input textarea" id="req-text" rows="2" required placeholder="اكتب طلب العميل هنا..."></textarea><div class="form-grid"><div><label class="lab" for="req-source">مصدر الطلب</label><select class="input" id="req-source"><option value="whatsapp">WhatsApp</option><option value="manual">مكالمة / طلب مباشر</option></select></div><div><label class="lab" for="req-date">تاريخ الطلب</label><input class="input" id="req-date" type="date" value="' + D.todayISO() + '"></div></div><button class="btn primary" type="submit">إضافة Requirement</button></form>' +
     (requirements.length ? '<div class="project-requirements-list">' + requirements.map(r => '<article class="requirement-row"><div><p>' + esc(r.text) + '</p><small>' + (r.source === 'meeting' ? 'Meeting' : r.source === 'whatsapp' ? 'WhatsApp' : 'طلب مباشر') + ' · ' + esc(r.date || '—') + (r.sourceLabel ? ' · ' + esc(r.sourceLabel) : '') + '</small></div><select class="input compact" data-change="requirement-status" data-id="' + esc(r.id) + '"><option value="open" ' + (r.status === 'open' ? 'selected' : '') + '>مفتوح</option><option value="doing" ' + (r.status === 'doing' ? 'selected' : '') + '>قيد التنفيذ</option><option value="done" ' + (r.status === 'done' ? 'selected' : '') + '>تم</option></select></article>').join('') + '</div>' : '<p class="muted small">لا توجد متطلبات مسجلة لهذا المشروع حتى الآن.</p>') +
-    '<p class="muted small">ربط WhatsApp التلقائي غير مفعّل بعد؛ يمكنك تسجيل المتطلبات يدويًا أو من محاضر الاجتماعات.</p>';
+    '<p class="muted small"><button class="btn sm" data-action="wa-open" data-id="' + esc(project.id) + '">' + L('استيراد من WhatsApp / WhatsApp Business', 'Import from WhatsApp / WhatsApp Business') + '</button></p>';
 }
 
 function renderProjectDeliverablesPanel(project, deliverables) {
@@ -868,15 +908,30 @@ function ratioTitlePair(metrics, context = 'finance') {
 
 function renderFinanceProjectCard(project) {
   const metrics = projectFinanceTotals(project);
-  const targets = S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets;
-  const ratioSettings = `<div class="finance-project-ratios"><span>التحصيل <b>${metrics.collectionPct === null ? '—' : Math.round(metrics.collectionPct) + '%'}</b></span><span>صافي الربح <b>${metrics.profitPct === null ? '—' : Math.round(metrics.profitPct) + '%'}</b></span></div>`;
+  const ar = lang() === 'ar';
   const scope = project.workScope?.length ? projectScopeLabel(project.workScope) : '';
-  const meta = [projectTypeLabel(project.type), scope, projectStatusLabel(project.status)].filter(Boolean).join(' · ');
+  const kind = [projectTypeLabel(project.type), scope].filter(Boolean).join(' · ');
   const expanded = S.expandedFinanceProjectId === project.id;
-  return `<article class="card glass finance-project-card ${expanded?'is-expanded':''}">
-    <button class="finance-project-summary" data-action="toggle-finance-project" data-id="${esc(project.id)}" aria-expanded="${expanded}"><strong>${esc(project.name)}</strong><span>${esc(project.updatedAt ? new Date(project.updatedAt).toLocaleDateString(locale(), {day:'numeric',month:'short'}) : '')}</span></button>
-    <div class="finance-project-details"><div class="finance-project-head"><div class="finance-project-identity"><p class="muted small">${esc(meta)}</p></div>${ratioSettings}</div>
-    <div class="finance-project-compact-values"><span>المحصّل <strong>${money(metrics.income)} ${t('currency')}</strong></span><span>المصروف <strong>${money(metrics.expense)} ${t('currency')}</strong></span><span>صافي الربح <strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${t('currency')}</strong></span><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">تفاصيل المشروع</button></div></div>
+  const ringHtml = (pct, cls, label) => {
+    const empty = pct === null || !Number.isFinite(pct);
+    const amount = empty ? 0 : Math.min(100, Math.max(0, Math.abs(pct)));
+    return `<div class="fin-ring-wrap"><div class="fin-ring ${cls} ${empty ? 'empty' : ''} ${pct < 0 ? 'loss' : ''}" style="--p:${amount}%"><span>${empty ? '—' : Math.round(pct) + '%'}</span></div><small>${label}</small></div>`;
+  };
+  const cur = t('currency');
+  return `<article class="fin-card ${expanded ? 'is-expanded' : ''}">
+    <div class="fin-head">
+      <button class="fin-title" data-action="toggle-finance-project" data-id="${esc(project.id)}" aria-expanded="${expanded}">
+        <strong>${esc(project.name)}</strong>
+        <span class="muted small">${esc(kind || projectStatusLabel(project.status))}</span>
+      </button>
+      <div class="fin-rings">${ringHtml(metrics.collectionPct, 'collect', ar ? 'إجمالي التحصيل' : 'Collected')}${ringHtml(metrics.profitPct, 'profit', ar ? 'صافي الربح' : 'Net profit')}</div>
+    </div>
+    <div class="fin-details"><div class="fin-values">
+      <span>${ar ? 'قيمة التعاقد' : 'Contract'}<strong>${money(metrics.contract)} ${cur}</strong></span>
+      <span>${ar ? 'المحصّل' : 'Collected'}<strong>${money(metrics.income)} ${cur}</strong></span>
+      <span>${ar ? 'المصروف' : 'Expenses'}<strong>${money(metrics.expense)} ${cur}</strong></span>
+      <span>${ar ? 'صافي الربح' : 'Net profit'}<strong class="${metrics.net < 0 ? 'negative' : 'positive'}">${metrics.net < 0 ? '−' : ''}${money(Math.abs(metrics.net))} ${cur}</strong></span>
+    </div><button class="btn sm" data-action="open-project" data-id="${esc(project.id)}">${ar ? 'تفاصيل المشروع' : 'Project details'}</button></div>
   </article>`;
 }
 
@@ -925,6 +980,144 @@ function openPrintChoice(id) {
   const p=S.projects.find(x=>x.id===id); if(!p)return;
   $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('print_project')} · ${esc(p.name)}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('print_choose')}</p><div class="btnrow"><button class="btn primary" data-action="print-full" data-id="${esc(id)}">تقرير شامل للمشروع</button><button class="btn" data-action="print-status" data-id="${esc(id)}">${t('project_status_report')}</button><button class="btn" data-action="print-finance" data-id="${esc(id)}">${t('finance_report')}</button></div></section></div>`;
 }
+// ====================================================================== المدير الذكي
+const L = (ar, en) => (lang() === 'ar' ? ar : en);
+const MGR_REASON = { late: ['متأخر', 'Overdue'], today: ['اليوم', 'Today'], tomorrow: ['غدًا', 'Tomorrow'], week: ['هذا الأسبوع', 'This week'], later: ['لاحقًا', 'Later'] };
+const MGR_KIND = { task: ['مهمة', 'Task'], deliverable: ['تسليم', 'Deliverable'], installment: ['دفعة', 'Installment'], followup: ['متابعة', 'Follow-up'] };
+const MGR_ALERT = {
+  late_tasks: ['مهام متأخرة', 'Overdue tasks'], late_deliverables: ['تسليمات متأخرة', 'Overdue deliverables'],
+  installments: ['دفعات مستحقة أو قريبة', 'Installments due soon'], followups: ['متابعات عملاء قريبة', 'Client follow-ups due'], finance: ['تنبيه مالي', 'Financial alert'],
+};
+const MGR_FLAG = { negative: ['صافي الربح بالسالب', 'Negative net profit'], low_margin: ['هامش الربح أقل من الهدف', 'Margin below target'], collection_behind: ['التحصيل متأخر عن تقدم العمل', 'Collection behind progress'], no_collection: ['لا يوجد تحصيل رغم وجود تعاقد', 'No collection despite a contract'] };
+
+function managerReport() {
+  return buildManagerReport({
+    tasks: S.tasks, projects: S.projects, deliverables: S.deliverables, financeEntries: S.financeEntries, today: D.todayISO(),
+    totalsFor: projectFinanceTotals, progressFor: projectProgressData, targets: S.settings.financeTargets || {},
+  });
+}
+function mgrItemRow(x) {
+  const ar = lang() === 'ar';
+  const when = x.date ? D.fmt(x.date, locale(), { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  return `<li class="mgr-row ${x.reason === 'late' ? 'is-late' : ''}"><div><strong>${esc(x.title)}</strong><small class="muted">${esc([MGR_KIND[x.kind][ar ? 0 : 1], x.project, when].filter(Boolean).join(' · '))}</small></div><span class="mgr-tag">${MGR_REASON[x.reason][ar ? 0 : 1]}</span></li>`;
+}
+function mgrView(view, r) {
+  const ar = lang() === 'ar';
+  if (view === 'alerts') {
+    return r.alerts.length ? `<ul class="mgr-list">${r.alerts.map((a) => `<li class="mgr-row ${a.level === 'high' ? 'is-late' : ''}"><div><strong>${MGR_ALERT[a.key][ar ? 0 : 1]}${a.key !== 'finance' ? ' (' + a.n + ')' : ''}</strong><small class="muted">${esc(a.key === 'finance' ? `${a.project} — ${a.flags.map((f) => MGR_FLAG[f][ar ? 0 : 1]).join('، ')}` : a.text)}</small></div></li>`).join('')}</ul>` : `<p class="muted">${L('لا توجد تنبيهات الآن.', 'No alerts right now.')}</p>`;
+  }
+  if (view === 'today') {
+    return r.todayItems.length ? `<ul class="mgr-list">${r.todayItems.map(mgrItemRow).join('')}</ul>` : `<p class="muted">${L('لا توجد عناصر لليوم أو متأخرة.', 'Nothing due today or overdue.')}</p>`;
+  }
+  if (view === 'week') {
+    return `<div class="mgr-week">${Object.entries(r.week).map(([d, list]) => `<div class="mgr-day"><h4>${esc(D.fmt(d, locale(), { weekday: 'long', day: 'numeric', month: 'short' }))}</h4>${list.length ? `<ul class="mgr-list">${list.map(mgrItemRow).join('')}</ul>` : `<p class="muted small">${L('يوم فارغ', 'Free day')}</p>`}</div>`).join('')}</div>`;
+  }
+  if (view === 'finance') {
+    const f = r.finance; const cur = t('currency');
+    const rows = f.perProject.map((p) => `<li class="mgr-row ${p.flags.length ? 'is-late' : ''}"><div><strong>${esc(p.name)}</strong><small class="muted">${L('تحصيل', 'Collected')} ${p.collectionPct == null ? '—' : Math.round(p.collectionPct) + '%'} · ${L('ربح', 'Profit')} ${p.profitPct == null ? '—' : Math.round(p.profitPct) + '%'}${p.flags.length ? ' · ' + p.flags.map((x) => MGR_FLAG[x][ar ? 0 : 1]).join('، ') : ''}</small></div><span class="mgr-tag">${money(p.net)} ${cur}</span></li>`).join('');
+    return `<div class="fin-values"><span>${L('إجمالي التحصيل', 'Total collected')}<strong>${money(f.income)} ${cur}</strong></span><span>${L('إجمالي المصروف', 'Total expenses')}<strong>${money(f.expense)} ${cur}</strong></span><span>${L('صافي الربح', 'Net profit')}<strong class="${f.net < 0 ? 'negative' : 'positive'}">${money(f.net)} ${cur}</strong></span><span>${L('المتبقي للتحصيل', 'Remaining to collect')}<strong>${money(f.outstanding)} ${cur}</strong></span></div><ul class="mgr-list">${rows || `<li class="muted">${L('لا توجد مشروعات.', 'No projects.')}</li>`}</ul>`;
+  }
+  return r.priorities.length ? `<ol class="mgr-list mgr-ranked">${r.priorities.map(mgrItemRow).join('')}</ol>` : `<p class="muted">${L('لا توجد عناصر عاجلة. أضف مهامًا أو مواعيد لأرتب لك الأولويات.', 'Nothing urgent. Add tasks or dates and I will rank them.')}</p>`;
+}
+function openManagerSheet(view = 'priorities', note = '') {
+  const r = managerReport(); S.mgrView = view;
+  const tabs = [['priorities', 'الأولويات', 'Priorities'], ['today', 'خطة اليوم', 'Today'], ['week', 'خطة الأسبوع', 'Week'], ['alerts', 'التنبيهات', 'Alerts'], ['finance', 'التحليل المالي', 'Finance']];
+  const summary = L(`${r.counts.open} عنصر مفتوح · ${r.counts.late} متأخر · ${r.alerts.length} تنبيه`, `${r.counts.open} open · ${r.counts.late} overdue · ${r.alerts.length} alerts`);
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet mgr-sheet glass" role="dialog" aria-modal="true">
+    <div class="sheet-head"><h2>${L('المدير الذكي', 'AI Manager')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="close">×</button></div>
+    <p class="muted small">${summary}</p>
+    <div class="mgr-cmd"><input class="input" id="mgr-text" placeholder="${L('اسأل أو اكتب أمرًا: رتب أولوياتي، خطة الأسبوع، ذكرني بكرة…', 'Ask or command: rank my priorities, weekly plan, remind me tomorrow…')}"><button class="btn" data-action="mgr-mic" aria-label="mic">${icon('mic', 18)}</button><button class="btn primary" data-action="mgr-run">${L('تنفيذ', 'Run')}</button></div>
+    <div class="mgr-tabs">${tabs.map(([v, a, e]) => `<button class="mgr-tab" data-action="mgr-view" data-view="${v}" aria-pressed="${v === view}">${L(a, e)}</button>`).join('')}</div>
+    ${note ? `<p class="muted small">${esc(note)}</p>` : ''}
+    <div id="mgr-body">${mgrView(view, r)}</div>
+    <div class="mgr-ai"><button class="btn" data-action="mgr-ai">${L('تحليل وتوصيات بالذكاء الاصطناعي', 'AI analysis & recommendations')}</button><div id="mgr-ai-out" class="muted small" aria-live="polite"></div></div>
+  </section></div>`;
+}
+async function managerAiAdvice() {
+  const out = $('#mgr-ai-out'); if (!out) return;
+  out.textContent = L('جارٍ التحليل…', 'Analyzing…');
+  const r = managerReport();
+  try {
+    const res = await meetingAiRequest('/manager', {
+      language: lang(), today: D.todayISO(), counts: r.counts,
+      priorities: r.priorities.slice(0, 8).map((x) => ({ kind: x.kind, title: x.title, project: x.project, date: x.date, reason: x.reason })),
+      alerts: r.alerts.map((a) => ({ key: a.key, n: a.n, text: a.text })),
+      finance: { income: r.finance.income, expense: r.finance.expense, net: r.finance.net, outstanding: r.finance.outstanding, projects: r.finance.perProject.slice(0, 20).map((p) => ({ name: p.name, collectionPct: p.collectionPct, profitPct: p.profitPct, progress: p.progress, flags: p.flags })) },
+    });
+    out.innerHTML = esc(String(res.advice || '')).replace(/\n/g, '<br>') || L('لا توجد توصيات.', 'No recommendations.');
+  } catch (err) {
+    out.textContent = (err.message || '') + ' ' + L('(التحليل المحلي أعلاه يعمل بدون إنترنت.)', '(The local analysis above works offline.)');
+  }
+}
+function managerRun(text) {
+  const view = managerIntent(text);
+  if (view) { openManagerSheet(view); return; }
+  if (!text.trim()) return;
+  // أمر تنفيذي (مهمة/دفعة/مشروع/تقرير): نفس محلل الأوامر الصوتية، والعمليات الحساسة تطلب تأكيدًا.
+  Promise.resolve(handleVoiceCommand(inferVoiceCommand(text))).catch((err) => toast(err.message || String(err)));
+}
+function startManagerMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast(t('voice_unsupported')); return; }
+  const rec = new SR(); rec.lang = lang() === 'ar' ? 'ar-EG' : 'en-US'; rec.interimResults = false;
+  rec.onresult = (e) => { const f = $('#mgr-text'); if (f) { f.value = e.results[0][0].transcript; managerRun(f.value); } };
+  rec.onerror = () => toast(t('voice_error')); rec.start();
+}
+
+// ====================================================================== استيراد WhatsApp
+function openWhatsAppSheet(projectId) {
+  const p = S.projects.find((x) => x.id === projectId); if (!p) return;
+  S.waProject = projectId; S.waMsgs = null;
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet wa-sheet glass" role="dialog" aria-modal="true">
+    <div class="sheet-head"><h2>${L('متطلبات من WhatsApp', 'Requirements from WhatsApp')} · ${esc(p.name)}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="close">×</button></div>
+    <p class="muted small">${L('ألصق محادثة العميل من WhatsApp أو WhatsApp Business، أو ارفع ملف «تصدير المحادثة» (.txt). لن يُحفظ أي متطلب قبل مراجعتك وموافقتك.', 'Paste the client chat from WhatsApp or WhatsApp Business, or upload the exported chat (.txt). Nothing is saved until you review and approve.')}</p>
+    <label class="lab" for="wa-kind">${L('نوع التطبيق', 'App')}</label>
+    <select class="input" id="wa-kind"><option value="whatsapp">WhatsApp</option><option value="whatsapp-business">WhatsApp Business</option></select>
+    <label class="lab" for="wa-file">${L('ملف المحادثة', 'Chat file')}</label><input class="input" id="wa-file" type="file" accept=".txt,text/plain">
+    <label class="lab" for="wa-text">${L('أو ألصق المحادثة هنا', 'Or paste the chat here')}</label>
+    <textarea class="input textarea" id="wa-text" rows="6"></textarea>
+    <div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="wa-analyze">${L('استخرج المتطلبات', 'Extract requirements')}</button></div>
+    <div id="wa-review"></div>
+  </section></div>`;
+}
+function waRenderSenders(msgs) {
+  const senders = senderList(msgs); if (!senders.length) return '';
+  return `<p class="lab">${L('رسائل من (اختر العميل)', 'Messages from (pick the client)')}</p><div class="wa-senders">${senders.map((s) => `<label class="wa-sender"><input type="checkbox" class="wa-sender-cb" value="${esc(s)}" checked> ${esc(s)}</label>`).join('')}</div><button class="btn sm" data-action="wa-refilter">${L('تحديث النتائج', 'Refresh results')}</button>`;
+}
+function waRenderCandidates() {
+  const msgs = S.waMsgs || []; const box = $('#wa-review'); if (!box) return;
+  const only = new Set([...document.querySelectorAll('.wa-sender-cb:checked')].map((x) => x.value));
+  const existing = S.requirements.filter((r) => r.projectId === S.waProject);
+  const found = extractRequirements(msgs, { clientSenders: only.size ? only : null, existing });
+  S.waFound = found;
+  box.innerHTML = `${waRenderSenders(msgs)}
+    <p class="lab">${found.length ? L(`وجدت ${found.length} متطلبًا محتملًا — عدّل أو ألغِ التحديد قبل الحفظ`, `${found.length} possible requirements — edit or untick before saving`) : L('لم أجد طلبات واضحة. جرّب اختيار مرسل آخر أو ألصق نصًا أطول.', 'No clear requests found. Try another sender or paste more text.')}</p>
+    <ul class="wa-list">${found.map((c, i) => `<li class="wa-item"><label><input type="checkbox" class="wa-pick" data-i="${i}" checked></label><div><textarea class="input textarea wa-edit" data-i="${i}" rows="2">${esc(c.text)}</textarea><small class="muted">${esc([c.sender, c.date].filter(Boolean).join(' · '))}</small></div></li>`).join('')}</ul>
+    ${found.length ? `<div class="sheet-actions"><button class="btn primary" data-action="wa-save">${L('حفظ المحدد في المتطلبات', 'Save selected to Requirements')}</button></div>` : ''}`;
+}
+async function waAnalyze() {
+  let raw = $('#wa-text')?.value || '';
+  const file = $('#wa-file')?.files?.[0];
+  if (file) { if (file.size > 3e6) { toast(L('الملف كبير جدًا (أقصى 3 ميجابايت).', 'File too large (max 3 MB).')); return; } raw = await file.text(); }
+  if (raw.trim().length < 8) { toast(L('ألصق المحادثة أو ارفع الملف أولًا.', 'Paste the chat or upload a file first.')); return; }
+  S.waMsgs = parseWhatsAppChat(raw.slice(0, 400000));
+  waRenderCandidates();
+}
+async function waSave() {
+  const kind = $('#wa-kind')?.value === 'whatsapp-business' ? 'WhatsApp Business' : 'WhatsApp';
+  const picks = [...document.querySelectorAll('.wa-pick:checked')].map((cb) => {
+    const i = Number(cb.dataset.i); const txt = document.querySelector(`.wa-edit[data-i="${i}"]`)?.value.trim();
+    return { txt, c: S.waFound[i] };
+  }).filter((x) => x.txt);
+  if (!picks.length) { toast(L('لم تحدد أي متطلب.', 'No requirement selected.')); return; }
+  for (const { txt, c } of picks) {
+    await S.store.save('requirements', { id: uid(), projectId: S.waProject, text: txt.slice(0, 1200), source: 'whatsapp', sourceId: null, sourceLabel: kind + (c.sender ? ' · ' + c.sender : ''), date: c.date || D.todayISO(), status: 'open', createdAt: Date.now(), updatedAt: Date.now() });
+  }
+  toast(L(`تمت إضافة ${picks.length} متطلب.`, `${picks.length} requirement(s) added.`));
+  $('#layer').innerHTML = ''; S.activeProjectId = S.waProject; refreshProjectPanel?.({ reset: true }); render();
+}
+
+
 function openVoiceSheet() {
   const options=S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><select class="input compact" id="voice-language" aria-label="لغة التسجيل"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
@@ -1087,7 +1280,7 @@ async function handleVoiceCommand(c) {
    const validCategories=['design','shop-drawings','site','materials','client-review','general'];
    const projectMatch=S.projects.find(p=>p.name.trim().toLocaleLowerCase()===String(report.projectName||'').trim().toLocaleLowerCase());
    const confidence=Number(report.confidence)||0;
-   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId)||!!(meeting.projectId&&report.projectName&&!projectMatch),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[],participants:Array.isArray(report.attendees)?report.attendees.map(x=>String(x).slice(0,100)).slice(0,12).join('، '):meeting.participants,updatedAt:Date.now()};
+   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),purpose:String(report.purpose||meeting.purpose||'').slice(0,240),topics:Array.isArray(report.topics)?report.topics.map(x=>String(x).slice(0,160)).slice(0,20).join('\n'):String(report.topics||meeting.topics||''),requirements:meeting.requirements||(Array.isArray(report.requirements)?report.requirements.map(x=>String(x).slice(0,240)).slice(0,30).join('\n'):''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId)||!!(meeting.projectId&&report.projectName&&!projectMatch),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[],participants:Array.isArray(report.attendees)?report.attendees.map(x=>String(x).slice(0,100)).slice(0,12).join('، '):meeting.participants,updatedAt:Date.now()};
    if(projectMatch&&!meeting.projectId)updated.projectId=projectMatch.id;
    if(report.clientName&&confidence>=0.75&&!meeting.client){updated.client=String(report.clientName).slice(0,120);updated.secondParty=updated.client;}
    await S.store.save('meetings',updated);await syncMeetingRequirements(updated,updated.requirements);S.meetings=[...S.meetings.filter(m=>m.id!==meetingId),updated];
@@ -1224,6 +1417,10 @@ function renderMeetings() {
         <label class="lab" for="meeting-requirements">Client Requirements — طلبات العميل (كل طلب في سطر)</label><textarea class="input textarea" id="meeting-requirements" rows="3" placeholder="مثال: إضافة وحدة تخزين بجوار الثلاجة&#10;تغيير لون وحدات المطبخ"></textarea>
         <label class="lab" for="meeting-transcript">Transcript — نص الاجتماع</label>
         <textarea class="input textarea" id="meeting-transcript" rows="6" placeholder="أضف النص المستخرج أو الملاحظات بعد الاجتماع"></textarea>
+        <label class="lab" for="meeting-purpose">Purpose — الغرض من الاجتماع</label>
+        <input class="input" id="meeting-purpose" maxlength="240" placeholder="مثال: مراجعة الشوب دروينج والتعديلات">
+        <label class="lab" for="meeting-topics">Topics — المواضيع (كل موضوع في سطر)</label>
+        <textarea class="input textarea" id="meeting-topics" rows="3"></textarea>
         <label class="lab" for="meeting-minutes">Minutes of Meeting — موضوعات المناقشة</label>
         <textarea class="input textarea" id="meeting-minutes" rows="6" placeholder="01. Shop Drawings Review&#10;النقاط التي تمت مناقشتها...&#10;&#10;02. Colors & Materials&#10;النقاط التي تمت مناقشتها..."></textarea>
         <label class="lab" for="meeting-decisions">Agreements & Decisions — تم الاتفاق على</label>
@@ -1254,14 +1451,16 @@ function renderMeetings() {
               <button class="btn sm danger" data-action="meeting-audio-delete" data-id="${esc(m.id)}">حذف التسجيل</button>
             </div>
           </div>
-          ${m.minutes? `<div><b>Minutes of Meeting</b><p>${esc(m.minutes).replace(/\n/g,'<br>')}</p></div>`:''}
-          ${m.decisions? `<div><b>Agreements & Decisions</b><p>${esc(m.decisions).replace(/\n/g,'<br>')}</p></div>`:''}
+          ${momSummary(m, p)}
           ${m.aiReviewRequired?'<p class="chip late">يحتاج مراجعة بيانات المشروع أو العميل قبل الاعتماد</p>':''}
           <details><summary>مراجعة وتعديل المحضر والنص</summary>
             ${m.aiReviewNotes?.length?`<p class="muted small">ملاحظات المراجعة: ${esc(m.aiReviewNotes.join(" · "))}</p>`:""}
             <form data-action="update-meeting" data-id="${esc(m.id)}" class="entry-form">
               <label class="lab">عنوان الاجتماع</label><input class="input" name="title" value="${esc(m.title||'')}">
               <label class="lab">اسم العميل / الطرف الثاني</label><input class="input" name="client" value="${esc(m.client||m.secondParty||'')}">
+              <label class="lab">Purpose — الغرض من الاجتماع</label><input class="input" name="purpose" value="${esc(m.purpose||'')}">
+              <label class="lab">Topics — المواضيع</label><textarea class="input textarea" name="topics" rows="3">${esc(m.topics||'')}</textarea>
+              <label class="lab">Attendees — الحضور الآخرون</label><input class="input" name="participants" value="${esc(m.participants||'')}">
               <label class="lab">Client Requirements — طلبات العميل (كل طلب في سطر)</label><textarea class="input textarea" name="requirements" rows="3">${esc(m.requirements||'')}</textarea>
               <label class="lab">Transcript — النص الكامل</label><textarea class="input textarea" name="transcript" rows="5">${esc(m.transcript||'')}</textarea>
               <label class="lab">Minutes of Meeting — موضوعات المناقشة</label><textarea class="input textarea" name="minutes" rows="5">${esc(m.minutes||'')}</textarea>
@@ -1311,8 +1510,11 @@ function printMeetingReport(id){
     <div><b>Meeting Category | تصنيف الاجتماع</b>${esc(cat)}</div>
     <div><b>Meeting Type | نوع الاجتماع</b>${m.mode==='online'?'Online':'Offline'}</div>
   </div>
+  ${textBlock('Purpose | الغرض من الاجتماع',m.purpose)}
+  ${textBlock('Topics | المواضيع',m.topics)}
   ${textBlock('Minutes of Meeting | موضوعات المناقشة',m.minutes)}
   ${textBlock('Agreements & Decisions | تم الاتفاق على',m.decisions)}
+  ${textBlock('Client Requirements | طلبات العميل',m.requirements)}
   ${textBlock('Action Items | المهام والمسؤوليات والمواعيد',m.actions)}
   <section><h2>Meeting Attendees | أطراف الاجتماع</h2><div class="attendees">
     <div class="attendee"><b>First Party | الطرف الأول</b><br>${esc(first)}</div>
@@ -1322,6 +1524,26 @@ function printMeetingReport(id){
   ${textBlock('Transcript | النص الكامل للاجتماع',m.transcript)}
   <footer>WeeklyPlanner · محضر اجتماع · ${esc(m.date||'')}</footer>
   <script>window.onload=()=>setTimeout(()=>window.print(),250)<\\/script></body></html>`);w.document.close();
+}
+
+// ملخص المحضر بالحقول التسعة: Title/Purpose/Date/Client/Topics/Attendees/Decisions/Requirements/Action Items
+function momSummary(m, p) {
+  const ar = lang() === 'ar';
+  const client = m.client || m.secondParty || p?.client || '';
+  const block = (label, text) => text ? `<div class="mom-field"><small class="muted">${label}</small><p>${esc(text).replace(/\n/g, '<br>')}</p></div>` : '';
+  const body = [
+    block(ar ? 'الغرض' : 'Purpose', m.purpose),
+    block(ar ? 'العميل' : 'Client', client),
+    block(ar ? 'التاريخ' : 'Date', [m.date, m.time].filter(Boolean).join(' ')),
+    block(ar ? 'المواضيع' : 'Topics', m.topics),
+    block(ar ? 'الحضور' : 'Attendees', [m.firstParty, m.participants].filter(Boolean).join('، ')),
+    block(ar ? 'القرارات' : 'Decisions', m.decisions),
+    block(ar ? 'المتطلبات' : 'Requirements', m.requirements),
+    block(ar ? 'المهام' : 'Action Items', m.actions),
+    m.minutes && !m.topics ? block(ar ? 'ملخص النقاش' : 'Discussion', m.minutes) : '',
+  ].join('');
+  if (!body) return '';
+  return `<details class="mom-summary"><summary>${ar ? 'محضر الاجتماع' : 'Minutes of Meeting'}</summary>${body}</details>`;
 }
 
 function renderFinance() {
@@ -1588,7 +1810,7 @@ function renderSettings() {
     <div class="icon-preview">${['tasks', 'projects', 'finance', 'settings', 'palette', 'globe'].map((n) => badge(n, 24)).join('')}${badge('check', 24, undefined, true)}</div>
     <div class="lab">${t('font')}</div>
     <div class="fonts">${Object.entries(FONTS).map(([id, f]) =>
-      `<button class="fontbtn" data-action="set-font" data-val="${id}" aria-pressed="${th.font === id}" style="font-family:${f.stack},system-ui">
+      `<button class="fontbtn" data-action="set-font" data-val="${id}" aria-pressed="${fontKey(th.font) === id}" style="font-family:${f.stack},system-ui">
         <b>${f.label}</b><small>${t('font_preview')}</small></button>`).join('')}</div>
     <div class="lab">${t('font_size')}</div>
     ${range('scale', 90, 120, th.scale, '%')}`;
@@ -1893,6 +2115,7 @@ function bindEvents() {
   document.addEventListener('input', onInput);
   document.addEventListener('change', onChange);
   document.addEventListener('keydown', onKey);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target?.id === 'mgr-text') { e.preventDefault(); managerRun(e.target.value); } });
   let swipeStart = null;
   document.addEventListener('touchstart', e => {
     const touch = e.changedTouches?.[0];
@@ -1957,6 +2180,15 @@ async function onClick(e) {
     case 'nav': closeProjectPanel(true); S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'nav-expand': S.navOpenSection=S.navOpenSection===el.dataset.section?'':el.dataset.section; if(!S.navExpanded){S.navExpanded=true;localStorage.setItem('wp1:nav-expanded','1');} render(); break;
     case 'nav-collapse': S.navExpanded=!S.navExpanded; localStorage.setItem('wp1:nav-expanded',S.navExpanded?'1':'0'); render(); break;
+    case 'mgr-open': openManagerSheet(); break;
+    case 'mgr-view': openManagerSheet(el.dataset.view); break;
+    case 'mgr-run': managerRun($('#mgr-text')?.value || ''); break;
+    case 'mgr-mic': startManagerMic(); break;
+    case 'mgr-ai': managerAiAdvice(); break;
+    case 'wa-open': openWhatsAppSheet(el.dataset.id || S.activeProjectId); break;
+    case 'wa-analyze': waAnalyze(); break;
+    case 'wa-refilter': waRenderCandidates(); break;
+    case 'wa-save': waSave().catch((err) => toast(err.message || String(err))); break;
     case 'voice-open': openVoiceSheet(); break;
     case 'voice-start': startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
@@ -2146,7 +2378,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const old=S.meetings.find(m=>m.id===el.dataset.id);if(!old)throw new Error('الاجتماع غير موجود.');
       const field=name=>el.querySelector('[name="'+name+'"]')?.value.trim()||'';
       const client=field('client');
-      const updated={...old,title:field('title')||old.title,client,secondParty:client||old.secondParty||'',transcript:field('transcript'),requirements:field('requirements'),minutes:field('minutes'),decisions:field('decisions'),actions:field('actions'),aiReviewRequired:false,updatedAt:Date.now()}; await S.store.save('meetings',updated); await syncMeetingRequirements(updated,updated.requirements);
+      const updated={...old,title:field('title')||old.title,client,secondParty:client||old.secondParty||'',transcript:field('transcript'),requirements:field('requirements'),minutes:field('minutes'),decisions:field('decisions'),actions:field('actions'),purpose:field('purpose'),topics:field('topics'),participants:field('participants'),aiReviewRequired:false,updatedAt:Date.now()}; await S.store.save('meetings',updated); await syncMeetingRequirements(updated,updated.requirements);
       toast('تم حفظ تعديلات محضر الاجتماع.');render();
     }
     else if (a === 'save-meeting') {
@@ -2166,7 +2398,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const date=$('#meeting-date').value||D.todayISO();
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
-      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),transcript,requirements:$('#meeting-requirements').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-language')?.value||'ar-EG').startsWith('en')?'en':'ar',audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
+      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),purpose:$('#meeting-purpose')?.value.trim()||'',topics:$('#meeting-topics')?.value.trim()||'',transcript,requirements:$('#meeting-requirements').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-language')?.value||'ar-EG').startsWith('en')?'en':'ar',audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
       await syncMeetingRequirements(meeting,meeting.requirements);
       let savedMeeting=meeting;
@@ -2261,6 +2493,7 @@ function onKey(e) {
   if (e.key === 'Enter' && document.activeElement?.matches('[data-action="open-project"]')) { S.activeProjectId = document.activeElement.dataset.id; S.section = 'projects'; S.animateNextRender = true; render(); window.scrollTo(0, 0); }
 }
 
+installTranslator();
 boot();
 
 

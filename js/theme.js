@@ -56,18 +56,23 @@ export function mix(a, b, t) {
 
 // ------------------------------------------------------------------ الخطوط
 export const FONTS = {
-  almarai: { label: 'Almarai', family: 'Almarai', stack: '"Inter","Almarai"', gf: 'Almarai:wght@400;700;800' },
-  cairo: { label: 'Cairo', family: 'Cairo', stack: '"Cairo"', gf: 'Cairo:wght@400;600;700' },
-  tajawal: { label: 'Tajawal', family: 'Tajawal', stack: '"Tajawal"', gf: 'Tajawal:wght@400;500;700' },
-  ibm: { label: 'IBM Plex Arabic', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600' },
-  inter: { label: 'Inter', family: 'Inter', stack: '"Inter","Almarai"', gf: 'Inter:wght@400;500;600;700' },
-  editorial: { label: 'IBM Plex Arabic + Roboto Condensed', family: 'IBM Plex Sans Arabic', stack: '"IBM Plex Sans Arabic","Roboto Condensed"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700;800' },
-  system: { label: 'System', family: 'system-ui', stack: 'system-ui', gf: null },
+  // الإنجليزي دائمًا Roboto Condensed (الخط المعتمد)، والعربي حسب الاختيار.
+  ibm: { label: 'IBM Plex Sans Arabic', family: 'IBM Plex Sans Arabic', stack: '"Roboto Condensed","IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600' },
+  alexandria: { label: 'Alexandria', family: 'Alexandria', stack: '"Roboto Condensed","Alexandria"', gf: 'Alexandria:wght@300;400;500;600' },
+  readex: { label: 'Readex Pro', family: 'Readex Pro', stack: '"Roboto Condensed","Readex Pro"', gf: 'Readex+Pro:wght@300;400;500;600' },
+  noto: { label: 'Noto Sans Arabic', family: 'Noto Sans Arabic', stack: '"Roboto Condensed","Noto Sans Arabic"', gf: 'Noto+Sans+Arabic:wght@300;400;500;600' },
+  almarai: { label: 'Almarai', family: 'Almarai', stack: '"Roboto Condensed","Almarai"', gf: 'Almarai:wght@300;400;700' },
+  cairo: { label: 'Cairo', family: 'Cairo', stack: '"Roboto Condensed","Cairo"', gf: 'Cairo:wght@300;400;500;600' },
+  tajawal: { label: 'Tajawal', family: 'Tajawal', stack: '"Roboto Condensed","Tajawal"', gf: 'Tajawal:wght@300;400;500;700' },
+  system: { label: 'System', family: 'system-ui', stack: '"Roboto Condensed",system-ui', gf: null },
 };
+// أسماء قديمة محفوظة عند المستخدمين
+const FONT_ALIASES = { editorial: 'ibm', inter: 'ibm' };
+export const fontKey = (id) => FONTS[id] ? id : (FONT_ALIASES[id] || 'ibm');
 
-const loadedFonts = new Set(['almarai', 'inter', 'ibm', 'editorial']); // IBM Plex Sans Arabic وRoboto Condensed محمّلان من index.html
+const loadedFonts = new Set(['ibm']); // IBM Plex Sans Arabic وRoboto Condensed محمّلان من index.html
 export function ensureFont(id) {
-  const f = FONTS[id];
+  const f = FONTS[fontKey(id)];
   if (!f || !f.gf || loadedFonts.has(id)) return;
   loadedFonts.add(id);
   const link = document.createElement('link');
@@ -99,7 +104,7 @@ export const DEFAULT_THEME = {
   glass: true,
   blur: 16,                // 0..32
   icons: 'plain',          // Phosphor icons بدون خلفية أو إطار
-  font: 'editorial',
+  font: 'ibm',
   scale: 100,              // 90..120
 };
 
@@ -160,7 +165,7 @@ export function buildVars(theme) {
   const primary = theme.surface === 'same' ? accentSoft : accent;
   const primaryText = theme.surface === 'same' ? accentText : onAccent;
 
-  const f = FONTS[theme.font] || FONTS.almarai;
+  const f = FONTS[fontKey(theme.font)];
 
   const glow1 = `hsl(${ah} ${Math.round(70 * k)}% ${dark ? 32 : 78}% / ${dark ? 0.45 : 0.55})`;
   const glow2 = `hsl(${(ah + 55) % 360} ${Math.round(65 * k)}% ${dark ? 30 : 82}% / ${dark ? 0.35 : 0.45})`;
