@@ -1,6 +1,7 @@
 // قاموس الإنجليزية للنصوص العربية المكتوبة مباشرة داخل واجهة التطبيق.
 // يُطبَّق على DOM عند تفعيل الإنجليزية (انظر translateDom في app.js). أضف أي نص جديد هنا.
 export const EN = {
+'المرفقات والروابط':'Attachments & links','روابط ملفات Google Drive والمراجع':'Google Drive file links and references','رابط':'link',
 'الغرض من الاجتماع':'Meeting purpose',
 'المواضيع (كل موضوع في سطر)':'Topics (one per line)',
 'المواضيع':'Topics',

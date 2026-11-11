@@ -654,6 +654,7 @@ function projectCategories(project, ds, reqs) {
     { key: 'requirements', label: 'متطلبات العميل', description: reqs.length ? reqs.length + ' متطلبات مسجلة' : 'لا توجد متطلبات مسجلة', percent: reqs.length ? Math.round(reqs.filter(x => x.status === 'done').length / reqs.length * 100) : null },
     { key: 'technical', label: 'الحالة الفنية', description: technical.phases.length ? technical.phases.length + ' مراحل ضمن نطاق العمل' : 'لم يتم تحديد نطاق فني', percent: technical.percent },
     { key: 'finance', label: 'الحالة المالية', description: financial.contract > 0 ? 'تحصيل ' + collectionText + ' · صافي ' + profitText : 'لا توجد قيمة تعاقد مسجلة', percent: financial.collectionPct },
+    { key: 'links', label: 'المرفقات والروابط', description: (project.links || []).length ? project.links.length + ' رابط' : 'روابط ملفات Google Drive والمراجع', percent: null },
     { key: 'deliverables', label: 'التسليمات واللوحات', description: ds.length ? ds.length + ' بند تسليم' : 'أضف بنود التسليم', percent: ds.length ? Math.round(handed / ds.length * 100) : null },
   ];
 }
@@ -789,7 +790,20 @@ function renderProjectPanelContent(project, panel, deliverables, requirements) {
   if (panel === 'technical') return '<div class="project-panel-intro"><span>إنجاز المراحل الفنية</span><strong>' + (projectProgressData(project, deliverables).percent === null ? '—' : projectProgressData(project, deliverables).percent + '%') + '</strong></div>' + renderProjectPhaseRows(project, deliverables);
   if (panel === 'deliverables') return renderProjectDeliverablesPanel(project, deliverables);
   if (panel === 'finance') return renderProjectFinancePanel(project);
+  if (panel === 'links') return renderProjectLinksPanel(project);
   return '';
+}
+
+// روابط المشروع: ملفات Google Drive أو أي مرجع (مجاني تمامًا، لا يُرفع شيء من التطبيق). تُقبل روابط http/https فقط.
+function safeHttpUrl(u) { try { const x = new URL(/^https?:\/\//i.test(u) ? u : 'https://' + u); return ['http:', 'https:'].includes(x.protocol) ? x.href : ''; } catch { return ''; } }
+function renderProjectLinksPanel(project) {
+  const links = project.links || [];
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+  return `<p class="muted small">${L('الصق رابط ملف أو مجلد من Google Drive (صور، PDF، لوحات…) ليكون مرجعًا واحدًا للمشروع. اضبط مشاركة الملف في Drive على من يلزم.', 'Paste a Google Drive file or folder link (images, PDFs, drawings…) as a single reference for the project.')}</p>
+    <ul class="mgr-list">${links.map((l) => `<li class="mgr-row"><div><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(l.title)}</strong></a><small class="muted">${esc(host(l.url))}</small></div><button class="btn sm" data-action="link-del" data-id="${esc(project.id)}" data-link="${esc(l.id)}">${L('حذف', 'Delete')}</button></li>`).join('') || `<li class="muted">${L('لا توجد روابط بعد.', 'No links yet.')}</li>`}</ul>
+    <label class="lab" for="link-title">${L('الاسم', 'Title')}</label><input class="input" id="link-title" maxlength="120" placeholder="${L('مثال: لوحات الكوزينة PDF', 'e.g. Kitchen drawings PDF')}">
+    <label class="lab" for="link-url">${L('الرابط', 'Link')}</label><input class="input" id="link-url" inputmode="url" dir="ltr" placeholder="https://drive.google.com/…">
+    <div class="sheet-actions"><button class="btn primary" data-action="link-add" data-id="${esc(project.id)}">${L('إضافة الرابط', 'Add link')}</button></div>`;
 }
 
 function renderProjectCard(project) {
@@ -2237,6 +2251,11 @@ async function onClick(e) {
     case 'nav-collapse': S.navExpanded=!S.navExpanded; localStorage.setItem('wp1:nav-expanded',S.navExpanded?'1':'0'); render(); break;
     case 'brand-logo-pick': $('#brand-logo-file')?.click(); break;
     case 'brand-logo-clear': updateSettings({ brand: { ...(S.settings.brand || {}), logo: '' } }); break;
+    case 'link-add': { const pr = S.projects.find((x) => x.id === el.dataset.id); const url = safeHttpUrl(($('#link-url')?.value || '').trim()); const title = ($('#link-title')?.value || '').trim() || (url && new URL(url).hostname);
+      if (!pr) break; if (!url) { toast(L('اكتب رابطًا صحيحًا يبدأ بـ https', 'Enter a valid https link')); break; }
+      S.store.save('projects', { ...pr, links: [...(pr.links || []), { id: uid(), title: title.slice(0, 120), url }], updatedAt: Date.now() }).then(() => { toast(L('تمت إضافة الرابط.', 'Link added.')); refreshProjectPanel?.(); render(); }); break; }
+    case 'link-del': { const pr = S.projects.find((x) => x.id === el.dataset.id); if (!pr) break;
+      S.store.save('projects', { ...pr, links: (pr.links || []).filter((l) => l.id !== el.dataset.link), updatedAt: Date.now() }).then(() => { refreshProjectPanel?.(); render(); }); break; }
     case 'scope-preset': { const on = new Set(el.dataset.scopes.split(',')); document.querySelectorAll('input[name="p-scope"]').forEach((c) => { c.checked = on.has(c.value); }); break; }
     case 'mgr-open': openManagerSheet(); break;
     case 'mgr-view': openManagerSheet(el.dataset.view); break;
