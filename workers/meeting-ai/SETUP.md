@@ -11,7 +11,8 @@ The app's meeting transcription and MOM generation use a Cloudflare Worker as a 
 5. In GitHub, open Settings → Secrets and variables → Actions → New repository secret and add: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GROQ_API_KEY`, and `ALLOWED_FIREBASE_UID` (the UID copied in step 2).
 6. Open Actions → Deploy Meeting AI Worker → Run workflow.
 7. When the workflow succeeds, copy the Worker URL from the deployment log. It looks like `https://weeklyplanner-meeting-ai.<your-workers-subdomain>.workers.dev`.
-8. Return to Meetings in the app, paste that URL into the AI service field, and save it.
+8. Open `https://...workers.dev/health` in a browser. A healthy deployment returns `{"ok":true,"service":"weeklyplanner-meeting-ai"}`. This check does not verify Groq credentials or Firebase authorization.
+9. Return to Meetings in the app, paste the base Worker URL (without `/health`) into the AI service field, and save it.
 
 ## How to use
 
