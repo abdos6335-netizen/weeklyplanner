@@ -1,8 +1,8 @@
 // Service worker: يخزّن هيكل التطبيق ليعمل أوفلاين. غيّر VERSION عند نشر تحديث.
-const VERSION = 'wp-v4.0.1';
+const VERSION = 'wp-v4.1.0';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
-  'js/app.js', 'js/store.js', 'js/theme.js', 'js/i18n.js', 'js/i18n-en.js', 'js/icons.js', 'js/dates.js', 'js/firebase-config.js',
+  'js/app.js', 'js/store.js', 'js/theme.js', 'js/i18n.js', 'js/i18n-en.js', 'js/report.js', 'js/assistant.js', 'js/icons.js', 'js/dates.js', 'js/firebase-config.js',
   'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-48.png',
 ];
 // نطاقات خارجية نخزّنها أثناء التشغيل (الخطوط ووحدات Firebase). باقي الطلبات (Firestore/Auth) تمر مباشرة.

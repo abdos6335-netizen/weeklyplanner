@@ -1401,3 +1401,6 @@ html body .voice-fab span { display: none; }
 .scope-presets { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
 .scope-preset { background: none; border: 1px solid var(--line); border-radius: 999px; padding: var(--s1) var(--s3); color: var(--text); font-size: var(--fs-cap); cursor: pointer; }
 .scope-preset:active { background: color-mix(in srgb, var(--text-2) 12%, transparent); }
+
+.brand-logo-row { display: flex; align-items: center; gap: var(--s4); padding: var(--s3) 0; }
+.brand-logo-preview { max-height: 56px; max-width: 160px; object-fit: contain; }
