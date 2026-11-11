@@ -2,7 +2,7 @@
 import { createStore } from './store.js';
 import { t, setLang, lang, dir, locale } from './i18n.js';
 import { translateText } from './i18n-en.js';
-import { buildProjectReport, reportShell, esc as rEsc } from './report.js';
+import { buildProjectReport, buildDocument, reportShell, esc as rEsc } from './report.js';
 import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
@@ -971,6 +971,8 @@ function reportData(p) {
     totals,
     deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage), kindLabel: deliverableKindLabel(x.kind), due: x.dueDate, status: x.status, statusLabel: approvalLabel(x.status), notes: x.notes })),
     finance: fs, money,
+    installments: (p.installments || []).map((i) => ({ name: i.title || i.name, dueDate: i.dueDate, amount: i.amount, status: i.status })),
+    meetings: S.meetings.filter((x) => x.projectId === id).sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 5).map((x) => ({ date: x.date, title: x.title, decisions: x.decisions, actions: x.actions })),
     requirements: reqs.map((x) => ({ text: x.text, source: x.sourceLabel || x.source, date: x.date, statusLabel: ({ open: lang() === 'ar' ? 'مفتوح' : 'Open', doing: lang() === 'ar' ? 'قيد التنفيذ' : 'In progress', done: lang() === 'ar' ? 'تم' : 'Done' })[x.status] || x.status })),
   };
 }
@@ -978,14 +980,53 @@ function printProjectReport(id, mode) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
   openReportWindow(buildProjectReport(mode === 'finance' ? 'finance' : 'status', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
 }
+function printClientReport(id) {
+  const p = S.projects.find((x) => x.id === id); if (!p) return;
+  openReportWindow(buildProjectReport('client', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
+}
 function printProjectFullReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
   openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
 }
 function openPrintChoice(id) {
   const p=S.projects.find(x=>x.id===id); if(!p)return;
-  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('print_project')} · ${esc(p.name)}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('print_choose')}</p><div class="btnrow"><button class="btn primary" data-action="print-full" data-id="${esc(id)}">تقرير شامل للمشروع</button><button class="btn" data-action="print-status" data-id="${esc(id)}">${t('project_status_report')}</button><button class="btn" data-action="print-finance" data-id="${esc(id)}">${t('finance_report')}</button></div></section></div>`;
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('print_project')} · ${esc(p.name)}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('print_choose')}</p><div class="btnrow"><button class="btn primary" data-action="print-full" data-id="${esc(id)}">تقرير شامل للمشروع</button><button class="btn" data-action="print-status" data-id="${esc(id)}">${t('project_status_report')}</button><button class="btn" data-action="print-finance" data-id="${esc(id)}">${t('finance_report')}</button><button class="btn" data-action="print-client" data-id="${esc(id)}">${L('تقرير للعميل (بدون الربح والمصروفات)', 'Client report (no profit/expenses)')}</button><button class="btn" data-action="doc-open" data-id="${esc(id)}">${L('عرض سعر / فاتورة / إيصال', 'Quote / Invoice / Receipt')}</button></div></section></div>`;
 }
+// ====================================================================== عرض سعر / فاتورة / إيصال
+function openDocSheet(projectId) {
+  const p = S.projects.find((x) => x.id === projectId); if (!p) return;
+  S.docProject = projectId;
+  const pending = (p.installments || []).filter((i) => i.status !== 'paid');
+  const prefill = pending.length ? pending.map((i) => `${i.title || i.name} | 1 | ${i.amount}`).join('\n') : '';
+  const next = String((S.settings.docCounter || 0) + 1).padStart(3, '0');
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet glass" role="dialog" aria-modal="true">
+    <div class="sheet-head"><h2>${L('عرض سعر / فاتورة / إيصال', 'Quote / Invoice / Receipt')} · ${esc(p.name)}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="close">×</button></div>
+    <label class="lab" for="doc-kind">${L('نوع المستند', 'Document type')}</label>
+    <select class="input" id="doc-kind"><option value="quote">${L('عرض سعر', 'Quotation')}</option><option value="invoice">${L('فاتورة', 'Invoice')}</option><option value="receipt">${L('إيصال استلام دفعة', 'Payment receipt')}</option></select>
+    <label class="lab" for="doc-number">${L('رقم المستند', 'Document no.')}</label><input class="input" id="doc-number" value="${new Date().getFullYear()}-${next}">
+    <label class="lab" for="doc-lines">${L('البنود (كل بند في سطر: الوصف | الكمية | سعر الوحدة)', 'Items (one per line: description | qty | unit price)')}</label>
+    <textarea class="input textarea" id="doc-lines" rows="5" placeholder="${L('تصميم داخلي | 1 | 50000', 'Interior design | 1 | 50000')}">${esc(prefill)}</textarea>
+    <div class="fin-values"><div><label class="lab" for="doc-disc">${L('خصم %', 'Discount %')}</label><input class="input" id="doc-disc" inputmode="decimal" value="0"></div><div><label class="lab" for="doc-vat">${L('ضريبة %', 'VAT %')}</label><input class="input" id="doc-vat" inputmode="decimal" value="0"></div></div>
+    <label class="lab" for="doc-valid">${L('صالح حتى (عرض السعر)', 'Valid until (quotation)')}</label><input class="input" id="doc-valid" type="date">
+    <label class="lab" for="doc-for">${L('الإيصال: مبلغ الدفعة وبيانها (المبلغ | البيان)', 'Receipt: amount | description')}</label><input class="input" id="doc-for" placeholder="${L('20000 | الدفعة الأولى', '20000 | First installment')}">
+    <label class="lab" for="doc-notes">${L('الشروط والملاحظات', 'Terms & notes')}</label><textarea class="input textarea" id="doc-notes" rows="3"></textarea>
+    <div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="doc-generate">${L('إنشاء المستند', 'Generate')}</button></div>
+  </section></div>`;
+}
+function generateDocument() {
+  const p = S.projects.find((x) => x.id === S.docProject); if (!p) return;
+  const kind = $('#doc-kind').value;
+  const lines = ($('#doc-lines').value || '').split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((a) => a[0]).map(([desc, qty, price]) => ({ desc, qty: Number(qty) || 1, price: Number(String(price || '0').replace(/[^\d.]/g, '')) || 0 }));
+  const [amt, forWhat] = ($('#doc-for').value || '').split('|').map((x) => x.trim());
+  if (kind !== 'receipt' && !lines.length) { toast(L('أضف بندًا واحدًا على الأقل.', 'Add at least one item.')); return; }
+  if (kind === 'receipt' && !(Number(String(amt).replace(/[^\d.]/g, '')) > 0)) { toast(L('اكتب مبلغ الدفعة في خانة الإيصال.', 'Enter the amount in the receipt field.')); return; }
+  const doc = { kind, number: $('#doc-number').value.trim(), date: D.todayISO(), validUntil: $('#doc-valid').value, client: p.client || '', project: p.name, lines,
+    discountPct: Number($('#doc-disc').value) || 0, vatPct: Number($('#doc-vat').value) || 0, notes: $('#doc-notes').value.trim(), receipt: { amount: Number(String(amt).replace(/[^\d.]/g, '')) || 0, forWhat: forWhat || '' } };
+  updateSettings({ docCounter: (S.settings.docCounter || 0) + 1 }, { render: false });
+  $('#layer').innerHTML = '';
+  openReportWindow(buildDocument(doc, { lang: lang(), brand: S.settings.brand || {}, money }));
+}
+
 // ====================================================================== المدير الذكي
 const L = (ar, en) => (lang() === 'ar' ? ar : en);
 const MGR_REASON = { late: ['متأخر', 'Overdue'], today: ['اليوم', 'Today'], tomorrow: ['غدًا', 'Tomorrow'], week: ['هذا الأسبوع', 'This week'], later: ['لاحقًا', 'Later'] };
@@ -2252,6 +2293,9 @@ async function onClick(e) {
     case 'delete-personal-expense': if(confirm('حذف الحركة الشخصية؟')) { await S.store.remove('personalExpenses',el.dataset.id); toast('تم حذف الحركة.'); } break;
     case 'print-project': openPrintChoice(el.dataset.id); break;
     case 'print-full': $('#layer').innerHTML=''; printProjectFullReport(el.dataset.id); break;
+    case 'print-client': $('#layer').innerHTML=''; printClientReport(el.dataset.id); break;
+    case 'doc-open': openDocSheet(el.dataset.id); break;
+    case 'doc-generate': generateDocument(); break;
     case 'print-status': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'status'); break;
     case 'print-finance': $('#layer').innerHTML=''; printProjectReport(el.dataset.id,'finance'); break;
     case 'meeting-view': S.meetingView=v; render(); break;
