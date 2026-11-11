@@ -1,104 +1,64 @@
 # WeeklyPlanner
 
-مخطط أسبوعي مفتوح المصدر، مجاني بالكامل، يعمل على الهاتف والتابلت والكمبيوتر (PWA) بدون Google Play.
-تسجيل الدخول بحساب Google، وبياناتك في Firestore الخاص بك، محمية بقواعد تسمح لحسابك فقط.
+WeeklyPlanner is a bilingual Arabic/English PWA for managing weekly tasks, interior-design projects, deliverables, client requirements, meetings, and project/personal finances. The same web app can be opened on desktop, tablet, and mobile; an Android Flutter WebView host is also included.
 
-**الإصدار 2.0:** المهام الأسبوعية، الثيم والإعدادات، المشروعات، تسليمات التصميم الداخلي والاعتمادات، والماليات لكل مشروع والملخص العام. التسجيل الصوتي غير مضاف في هذا الإصدار.
+## Current source state
 
-## تجربة سريعة (بدون Firebase)
-التطبيق يعمل مباشرة في **الوضع المحلي** (البيانات على الجهاز فقط) طالما `js/firebase-config.js` فيه `null`.
-لا يعمل بفتح الملف مباشرة (`file://`) — شغّله من خادم:
+- Web app version declared in js/app.js: **3.1.32**
+- Service Worker cache version declared in sw.js: **wp-v4.0.0**
+- The Service Worker cache version and the app's displayed/source version are separate values.
+- Main application source: js/app.js; data layer: js/store.js.
 
-```bash
-python3 -m http.server 8000     # ثم افتح http://localhost:8000
-```
+## Main features
 
-## النشر على GitHub Pages (مجاني)
-1. أنشئ مستودعًا جديدًا على GitHub وارفع محتويات هذا المجلد كما هي.
-2. Settings ▸ Pages ▸ Source: `Deploy from a branch` ▸ Branch: `main` / root ▸ Save.
-3. بعد دقيقة يظهر الرابط: `https://<username>.github.io/<repo>/`
-4. افتحه من الهاتف: Chrome ▸ ⋮ ▸ **Install app** / **Add to Home screen**. على الكمبيوتر: أيقونة التثبيت في شريط العنوان.
+- Weekly tasks with priorities, due dates, overdue carry-forward, and project links.
+- Projects with configurable work scope, client requirements, technical deliverables, and project progress.
+- Deliverable types for existing/masonry/demolition, furniture and dimension plans, RCP, electrical, low-current, finishes, mechanical services, elevations, and schedules including FF&E.
+- Project finance: contract values, collections, expenses, installments, and per-project summaries. Personal expenses and budgets are kept separate.
+- Dashboard metrics for tasks, project progress, collections, profit margin, and meeting minutes, with configurable indicator styles and colors.
+- Meetings with project/client metadata, weekly calendar, previous/upcoming views, audio recording, transcript review, editable AI-generated Minutes of Meeting, and printing.
+- WhatsApp / WhatsApp Business chat import from pasted text or exported TXT files. Candidate requirements are reviewed before being saved to a project.
+- AI Manager with local priority/alert/finance analysis and optional server-generated recommendations.
+- Arabic/English interface, theme and typography settings, backup export/import, and PWA offline shell.
 
-## تفعيل الدخول بـ Google والمزامنة (Firebase، مجاني)
-1. https://console.firebase.google.com ▸ **Add project** (لا تحتاج Google Analytics).
-2. **Build ▸ Authentication ▸ Get started ▸ Sign-in method ▸ Google ▸ Enable**.
-3. **Build ▸ Firestore Database ▸ Create database** (اختر Production mode وأقرب منطقة).
-4. تبويب **Rules**: الصق محتوى `firestore.rules` ثم **Publish**.
-   - اختياري: فك التعليق عن شرط البريد وضع بريدك ليدخل حسابك فقط.
-5. **Project settings ▸ General ▸ Your apps ▸ Web (`</>`)** ▸ سجّل التطبيق وانسخ `firebaseConfig` إلى `js/firebase-config.js`.
-6. **Authentication ▸ Settings ▸ Authorized domains ▸ Add domain**: `<username>.github.io` (و `localhost` للتجربة).
-7. ارفع التعديل على GitHub. من الآن زر الدخول يصبح «الدخول بحساب Google».
+## Data and sync
 
-> قيم `firebaseConfig` ليست أسرارًا. الحماية في قواعد Firestore: كل مستخدم يصل إلى `users/{uid}` الخاص به فقط.
+The app supports local browser storage and Firebase Authentication + Firestore. Local mode stores data on that browser/device and does not sync to other devices. Cross-device sync requires the Firebase configuration in js/firebase-config.js and a working Firebase project/rules setup.
 
-### الخطة المجانية (Spark)
-تكفي الاستخدام الشخصي بمراحل (قراءات/كتابات يومية بالآلاف). لا تحتاج بطاقة بنكية.
+Firebase configuration values shipped to a browser are not private credentials. Access control must be enforced by Firebase Authentication and Firestore security rules. Never commit service-account keys, API secrets, or private tokens.
 
-## النسخ الاحتياطي
-الإعدادات ▸ الحساب والبيانات ▸ **تصدير نسخة احتياطية** (ملف JSON) و**استيراد**.
+## Meeting AI service
 
-## الهيكل
-```
-index.html, styles.css, manifest.webmanifest, sw.js
-js/app.js            الواجهة والمنطق
-js/store.js          البيانات (Firebase أو محلي) بواجهة واحدة
-js/theme.js          محرك الثيم (ألوان، تشبع، زجاج، خطوط)
-js/i18n.js           عربي / إنجليزي
-js/icons.js, dates.js
-firestore.rules      قواعد الأمان
-tools/make_icons.py  توليد اللوجو والأيقونات
-```
+The optional Cloudflare Worker lives in workers/meeting-ai/. It provides:
+- POST /transcribe: explicit audio upload for Groq Whisper transcription.
+- POST /minutes: structured Minutes of Meeting generation from reviewed transcript text.
+- POST /manager: AI recommendations based on the app's current summary.
 
-## بيانات المهمة
-`id, title, notes, date (YYYY-MM-DD أو null), weekRef, priority (1-3), status (todo|doing|done), createdAt, updatedAt, doneAt, projectId`
-- مهمة بدون تاريخ تتبع أسبوع `weekRef`، وإن لم تنتهِ تظهر في «مهام من أسابيع سابقة» مع زر **ترحيل**.
-- المهام القديمة لا تُحذف عند تغيير الأسبوع.
+The Worker requires the GitHub Actions secrets documented in workers/meeting-ai/SETUP.md. The app does not silently upload meeting audio: transcription starts only when the user requests it. Audio files remain local to the device in the current implementation; meeting metadata and text are stored through the app data store.
 
-## ملاحظات
-- رقم إصدار التطبيق والتخزين المؤقت محدّث إلى 2.0.0 لتفادي بقاء ملفات المرحلة الأولى في الأجهزة المثبّتة.
-- أُجري فحص بناء نحوي لملفات JavaScript. يلزم اختبار مزامنة Firebase على إعدادات مشروعك الفعلية بعد تفعيلها.
+Groq quotas, model availability, and pricing are controlled by Groq and may change. Do not assume the service is unlimited or permanently free.
 
-الرخصة: MIT
+## Android host
 
+The Flutter host is under mobile/. It loads the hosted PWA in a WebView and bridges native meeting recording, audio-file read/delete, and Google sign-in requests. Android audio recordings are stored in app-private storage. They are not yet backed up or synchronized to Firebase Storage. iOS native recording is not implemented.
 
-## المرحلة الثانية: المشروعات والتسليمات والماليات
+See mobile/README.md and mobile/ACCEPTANCE_CHECKLIST.md.
 
-أضيفت صفحات المشروعات والماليات إلى التطبيق الحالي مع الإبقاء على المهام الأسبوعية والثيم والإعدادات واللغتين والنسخ الاحتياطي.
+## Local development
 
-- **المشروعات:** سكني، إداري، تجاري، وتشطيبات وتنفيذ؛ مع العميل والموقع والحالة والتواريخ وقيمة التعاقد.
-- **التسليمات:** مرتبطة بكل مشروع، وتشمل مرحلة التصميم (فكرة مبدئية، تصميم، لوحات تنفيذية، تنفيذ)، نوع اللوحة، موعد التسليم، وحالة الاعتماد (لم يُرسل، مرسل للمراجعة، معتمد، مطلوب تعديل).
-- **الماليات:** تسجيل التحصيلات والمصروفات لكل مشروع مع التاريخ والتصنيف والوصف. الملخص العام يجمع قيمة التعاقدات والتحصيلات والمصروفات وصافي التدفق النقدي. المبلغ المتبقي للتحصيل هو قيمة التعاقد ناقص التحصيلات المسجلة، ولا يُعرض على أنه ربح.
-- **النسخ الاحتياطي:** يشمل الآن المشروعات والتسليمات والحركات المالية بالإضافة إلى المهام والإعدادات، مع استمرار قبول النسخ القديمة التي تحتوي على المهام والإعدادات.
-- **التخزين:** يعمل محليًا افتراضيًا على الجهاز. عند إعداد Firebase، تُحفظ المجموعات الجديدة داخل `users/{uid}/` وتخضع لقواعد Firestore الحالية.
+Serve the repository root over HTTP; opening index.html directly with file:// is not supported.
 
-### ملاحظة قبل الاستخدام
+    python3 -m http.server 8000
 
-النسخة الحالية لا تتضمن مزامنة سحابية حتى تُضبط إعدادات Firebase في `js/firebase-config.js`. البيانات المحلية في المتصفح لا تنتقل تلقائيًا بين الأجهزة؛ استخدم تصدير/استيراد النسخة الاحتياطية أو أعد إعداد Firebase للمزامنة.
+Then open http://localhost:8000.
 
+## Deployment notes
 
-## الإصدار 2.1.0 — تحسينات الموبايل والصوت والتقارير
+- GitHub Pages deployment and Cloudflare Worker deployment are separate workflows.
+- The Worker workflow is .github/workflows/deploy-meeting-ai.yml; it can deploy on a qualifying push to main or by manual dispatch.
+- A code change on a feature branch does not publish the PWA to GitHub Pages or deploy the Worker unless a workflow is explicitly configured to run for that branch.
+- Do not treat a successful source commit as proof of a successful Pages deployment, Worker deployment, Firebase sync, or Android device test.
 
-- زر إدخال صوتي متاح من واجهة التطبيق. يستخدم Web Speech API في المتصفحات الداعمة؛ يتطلب إذن الميكروفون واتصالًا بالإنترنت في كثير من المتصفحات. تظهر النتيجة كنص قابل للمراجعة قبل الحفظ.
-- يمكن حفظ الكلام كمهمة، أو كحركة مالية بعد اختيار المشروع وتأكيد المبلغ ونوع الحركة. استخراج الأرقام وأسماء المشروعات يعتمد على النص الذي يتعرف عليه المتصفح، لذلك يجب مراجعة البيانات قبل الحفظ. لا يوجد نموذج ذكاء اصطناعي خارجي أو إرسال تلقائي للصوت إلى خدمة مدفوعة.
-- زر طباعة في كل بطاقة مشروع، مع اختيار تقرير موقف المشروع والتسليمات أو التقرير المالي. من نافذة الطباعة يمكن الطباعة أو الحفظ PDF.
-- تحسينات CSS لتقليل تكبير حقول الإدخال تلقائيًا على الهاتف، ومنع التمدد الأفقي، وتحسين المساحات والحركة على الشاشات الصغيرة.
-- تحديث أيقونات PWA وfavicon والأيقونة المستخدمة داخل الواجهة إلى الصورة المرفقة.
-- رقم إصدار Service Worker: `wp-v2.1.0` لتحديث الملفات المخزنة مؤقتًا.
+## License
 
-**ملاحظة:** التعرف الصوتي يعتمد على دعم المتصفح والجهاز. إن لم يظهر طلب الميكروفون، افتح التطبيق في Chrome واسمح باستخدام الميكروفون. التخزين يظل محليًا ما لم يتم إعداد Firebase.
-
-
-## الإصدار 3.0.0 — مزامنة أوضح ومصروف شخصي وتسجيل دخول إضافي
-
-- إضافة شاشة مستقلة للمصروف الشخصي داخل قسم الماليات، منفصلة تمامًا عن مصروفات المشروعات.
-- ميزانية شهرية قابلة للتعديل، مع إجمالي المصروف والمتبقي ونسبة الاستهلاك والتنبيه عند تجاوز الميزانية.
-- سجل شهري للمصروفات مع الإضافة والتعديل والحذف، والاحتفاظ بالأشهر السابقة حسب التاريخ.
-- تضمين المصروفات الشخصية وميزانياتها في النسخ الاحتياطي والاستيراد.
-- إضافة الدخول بالبريد وكلمة المرور، وإنشاء حساب، وإرسال رابط إعادة تعيين كلمة المرور (مع استمرار الدخول بـ Google).
-- إضافة مؤشر لحالة المزامنة وأخطاء القراءة/الحفظ بدل الاعتماد على سجل Console فقط.
-- منع تكرار إرسال النموذج أثناء الحفظ، وإضافة تأكيد عند إنشاء مشروع باسم موجود.
-- تحسين التقاط أسماء أيام الأسبوع العربية والإنجليزية. صيغ مثل «بعد 15 دقيقة» تُحفظ في ملاحظات المهمة ولا تنشئ إشعارًا زمنيًا.
-- تحديث Service Worker إلى `wp-v3.0.0` لتجديد ملفات التطبيق المخزنة على الأجهزة.
-
-### تنبيه التحقق
-تم فحص الصياغة النحوية لملفات JavaScript. لا يمكن اعتبار مزامنة Firebase بين جهازين أو تدفق تسجيل الدخول مكتمل الاختبار دون تجربة فعلية بحساب المستخدم وعلى جهازين؛ يلزم تنفيذ اختبار قبول بعد النشر.
+MIT
