@@ -4,6 +4,7 @@ import { t, setLang, lang, dir, locale } from './i18n.js';
 import { translateText } from './i18n-en.js';
 import { buildProjectReport, buildDocument, reportShell, esc as rEsc } from './report.js';
 import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
+import { buildToday, parseCaptureActions, revisionState, ACTION_KIND } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
 import {
@@ -90,8 +91,8 @@ const S = {
   expandedFinanceProjectId: null,
   expandedFinanceSummary: false,
   settings: mergeSettings(null),
-  section: 'dashboard',
-  prevSection: 'dashboard',
+  section: 'today',
+  prevSection: 'today',
   week: null,
   sel: null,
   openGroups: new Set(['appearance']),
@@ -102,7 +103,7 @@ const S = {
   taskDropPending: null,
   animateNextRender: false,
   navExpanded: localStorage.getItem('wp1:nav-expanded') !== '0',
-  navOpenSection: 'dashboard',
+  navOpenSection: 'today',
 };
 
 function mergeSettings(saved) {
@@ -211,13 +212,13 @@ function onAuth(user) {
       applySettings(true);
     }
   }));
-  S.unsubs.push(S.store.watch('tasks', (docs) => { S.tasks = docs.map((d) => normalizeTask(d, true)); if (S.section === 'tasks' || S.section === 'dashboard') render(); }));
-  S.unsubs.push(S.store.watch('projects', (docs) => { S.projects = docs; if (S.section === 'projects' || S.section === 'finance' || S.section === 'dashboard') render(); }));
-  S.unsubs.push(S.store.watch('deliverables', (docs) => { S.deliverables = docs; if (S.section === 'projects' || S.section === 'dashboard') render(); }));
-  S.unsubs.push(S.store.watch('financeEntries', (docs) => { S.financeEntries = docs; if (S.section === 'finance' || S.section === 'projects' || S.section === 'dashboard') render(); }));
-  S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance' || S.section === 'dashboard') render(); }));
+  S.unsubs.push(S.store.watch('tasks', (docs) => { S.tasks = docs.map((d) => normalizeTask(d, true)); if (S.section === 'tasks' || S.section === 'dashboard' || S.section === 'today') render(); }));
+  S.unsubs.push(S.store.watch('projects', (docs) => { S.projects = docs; if (S.section === 'projects' || S.section === 'finance' || S.section === 'dashboard' || S.section === 'today') render(); }));
+  S.unsubs.push(S.store.watch('deliverables', (docs) => { S.deliverables = docs; if (S.section === 'projects' || S.section === 'dashboard' || S.section === 'today') render(); }));
+  S.unsubs.push(S.store.watch('financeEntries', (docs) => { S.financeEntries = docs; if (S.section === 'finance' || S.section === 'projects' || S.section === 'dashboard' || S.section === 'today') render(); }));
+  S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance' || S.section === 'dashboard' || S.section === 'today') render(); }));
   S.unsubs.push(S.store.watch('personalBudgets', (docs) => { S.personalBudgets = docs; if (S.section === 'finance') render(); }));
-  S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard') render(); }));
+  S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard' || S.section === 'today') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
   render();
@@ -300,11 +301,12 @@ function render() {
 }
 
 function navList() {
-  return [['dashboard', 'nav_dashboard'], ['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings']];
+  return [['today', 'nav_today'], ['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings'], ['dashboard', 'nav_dashboard']];
 }
 
 function navPreview(id) {
  const today=D.todayISO(), item=(label,meta='',action='nav',section=id,extra='')=>`<button class="nav-preview-item" data-action="${action}" data-section="${section}" ${extra}><span>${esc(label)}</span>${meta?`<small>${esc(meta)}</small>`:''}</button>`;
+ if(id==='today')return item('النهارده','المستحق والمتأخر والمهام');
  if(id==='dashboard')return item('ملخص اليوم','لوحة المتابعة');
  if(id==='tasks'){const rows=S.tasks.filter(x=>x.status!=='done'&&x.date===today).sort((a,b)=>b.priority-a.priority).slice(0,4);return rows.length?rows.map(x=>item(x.title,x.status==='doing'?'قيد التنفيذ':'اليوم')).join(''):item('لا توجد مهام لليوم','عرض كل المهام');}
  if(id==='projects'){const rows=[...S.projects].filter(p=>p.status!=='completed').sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,4);return rows.length?rows.map(p=>item(p.name,projectStatusLabel(p.status),'open-project',id,`data-id="${esc(p.id)}"`)).join(''):item('لا توجد مشروعات نشطة','عرض المشروعات');}
@@ -318,7 +320,7 @@ function shell() {
   const rtl = dir() === 'rtl';
   const nav = navList();
   const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : t('nav_' + sec);
-  const content = sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
+  const content = sec === 'today' ? renderToday() : sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
   const animatePage = S.animateNextRender;
   S.animateNextRender = false;
   return `
@@ -338,18 +340,18 @@ function shell() {
           <h1>${esc(title)}</h1>
         </div>
         <span id="sync-indicator" class="sync-indicator" data-state="${esc(S.syncStatus.state)}">${esc(S.syncStatus.message)}</span>
-        ${sec !== 'settings' ? `<button class="btn icon-btn" data-action="open-settings" aria-label="${t('settings')}">${badge('settings', 20)}</button>` : ''}
+        ${sec !== 'settings' ? `<button class="btn icon-btn more-btn" data-action="open-more" aria-label="${L('المزيد', 'More')}">${icon('more', 20)}</button><button class="btn icon-btn" data-action="open-settings" aria-label="${t('settings')}">${badge('settings', 20)}</button>` : ''}
       </header>
       ${content}
     </main>
     <nav class="tabbar glass" aria-label="main">
-      ${nav.map(([id, key]) => `
+      ${nav.filter(([id]) => ['today', 'projects', 'finance'].includes(id)).map(([id, key]) => `
         <button class="tab ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}">
           ${badge(id, 21, undefined, sec === id)}<span>${t(key)}</span>
         </button>`).join('')}
     </nav>
     ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? (S.activeProjectId ? `<button class="fab" data-action="scroll-deliverable-form" aria-label="${t('add_deliverable')}">${icon('plus', 26)}<span>${t('add_deliverable')}</span></button>` : `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>`) : ''}
-    <button class="voice-fab" data-action="voice-open" aria-label="${t('voice_entry')}">${icon('mic', 23)}<span>${t('voice_entry')}</span></button>
+    <button class="voice-fab" data-action="capture-open" aria-label="${L('تسجيل سريع', 'Quick capture')}">${icon('mic', 24)}<span>${L('تسجيل سريع', 'Quick capture')}</span></button>
   </div>`;
 }
 
@@ -490,6 +492,160 @@ function renderTasks() {
     ${days.map((d) => section(d, inWeek.filter((x) => x.date === d), d === S.sel)).join('')}
     ${section('', inWeek.filter((x) => !x.date), false)}
   </div>`;
+}
+
+// ================================================================== شاشة النهارده + الالتقاط
+const tdMoney = (n) => Number(n || 0).toLocaleString(locale(), { maximumFractionDigits: 0 });
+
+function renderToday() {
+  const today = D.todayISO();
+  const d = buildToday({ projects: S.projects, deliverables: S.deliverables, tasks: S.tasks, meetings: S.meetings, today });
+  const dateLabel = D.fmt(today, locale(), { weekday: 'long', day: 'numeric', month: 'long' });
+  const daysText = (n, kind) => n <= 0 ? (kind === 'late' ? L('مستحق اليوم', 'Due today') : L('اتبعت النهارده', 'Sent today')) : (kind === 'late' ? L(`متأخر ${n} يوم`, `${n} day(s) late`) : L(`من ${n} يوم`, `${n} day(s) ago`));
+  const lateRows = d.late.map((x) => `<div class="td-row"><span class="td-dot late"></span><button class="td-main" data-action="open-project" data-id="${esc(x.projectId)}"><strong>${esc(x.title || L('دفعة', 'Installment'))} · ${esc(x.projectName)}</strong><small>${esc(daysText(x.days, 'late'))} · ${tdMoney(x.amount)} ${L('ج.م', 'EGP')}</small></button><button class="td-act" data-action="td-remind" data-kind="pay" data-project="${esc(x.projectId)}" data-id="${esc(x.installmentId)}">${L('ذكّره', 'Remind')}</button></div>`).join('');
+  const waitRows = d.waiting.map((x) => `<div class="td-row"><span class="td-dot wait"></span><button class="td-main" data-action="open-project" data-id="${esc(x.projectId)}"><strong>${esc(x.name)} <span class="td-v">V${x.rev}</span></strong><small>${esc(x.projectName)} · ${esc(daysText(x.days, 'wait'))}</small></button><button class="td-act" data-action="td-remind" data-kind="wait" data-id="${esc(x.id)}">${L('ذكّره', 'Remind')}</button></div>`).join('');
+  const taskRows = d.todayTasks.map((x) => `<div class="td-row"><button class="td-check" data-action="toggle" data-id="${esc(x.id)}" aria-label="${L('تم', 'Done')}"></button><div class="td-main plain"><strong>${esc(x.title)}</strong>${x.notes && x.id.startsWith('cap_') ? `<small>${esc(x.notes.split('\n').filter(Boolean).length)} ${L('إجراءات اتسجلت · راجعها وعلّم', 'actions recorded · review and tick')}</small>` : ''}</div></div>`).join('');
+  const meetRows = d.todayMeetings.map((m) => `<div class="td-row"><span class="td-dot"></span><button class="td-main" data-action="nav" data-section="meetings"><strong>${esc(m.title || L('اجتماع', 'Meeting'))}</strong><small>${esc(S.projects.find((p) => p.id === m.projectId)?.name || '')}</small></button></div>`).join('');
+  const section = (title, rows) => rows ? `<h2 class="td-label">${title}</h2>${rows}` : '';
+  const empty = !lateRows && !waitRows && !taskRows && !meetRows;
+  return `<section class="today" aria-label="${L('النهارده', 'Today')}">
+    <div class="td-summary">
+      <div><small>${L('مستحق لي', 'Due to me')}</small><div class="td-big">${tdMoney(d.dueTotal)} <span>${L('ج.م', 'EGP')}</span></div></div>
+      <div class="td-stats"><div><b class="${d.counts.late ? 'late' : ''}">${d.counts.late}</b><small>${L('متأخر', 'late')}</small></div><div><b>${d.counts.tasks}</b><small>${L('مهام', 'tasks')}</small></div></div>
+    </div>
+    <p class="td-date">${esc(dateLabel)}${d.lateTasks.length ? ` · <button class="td-link" data-action="nav" data-section="tasks">${L(`${d.lateTasks.length} مهام متأخرة`, `${d.lateTasks.length} overdue tasks`)}</button>` : ''} · <button class="td-link plain" data-action="mgr-open">${L('المدير الذكي', 'AI manager')}</button></p>
+    ${section(L('عاجل', 'Urgent'), lateRows)}
+    ${section(L('مستني ردّ', 'Waiting for reply'), waitRows)}
+    ${section(L('مهام اليوم', "Today's tasks"), taskRows + meetRows)}
+    ${empty ? `<p class="td-empty">${L('مفيش حاجة مستعجلة النهارده. اضغط الميكروفون لتسجيل أي جديد.', 'Nothing urgent today. Tap the mic to record anything new.')}</p>` : ''}
+  </section>`;
+}
+
+function remindText(kind, id, projectId) {
+  if (kind === 'pay') {
+    const p = S.projects.find((x) => x.id === projectId); const i = (p?.installments || []).find((x) => x.id === id); if (!p || !i) return '';
+    return L(`أهلًا ${p.client || ''}، بخصوص ${i.title || 'الدفعة'} الخاصة بمشروع «${p.name}» بقيمة ${tdMoney(i.amount)} ج.م والمستحقة بتاريخ ${i.dueDate || ''}. ممكن تأكيد موعد التحويل؟ شكرًا لحضرتك.`, `Hello ${p.client || ''}, regarding ${i.title || 'the installment'} for "${p.name}" (${tdMoney(i.amount)} EGP, due ${i.dueDate || ''}). Could you confirm the transfer date? Thank you.`);
+  }
+  const dv = S.deliverables.find((x) => x.id === id); const p = S.projects.find((x) => x.id === dv?.projectId); if (!dv || !p) return '';
+  return L(`أهلًا ${p.client || ''}، بخصوص «${dv.name}» (V${Number(dv.rev) || 1}) الخاصة بمشروع «${p.name}» اللي اتبعتت لحضرتك. ممكن ملاحظاتك أو الاعتماد؟ شكرًا.`, `Hello ${p.client || ''}, regarding "${dv.name}" (V${Number(dv.rev) || 1}) for "${p.name}" that I sent you. Could you share your feedback or approval? Thank you.`);
+}
+
+function openMoreSheet() {
+  const row = (section, label) => `<button class="more-row" data-action="more-go" data-section="${section}">${esc(label)}${icon(dir() === 'rtl' ? 'chevL' : 'chevR', 16)}</button>`;
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet more-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${L('المزيد', 'More')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div>${row('tasks', t('nav_tasks'))}${row('meetings', t('nav_meetings'))}${row('dashboard', t('nav_dashboard'))}${row('settings', t('settings'))}</section></div>`;
+}
+
+function captureProjectOptions(selected) {
+  return S.projects.filter((p) => !p.archivedAt).map((p) => `<option value="${esc(p.id)}" ${p.id === selected ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+}
+
+function openCaptureSheet(projectId, keepText = '') {
+  const pid = projectId || S.capture?.projectId || S.activeProjectId || S.projects.find((p) => p.status === 'active' && !p.archivedAt)?.id || S.projects[0]?.id || '';
+  S.capture = { projectId: pid, text: keepText, actions: [] };
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet capture-sheet glass" role="dialog" aria-modal="true" aria-label="${L('تسجيل سريع', 'Quick capture')}">
+    <div class="cap-handle"></div>
+    <div class="cap-hero"><button class="cap-mic" data-action="voice-start" aria-label="${L('ابدأ التسجيل', 'Start recording')}">${icon('mic', 34)}</button><strong>${L('اضغط وتكلّم', 'Tap and speak')}</strong><small id="voice-status" class="muted" aria-live="polite">${L('قول اللي حصل بالعامية، والتطبيق يوزّعه على المشروع.', 'Say what happened; the app routes it into the project.')}</small></div>
+    <label class="lab" for="voice-text">${L('أو اكتب / الصق رسالة', 'Or type / paste a message')}</label>
+    <textarea class="input textarea" id="voice-text" rows="3">${esc(keepText)}</textarea>
+    <div class="cap-row"><label class="lab" for="cap-project">${L('المشروع', 'Project')}</label><select class="input compact" id="cap-project">${captureProjectOptions(pid)}</select></div>
+    <button class="more-row" data-action="cap-wa">${L('من واتساب (ملف المحادثة)', 'From WhatsApp (chat file)')}${icon(dir() === 'rtl' ? 'chevL' : 'chevR', 16)}</button>
+    <div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="capture-analyze">${L('حلّل الرسالة', 'Analyze message')}</button></div>
+  </section></div>`;
+}
+
+function captureActionHtml(a, project) {
+  const kindLabel = L(...ACTION_KIND[a.kind]);
+  const dv = a.deliverableId ? S.deliverables.find((x) => x.id === a.deliverableId) : null;
+  let main = esc(a.name || ''), meta = '';
+  if (a.kind === 'revision') {
+    if (dv) { const st = revisionState(project, { rev: (Number(dv.rev) || 1) + 1 }); meta = `${L('التسليمات', 'Deliverables')} · ${L('تصبح', 'becomes')} V${st.rev} · ${L(`تعديل ${st.requested} من ${st.included}`, `revision ${st.requested} of ${st.included}`)}${st.over ? ` · <b class="over">${L('زائد عن المشمول', 'beyond included')}</b>` : ''}`; }
+    else meta = L('التسليمات · هيتضاف تسليم جديد بحالة «مطلوب تعديل»', 'Deliverables · a new deliverable will be added as “revision requested”');
+  } else if (a.kind === 'approve') meta = L('التسليمات · معتمد من العميل', 'Deliverables · approved by client');
+  else if (a.kind === 'new') meta = L('التسليمات · الحالة: لم تبدأ', 'Deliverables · status: not started');
+  else if (a.kind === 'payment') {
+    const pend = (project?.installments || []).filter((i) => i.status !== 'paid');
+    main = `<input class="input compact cap-amt" type="number" min="0" step="1" data-id="${a.id}" value="${a.amount || ''}" placeholder="${L('المبلغ', 'Amount')}" aria-label="${L('المبلغ', 'Amount')}"> ${L('ج.م', 'EGP')}`;
+    meta = `<select class="input compact cap-inst" data-id="${a.id}" aria-label="${L('القسط', 'Installment')}"><option value="">${L('بدون قسط (دخل عام)', 'No installment (general income)')}</option>${pend.map((i) => `<option value="${esc(i.id)}" ${i.id === a.installmentId ? 'selected' : ''}>${esc(i.title || L('دفعة', 'Installment'))} · ${tdMoney(i.amount)}</option>`).join('')}</select><small class="warn">${L('الماليات · لازم تأكيدك قبل الحفظ', 'Finance · needs your confirmation')}</small>`;
+  }
+  return `<li class="cap-act ${a.on ? 'on' : 'off'}"><div class="cap-act-body"><span class="cap-kind k-${a.kind}">${esc(kindLabel)}</span><div class="cap-act-main">${main}</div><small>${meta}</small><q class="cap-src">${esc(a.text)}</q></div>
+    <button class="cap-btn" data-action="capture-toggle" data-id="${a.id}" data-on="0" aria-label="${L('رفض', 'Reject')}" aria-pressed="${!a.on}">${icon('close', 20)}</button>
+    <button class="cap-btn ok" data-action="capture-toggle" data-id="${a.id}" data-on="1" aria-label="${L('قبول', 'Accept')}" aria-pressed="${a.on}">${icon('check', 22)}</button></li>`;
+}
+
+function renderCaptureReview() {
+  const c = S.capture; if (!c) return;
+  const project = S.projects.find((p) => p.id === c.projectId);
+  const n = c.actions.filter((a) => a.on).length;
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet capture-sheet glass" role="dialog" aria-modal="true">
+    <div class="sheet-head"><button class="btn icon-btn" data-action="capture-back" aria-label="${L('رجوع', 'Back')}">${icon(dir() === 'rtl' ? 'chevR' : 'chevL', 20)}</button><h2>${L('مراجعة الرسالة', 'Review message')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div>
+    <p class="muted small">${esc(project?.name || '')}</p>
+    <p class="cap-text">«${esc(c.text)}»</p>
+    ${c.actions.length ? `<p class="td-label">${L(`${c.actions.length} إجراءات مقترحة`, `${c.actions.length} suggested actions`)}</p><ul class="cap-list">${c.actions.map((a) => captureActionHtml(a, project)).join('')}</ul>
+    <div class="sheet-actions"><button class="btn primary wide" data-action="capture-save" ${n ? '' : 'disabled'}>${L(`احفظ ${n} إجراءات`, `Save ${n} action(s)`)}</button></div>
+    <p class="muted small cap-foot">${L('هيتضاف سطر «ملخص الالتقاط» في مهام النهارده وانت اللي تعلّم عليه.', 'A “capture summary” line is added to today’s tasks for you to tick.')}</p>`
+    : `<p class="muted">${L('ما لقيتش إجراءات واضحة في الرسالة (تعديل، دفعة، لوحة مطلوبة، اعتماد). تقدر تعدّل النص أو تحفظها كمهمة.', 'No clear actions found (revision, payment, requested drawing, approval). Edit the text or save it as a task.')}</p><div class="sheet-actions"><button class="btn" data-action="capture-back">${L('عدّل النص', 'Edit text')}</button><button class="btn primary" data-action="capture-as-task">${L('احفظها كمهمة', 'Save as task')}</button></div>`}
+  </section></div>`;
+}
+
+function syncCaptureInputs() {
+  if (!S.capture) return;
+  for (const a of S.capture.actions) {
+    const amt = document.querySelector(`.cap-amt[data-id="${a.id}"]`); if (amt) a.amount = Number(amt.value) || 0;
+    const inst = document.querySelector(`.cap-inst[data-id="${a.id}"]`); if (inst) a.installmentId = inst.value || null;
+  }
+}
+
+async function applyCaptureAction(a, project) {
+  const now = Date.now(), today = D.todayISO();
+  if (a.kind === 'payment') {
+    const amount = Number(a.amount) || 0; if (amount <= 0) throw new Error(L('مبلغ الدفعة غير واضح.', 'Payment amount is unclear.'));
+    const fresh = S.projects.find((p) => p.id === project.id) || project;
+    const inst = (fresh.installments || []).find((i) => i.id === a.installmentId && i.status !== 'paid');
+    const linked = inst && Number(inst.amount) === amount;
+    const entry = { id: linked ? `installment_${inst.id}` : uid(), projectId: fresh.id, kind: 'income', amount, date: today, category: 'دفعة تعاقد', description: linked ? `تحصيل دفعة: ${inst.title || 'دفعة'}` : `دفعة مستلمة${inst ? ` (جزء من: ${inst.title || 'دفعة'})` : ''} — من الالتقاط`, createdAt: now };
+    if (linked) entry.installmentId = inst.id;
+    await S.store.save('financeEntries', entry);
+    if (linked) {
+      const updated = { ...fresh, installments: fresh.installments.map((x) => x.id === inst.id ? { ...x, status: 'paid', paidAt: today } : x), updatedAt: now };
+      try { await S.store.save('projects', updated); } catch (err) { await S.store.remove('financeEntries', entry.id).catch(() => {}); throw err; }
+      S.projects = S.projects.map((p) => p.id === updated.id ? updated : p);
+    }
+    return L(`دفعة ${tdMoney(amount)} ج.م`, `Payment ${tdMoney(amount)} EGP`);
+  }
+  const dv = a.deliverableId ? S.deliverables.find((x) => x.id === a.deliverableId) : null;
+  if (a.kind === 'approve' && dv) { await S.store.save('deliverables', { ...dv, status: 'approved', updatedAt: now }); return L(`اعتماد «${dv.name}»`, `Approved “${dv.name}”`); }
+  if (a.kind === 'revision') {
+    if (dv) {
+      const rev = (Number(dv.rev) || 1) + 1;
+      await S.store.save('deliverables', { ...dv, status: 'revision', rev, notes: `${dv.notes ? dv.notes + ' · ' : ''}${L('تعديل', 'Revision')}: ${a.text}`.slice(0, 1000), updatedAt: now });
+      return L(`تعديل على «${dv.name}» (V${rev})`, `Revision on “${dv.name}” (V${rev})`);
+    }
+    await S.store.save('deliverables', { id: uid(), projectId: project.id, name: String(a.name || a.text).slice(0, 120), stage: 'technical', kind: 'other', dueDate: null, status: 'revision', rev: 1, notes: a.text.slice(0, 1000), createdAt: now, updatedAt: now, source: 'capture' });
+    return L(`تعديل: ${a.name}`, `Revision: ${a.name}`);
+  }
+  if (a.kind === 'new' || a.kind === 'approve') {
+    await S.store.save('deliverables', { id: uid(), projectId: project.id, name: String(a.name || a.text).slice(0, 120), stage: 'technical', kind: 'other', dueDate: null, status: a.kind === 'approve' ? 'approved' : 'pending', rev: 1, notes: a.text.slice(0, 1000), createdAt: now, updatedAt: now, source: 'capture' });
+    return L(`لوحة «${a.name}» — لم تبدأ`, `Drawing “${a.name}” — not started`);
+  }
+  return '';
+}
+
+async function saveCaptureSummaryTask(project, lines) {
+  if (!lines.length) return;
+  const today = D.todayISO(), id = `cap_${today}`;
+  const old = S.tasks.find((x) => x.id === id);
+  const all = [...(old?.notes ? old.notes.split('\n').filter(Boolean) : []), ...lines.map((l) => `• ${project.name}: ${l}`)];
+  const task = normalizeTask({ id, title: L(`ملخص الالتقاط · ${all.length} إجراءات`, `Capture summary · ${all.length} actions`), notes: all.join('\n'), date: today, weekRef: today, priority: 2, status: 'todo', createdAt: old?.createdAt || Date.now(), updatedAt: Date.now() });
+  await S.store.save('tasks', task);
+}
+
+function vBadgeHtml(project, d) {
+  const st = revisionState(project, d);
+  return `<span class="v-badge ${st.over ? 'over' : ''}" title="${esc(L(`تعديلات مطلوبة ${st.requested} من ${st.included} مشمولة`, `${st.requested} of ${st.included} included revisions used`))}">V${st.rev}</span>`;
+}
+function vActionsHtml(project, d) {
+  const st = revisionState(project, d);
+  return `<span class="v-actions">${st.over ? `<small class="over">${L(`تعديل زائد: ${st.requested} من ${st.included}`, `Extra revision: ${st.requested} of ${st.included}`)}</small> <button class="text-action" data-action="doc-open" data-id="${esc(project.id)}" type="button">${L('عرض سعر', 'Quote')}</button> ` : ''}<button class="text-action" data-action="deliverable-rev" data-id="${esc(d.id)}" type="button">${L('نسخة جديدة', 'New version')}</button></span>`;
 }
 
 function renderDashboard() {
@@ -745,7 +901,7 @@ function renderProjectDeliverablesPanel(project, deliverables) {
   const stages = '<option value="concept">' + t('stage_concept') + '</option><option value="design">' + t('stage_design') + '</option><option value="technical">' + t('stage_technical') + '</option><option value="execution">' + t('stage_execution') + '</option>';
   const kinds = deliverableKindsHtml();
   return '<form data-action="add-deliverable" class="entry-form project-minimal-form"><input type="hidden" id="d-project" value="' + esc(project.id) + '"><div class="form-grid">' + inputField(t('deliverable_name'), 'd-name') + '<div><label class="lab" for="d-stage">' + t('design_stage') + '</label><select class="input" id="d-stage">' + stages + '</select></div><div><label class="lab" for="d-kind">' + t('deliverable_type') + '</label><select class="input" id="d-kind">' + kinds + '</select></div>' + inputField(t('due_date'), 'd-date', 'date') + '<div><label class="lab" for="d-status">' + t('approval_status') + '</label><select class="input" id="d-status"><option value="pending">' + t('approval_pending') + '</option><option value="submitted">' + t('approval_submitted') + '</option><option value="approved">' + t('approval_approved') + '</option><option value="revision">' + t('approval_revision') + '</option></select></div></div><label class="lab" for="d-notes">' + t('notes') + '</label><input class="input" id="d-notes"><button class="btn primary" type="submit">' + t('add_deliverable') + '</button></form>' +
-    (rows.length ? '<div class="project-deliverables-list">' + rows.map(d => '<article class="project-deliverable-row"><div><strong>' + esc(d.name) + '</strong><small>' + esc(d.kind || '') + (d.notes ? ' · ' + esc(d.notes) : '') + '</small></div><span>' + esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage] || d.stage || '—') + '</span><span>' + esc(d.dueDate || '—') + '</span><select class="input compact" data-change="deliverable-status" data-id="' + esc(d.id) + '"><option value="pending" ' + (d.status === 'pending' ? 'selected' : '') + '>' + t('approval_pending') + '</option><option value="submitted" ' + (d.status === 'submitted' ? 'selected' : '') + '>' + t('approval_submitted') + '</option><option value="approved" ' + (d.status === 'approved' ? 'selected' : '') + '>' + t('approval_approved') + '</option><option value="revision" ' + (d.status === 'revision' ? 'selected' : '') + '>' + t('approval_revision') + '</option></select><button class="text-action danger" data-action="delete-deliverable" data-id="' + esc(d.id) + '" type="button">حذف</button></article>').join('') + '</div>' : '<p class="muted small">لا توجد تسليمات مسجلة لهذا المشروع.</p>');
+    (rows.length ? '<div class="project-deliverables-list">' + rows.map(d => '<article class="project-deliverable-row"><div><strong>' + esc(d.name) + ' ' + vBadgeHtml(project, d) + '</strong><small>' + esc(d.kind || '') + (d.notes ? ' · ' + esc(d.notes) : '') + '</small>' + vActionsHtml(project, d) + '</div><span>' + esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage] || d.stage || '—') + '</span><span>' + esc(d.dueDate || '—') + '</span><select class="input compact" data-change="deliverable-status" data-id="' + esc(d.id) + '"><option value="pending" ' + (d.status === 'pending' ? 'selected' : '') + '>' + t('approval_pending') + '</option><option value="submitted" ' + (d.status === 'submitted' ? 'selected' : '') + '>' + t('approval_submitted') + '</option><option value="approved" ' + (d.status === 'approved' ? 'selected' : '') + '>' + t('approval_approved') + '</option><option value="revision" ' + (d.status === 'revision' ? 'selected' : '') + '>' + t('approval_revision') + '</option></select><button class="text-action danger" data-action="delete-deliverable" data-id="' + esc(d.id) + '" type="button">حذف</button></article>').join('') + '</div>' : '<p class="muted small">لا توجد تسليمات مسجلة لهذا المشروع.</p>');
 }
 
 function renderProjectPhaseRows(project, deliverables) {
@@ -1663,7 +1819,7 @@ function renderPersonalExpenses() {
 
 function openProjectSheet(id=null) {
   const p=id?S.projects.find(x=>x.id===id):null;
-  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><div class="sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${p?t('edit_project'):t('new_project')}</h2><button class="btn icon-btn" data-action="sheet-cancel">×</button></div><form data-action="save-project" data-id="${esc(p?.id||'')}">${inputField(t('project_name'),'p-name','text',p?.name||'','required maxlength="160"')}<fieldset class="scope-fieldset"><legend class="lab">نطاق الخدمات المطلوبة في المشروع</legend><p class="muted small">اختار خدمة واحدة أو اجمع أكثر من خدمة حسب الاتفاق مع العميل.</p><div class="scope-presets">${[["Design","design"],["3D Only","3d"],["Drawings Only","technical_drawings"],["Execution Only","execution"],["Design + Execution + Drawings","design,technical_drawings,execution"]].map(([l,v])=>`<button type="button" class="scope-preset" data-action="scope-preset" data-scopes="${v}">${l}</button>`).join("")}</div><div class="scope-options">${[['design','Design'],['3d','3D Visualization'],['technical_drawings','Technical Drawings'],['execution','Execution']].map(([v,l])=>`<label class="scope-option"><input type="checkbox" name="p-scope" value="${v}" ${(p?.workScope||[]).includes(v)?'checked':''}><span>${l}</span></label>`).join('')}</div></fieldset><div class="form-grid"><div><label class="lab" for="p-type">${t('project_type')}</label><select class="input" id="p-type"><option value="residential" ${p?.type==='residential'?'selected':''}>${t('type_residential')}</option><option value="administrative" ${p?.type==='administrative'?'selected':''}>${t('type_administrative')}</option><option value="commercial" ${p?.type==='commercial'?'selected':''}>${t('type_commercial')}</option><option value="fitout" ${p?.type==='fitout'?'selected':''}>${t('type_fitout')}</option></select></div><div><label class="lab" for="p-status">${t('status')}</label><select class="input" id="p-status"><option value="planning" ${p?.status==='planning'?'selected':''}>${t('status_planning')}</option><option value="active" ${p?.status==='active'?'selected':''}>${t('status_active')}</option><option value="on_hold" ${p?.status==='on_hold'?'selected':''}>${t('status_on_hold')}</option><option value="completed" ${p?.status==='completed'?'selected':''}>${t('status_completed')}</option></select></div>${inputField(t('client'),'p-client','text',p?.client||'')}${inputField(t('location'),'p-location','text',p?.location||'')}${inputField(t('contract_value'),'p-contract','number',p?.contractValue??'','min="0" step="0.01"')}${inputField(t('start_date'),'p-start','date',p?.startDate||'')}${inputField(t('end_date'),'p-end','date',p?.endDate||'')}</div><label class="lab" for="p-notes">${t('notes')}</label><textarea class="textarea" id="p-notes" rows="3">${esc(p?.notes||'')}</textarea><div class="sheet-actions"><button type="button" class="btn" data-action="sheet-cancel">${t('cancel')}</button><button type="submit" class="btn primary">${t('save')}</button></div></form></div></div>`;
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><div class="sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${p?t('edit_project'):t('new_project')}</h2><button class="btn icon-btn" data-action="sheet-cancel">×</button></div><form data-action="save-project" data-id="${esc(p?.id||'')}">${inputField(t('project_name'),'p-name','text',p?.name||'','required maxlength="160"')}<fieldset class="scope-fieldset"><legend class="lab">نطاق الخدمات المطلوبة في المشروع</legend><p class="muted small">اختار خدمة واحدة أو اجمع أكثر من خدمة حسب الاتفاق مع العميل.</p><div class="scope-presets">${[["Design","design"],["3D Only","3d"],["Drawings Only","technical_drawings"],["Execution Only","execution"],["Design + Execution + Drawings","design,technical_drawings,execution"]].map(([l,v])=>`<button type="button" class="scope-preset" data-action="scope-preset" data-scopes="${v}">${l}</button>`).join("")}</div><div class="scope-options">${[['design','Design'],['3d','3D Visualization'],['technical_drawings','Technical Drawings'],['execution','Execution']].map(([v,l])=>`<label class="scope-option"><input type="checkbox" name="p-scope" value="${v}" ${(p?.workScope||[]).includes(v)?'checked':''}><span>${l}</span></label>`).join('')}</div></fieldset><div class="form-grid"><div><label class="lab" for="p-type">${t('project_type')}</label><select class="input" id="p-type"><option value="residential" ${p?.type==='residential'?'selected':''}>${t('type_residential')}</option><option value="administrative" ${p?.type==='administrative'?'selected':''}>${t('type_administrative')}</option><option value="commercial" ${p?.type==='commercial'?'selected':''}>${t('type_commercial')}</option><option value="fitout" ${p?.type==='fitout'?'selected':''}>${t('type_fitout')}</option></select></div><div><label class="lab" for="p-status">${t('status')}</label><select class="input" id="p-status"><option value="planning" ${p?.status==='planning'?'selected':''}>${t('status_planning')}</option><option value="active" ${p?.status==='active'?'selected':''}>${t('status_active')}</option><option value="on_hold" ${p?.status==='on_hold'?'selected':''}>${t('status_on_hold')}</option><option value="completed" ${p?.status==='completed'?'selected':''}>${t('status_completed')}</option></select></div>${inputField(t('client'),'p-client','text',p?.client||'')}${inputField(t('location'),'p-location','text',p?.location||'')}${inputField(t('contract_value'),'p-contract','number',p?.contractValue??'','min="0" step="0.01"')}${inputField(L('تعديلات مشمولة في العقد','Revisions included'),'p-revs','number',p?.revisionsIncluded??'','min="0" step="1" placeholder="2"')}${inputField(t('start_date'),'p-start','date',p?.startDate||'')}${inputField(t('end_date'),'p-end','date',p?.endDate||'')}</div><label class="lab" for="p-notes">${t('notes')}</label><textarea class="textarea" id="p-notes" rows="3">${esc(p?.notes||'')}</textarea><div class="sheet-actions"><button type="button" class="btn" data-action="sheet-cancel">${t('cancel')}</button><button type="submit" class="btn primary">${t('save')}</button></div></form></div></div>`;
   $('#p-name')?.focus();
 }
 
@@ -2267,6 +2423,41 @@ async function onClick(e) {
     case 'wa-refilter': waRenderCandidates(); break;
     case 'wa-save': waSave().catch((err) => toast(err.message || String(err))); break;
     case 'voice-open': openVoiceSheet(); break;
+    case 'capture-open': openCaptureSheet(S.activeProjectId || undefined); break;
+    case 'open-more': openMoreSheet(); break;
+    case 'more-go': { $('#layer').innerHTML = ''; closeProjectPanel(true); if (el.dataset.section === 'settings') { S.prevSection = S.section; S.section = 'settings'; } else { S.section = el.dataset.section; S.navOpenSection = el.dataset.section; } S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break; }
+    case 'cap-wa': { const pid = $('#cap-project')?.value; if (!pid) { toast(L('اختر مشروعًا أولًا.', 'Pick a project first.')); break; } openWhatsAppSheet(pid); break; }
+    case 'capture-analyze': {
+      const text = $('#voice-text')?.value.trim(); const pid = $('#cap-project')?.value;
+      if (!text) { toast(t('voice_empty')); break; }
+      const project = S.projects.find((x) => x.id === pid); if (!project) { toast(L('اختر مشروعًا أولًا.', 'Pick a project first.')); break; }
+      S.capture = { projectId: pid, text, actions: parseCaptureActions(text, { project, deliverables: S.deliverables }).map((a) => ({ ...a, on: a.kind !== 'payment' })) };
+      renderCaptureReview(); break;
+    }
+    case 'capture-back': openCaptureSheet(S.capture?.projectId, S.capture?.text || ''); break;
+    case 'capture-toggle': { syncCaptureInputs(); const a = S.capture?.actions.find((x) => x.id === el.dataset.id); if (a) { a.on = el.dataset.on === '1'; renderCaptureReview(); } break; }
+    case 'capture-as-task': {
+      const c = S.capture; if (!c) break; const today = D.todayISO();
+      try { await S.store.save('tasks', normalizeTask({ id: uid(), title: c.text.length > 90 ? c.text.slice(0, 87) + '…' : c.text, notes: c.text, date: today, weekRef: today, priority: 2, status: 'todo', projectId: c.projectId, createdAt: Date.now(), updatedAt: Date.now() })); toast(L('تم حفظ المهمة.', 'Task saved.')); $('#layer').innerHTML = ''; S.capture = null; render(); }
+      catch (err) { toast(t('save_failed', { msg: err.message || err })); }
+      break;
+    }
+    case 'capture-save': {
+      syncCaptureInputs(); const c = S.capture; const project = S.projects.find((x) => x.id === c?.projectId); if (!c || !project) break;
+      const picked = c.actions.filter((a) => a.on); if (!picked.length) break;
+      const bad = picked.find((a) => a.kind === 'payment' && !(Number(a.amount) > 0)); if (bad) { toast(L('اكتب مبلغ الدفعة قبل الحفظ.', 'Enter the payment amount first.')); break; }
+      el.disabled = true; const done = [], failed = [];
+      for (const a of picked) { try { const line = await applyCaptureAction(a, project); if (line) done.push(line); } catch (err) { failed.push(err.message || String(err)); } }
+      try { await saveCaptureSummaryTask(project, done); } catch (err) { failed.push(err.message || String(err)); }
+      $('#layer').innerHTML = ''; S.capture = null;
+      toast(failed.length ? L(`تم حفظ ${done.length} وتعذّر ${failed.length}: ${failed[0]}`, `Saved ${done.length}, ${failed.length} failed: ${failed[0]}`) : L(`تم حفظ ${done.length} إجراءات.`, `${done.length} action(s) saved.`));
+      render(); break;
+    }
+    case 'td-remind': {
+      const text = remindText(el.dataset.kind, el.dataset.id, el.dataset.project); if (!text) break;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener'); break;
+    }
+    case 'deliverable-rev': { const d = S.deliverables.find((x) => x.id === el.dataset.id); if (!d) break; S.store.save('deliverables', { ...d, rev: (Number(d.rev) || 1) + 1, status: 'pending', submittedAt: null, updatedAt: Date.now() }).then(() => { toast(L('تم فتح نسخة جديدة.', 'New version opened.')); refreshProjectPanel(); }).catch((err) => toast(t('save_failed', { msg: err.message || err }))); break; }
     case 'voice-start': startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
     case 'finance-view': S.financeView=v; render(); break;
@@ -2350,7 +2541,7 @@ async function onClick(e) {
     case 'delete-deliverable': if(confirm(t('confirm_delete'))) { await S.store.remove('deliverables',el.dataset.id); toast(t('deleted')); } break;
     case 'delete-finance': if(confirm(t('confirm_delete'))) { const entry=S.financeEntries.find(x=>x.id===el.dataset.id),project=entry?.installmentId?S.projects.find(p=>p.id===entry.projectId):null;try{if(project){const updated={...project,installments:(project.installments||[]).map(x=>x.id===entry.installmentId?{...x,status:'pending',paidAt:null}:x),updatedAt:Date.now()};await S.store.save('projects',updated);try{await S.store.remove('financeEntries',el.dataset.id);}catch(err){await S.store.save('projects',project);throw err;}S.projects=S.projects.map(p=>p.id===updated.id?updated:p);}else await S.store.remove('financeEntries',el.dataset.id);toast(t('deleted'));render();}catch(err){toast(t('save_failed',{msg:err.message||err}));} } break;
     case 'open-settings': S.prevSection = S.section; S.section = 'settings'; render(); window.scrollTo(0, 0); break;
-    case 'back': S.section = S.prevSection || 'dashboard'; render(); break;
+    case 'back': S.section = S.prevSection || 'today'; render(); break;
 
     case 'week-prev': S.week = D.addDays(S.week, -7); S.sel = S.week; render(); break;
     case 'week-next': S.week = D.addDays(S.week, 7); S.sel = S.week; render(); break;
@@ -2438,7 +2629,7 @@ async function onClick(e) {
     }
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
-    case 'signout': S.section = 'dashboard'; await S.store.signOut(); break;
+    case 'signout': S.section = 'today'; await S.store.signOut(); break;
     default: break;
   }
 }
@@ -2447,7 +2638,7 @@ async function onClick(e) {
 async function onSubmit(e) {
 const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-requirement','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting','update-meeting','add-installment','save-project-followup'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
     if (a === 'auth-email') { const email=$('#auth-email').value.trim(), password=$('#auth-password').value; if(S.authMode==='signup') await S.store.signUpEmail(email,password); else await S.store.signInEmail(email,password); toast(S.authMode==='signup'?'تم إنشاء الحساب.':'تم تسجيل الدخول.'); }
-    else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), workScope:[...el.querySelectorAll('[name="p-scope"]:checked')].map(x=>x.value), archivedAt:old?.archivedAt||null, installments:Array.isArray(old?.installments)?old.installments:[], followUpDate:old?.followUpDate||null, followUpNote:old?.followUpNote||'', createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
+    else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, revisionsIncluded:($('#p-revs')?.value===''||!$('#p-revs'))?(old?.revisionsIncluded??null):Math.max(0,Math.floor(Number($('#p-revs').value)||0)), startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), workScope:[...el.querySelectorAll('[name="p-scope"]:checked')].map(x=>x.value), archivedAt:old?.archivedAt||null, installments:Array.isArray(old?.installments)?old.installments:[], followUpDate:old?.followUpDate||null, followUpNote:old?.followUpNote||'', createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
       if(duplicate) {
         const openExisting=confirm(`يوجد مشروع باسم «${duplicate.name}» بالفعل. اضغط موافق لفتح المشروع الموجود، أو إلغاء لمراجعة خيار إنشاء نسخة أخرى.`);
         if(openExisting){S.activeProjectId=duplicate.id;closeSheet();render();return;}
@@ -2496,7 +2687,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
     else if (a === 'add-personal-expense') { const kind=$('#pe-kind').value==='income'?'income':'expense'; const x={id:uid(),kind,amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast(kind==='income'?'تم تسجيل الدخل.':'تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
     else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); refreshProjectPanel({ reset: true }); toast('تمت إضافة Requirement للمشروع.'); }
-    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); refreshProjectPanel({ reset: true }); toast('تم تسجيل بيانات التسليم بنجاح.'); }
+    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, rev:1, submittedAt:$('#d-status').value==='submitted'?Date.now():null, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); refreshProjectPanel({ reset: true }); toast('تم تسجيل بيانات التسليم بنجاح.'); }
     else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast('تم تسجيل الحركة المالية بنجاح.'); }
   } catch(err) { S.autoProcessMeetingAfterSave=false;toast(t('save_failed',{msg:err.message||err})); }
   finally { if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=submitBtn.dataset.oldText||'حفظ';} }
@@ -2550,7 +2741,7 @@ function onChange(e) {
     const financeTargets = { ...(S.settings.financeTargets || DEFAULT_SETTINGS.financeTargets), [key]: Math.min(100, Math.max(1, Math.round(raw))) };
     updateSettings({ financeTargets });
   } else if (k === 'requirement-status') { const r=S.requirements.find(x=>x.id===el.dataset.id); if(r) S.store.save('requirements',{...r,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
-  else if (k === 'deliverable-status') { const d=S.deliverables.find(x=>x.id===el.dataset.id); if(d) S.store.save('deliverables',{...d,status:el.value,updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
+  else if (k === 'deliverable-status') { const d=S.deliverables.find(x=>x.id===el.dataset.id); if(d) S.store.save('deliverables',{...d,status:el.value,submittedAt:el.value==='submitted'?Date.now():(d.submittedAt||null),updatedAt:Date.now()}).catch(err=>toast(t('save_failed',{msg:err.message||err}))); }
   else if (k === 'glass') updateTheme((x) => { x.glass = el.checked; }, { render: true });
   else if (k === 'text-auto') {
     const mode = effectiveMode(S.settings.theme);
