@@ -1389,3 +1389,15 @@ html body .shell main .fin-card { border-bottom: 1px solid var(--line); padding:
 .wa-senders { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-bottom: var(--s2); }
 .wa-sender { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-body); }
 #layer { position: relative; z-index: 120; } #layer .overlay { z-index: 120; }
+
+/* ---- أزرار عائمة خفيفة (بدون ظل ثقيل أو خلفية سوداء) ---- */
+html body .fab, html body .voice-fab {
+  background: var(--bg); color: var(--text); border: 1px solid var(--line); box-shadow: 0 1px 6px rgb(0 0 0 / .08);
+  height: 44px; min-width: 44px; padding: 0 var(--s3); gap: var(--s2); font-size: var(--fs-cap);
+}
+html body .fab svg, html body .voice-fab svg { width: 20px; height: 20px; }
+html body .voice-fab span { display: none; }
+@media (min-width: 900px) { html body .voice-fab span { display: inline; } }
+.scope-presets { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
+.scope-preset { background: none; border: 1px solid var(--line); border-radius: 999px; padding: var(--s1) var(--s3); color: var(--text); font-size: var(--fs-cap); cursor: pointer; }
+.scope-preset:active { background: color-mix(in srgb, var(--text-2) 12%, transparent); }
