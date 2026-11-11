@@ -2,6 +2,7 @@
 import { createStore } from './store.js';
 import { t, setLang, lang, dir, locale } from './i18n.js';
 import { translateText } from './i18n-en.js';
+import { buildProjectReport, reportShell, esc as rEsc } from './report.js';
 import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
@@ -594,8 +595,8 @@ function projectProgressData(project, deliverables = S.deliverables) {
   const selectedScopes = Array.isArray(project.workScope) ? project.workScope : [];
   const explicitScopes = selectedScopes.length > 0;
   const designStages = ['concept', 'design'];
-  const hasDesign = explicitScopes ? selectedScopes.includes('design') : rows.some((d) => designStages.includes(d.stage) && d.kind !== '3d');
-  const has3d = explicitScopes ? selectedScopes.includes('3d') : rows.some((d) => designStages.includes(d.stage) && d.kind === '3d');
+  const hasDesign = (explicitScopes && selectedScopes.includes('design')) || rows.some((d) => designStages.includes(d.stage) && d.kind !== '3d');
+  const has3d = (explicitScopes && selectedScopes.includes('3d')) || rows.some((d) => d.kind === '3d');
   const phases = [];
   const completed = (d) => ['submitted', 'approved'].includes(d.status);
   if (hasDesign) {
@@ -604,17 +605,17 @@ function projectProgressData(project, deliverables = S.deliverables) {
     phases.push({ key: 'design', label: 'التصميم', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
   }
   if (has3d) {
-    const items = rows.filter((d) => designStages.includes(d.stage) && d.kind === '3d');
+    const items = rows.filter((d) => d.kind === '3d');
     const done = items.filter(completed).length;
     phases.push({ key: '3d', label: '3D', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
   }
-  if (explicitScopes ? selectedScopes.includes('technical_drawings') : rows.some((d) => d.stage === 'technical')) {
-    const items = rows.filter((d) => d.stage === 'technical');
+  if ((explicitScopes && selectedScopes.includes('technical_drawings')) || rows.some((d) => d.stage === 'technical' && d.kind !== '3d')) {
+    const items = rows.filter((d) => d.stage === 'technical' && d.kind !== '3d');
     const done = items.filter(completed).length;
     phases.push({ key: 'technical_drawings', label: 'اللوحات الفنية', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
   }
-  if (explicitScopes ? selectedScopes.includes('execution') : rows.some((d) => d.stage === 'execution')) {
-    const items = rows.filter((d) => d.stage === 'execution');
+  if ((explicitScopes && selectedScopes.includes('execution')) || rows.some((d) => d.stage === 'execution' && d.kind !== '3d')) {
+    const items = rows.filter((d) => d.stage === 'execution' && d.kind !== '3d');
     const done = items.filter(completed).length;
     phases.push({ key: 'execution', label: 'التنفيذ', done, total: items.length, percent: items.length ? Math.round(done / items.length * 100) : 0 });
   }
@@ -734,10 +735,14 @@ function renderProjectRequirementsPanel(project, requirements) {
     '<p class="muted small"><button class="btn sm" data-action="wa-open" data-id="' + esc(project.id) + '">' + L('استيراد من WhatsApp / WhatsApp Business', 'Import from WhatsApp / WhatsApp Business') + '</button></p>';
 }
 
+function deliverableKindsHtml() { return '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + t('type_plan') + '</option><option value="section">' + t('type_section') + '</option><option value="elevation">' + t('type_elevation') + '</option><option value="detail">' + t('type_detail') + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + t('other') + '</option>'; }
+function deliverableKindLabel(v) { const m = new RegExp('<option value="' + String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '">([^<]*)<').exec(deliverableKindsHtml()); return m ? m[1] : (v || '—'); }
+function deliverableStageLabel(v) { return ({ concept: t('stage_concept'), design: t('stage_design'), technical: t('stage_technical'), execution: t('stage_execution') })[v] || v || '—'; }
+function approvalLabel(v) { return ({ pending: t('approval_pending'), submitted: t('approval_submitted'), approved: t('approval_approved'), revision: t('approval_revision') })[v] || v || '—'; }
 function renderProjectDeliverablesPanel(project, deliverables) {
   const rows = deliverables;
   const stages = '<option value="concept">' + t('stage_concept') + '</option><option value="design">' + t('stage_design') + '</option><option value="technical">' + t('stage_technical') + '</option><option value="execution">' + t('stage_execution') + '</option>';
-  const kinds = '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + t('type_plan') + '</option><option value="section">' + t('type_section') + '</option><option value="elevation">' + t('type_elevation') + '</option><option value="detail">' + t('type_detail') + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + t('other') + '</option>';
+  const kinds = deliverableKindsHtml();
   return '<form data-action="add-deliverable" class="entry-form project-minimal-form"><input type="hidden" id="d-project" value="' + esc(project.id) + '"><div class="form-grid">' + inputField(t('deliverable_name'), 'd-name') + '<div><label class="lab" for="d-stage">' + t('design_stage') + '</label><select class="input" id="d-stage">' + stages + '</select></div><div><label class="lab" for="d-kind">' + t('deliverable_type') + '</label><select class="input" id="d-kind">' + kinds + '</select></div>' + inputField(t('due_date'), 'd-date', 'date') + '<div><label class="lab" for="d-status">' + t('approval_status') + '</label><select class="input" id="d-status"><option value="pending">' + t('approval_pending') + '</option><option value="submitted">' + t('approval_submitted') + '</option><option value="approved">' + t('approval_approved') + '</option><option value="revision">' + t('approval_revision') + '</option></select></div></div><label class="lab" for="d-notes">' + t('notes') + '</label><input class="input" id="d-notes"><button class="btn primary" type="submit">' + t('add_deliverable') + '</button></form>' +
     (rows.length ? '<div class="project-deliverables-list">' + rows.map(d => '<article class="project-deliverable-row"><div><strong>' + esc(d.name) + '</strong><small>' + esc(d.kind || '') + (d.notes ? ' · ' + esc(d.notes) : '') + '</small></div><span>' + esc(({concept:t('stage_concept'),design:t('stage_design'),technical:t('stage_technical'),execution:t('stage_execution')})[d.stage] || d.stage || '—') + '</span><span>' + esc(d.dueDate || '—') + '</span><select class="input compact" data-change="deliverable-status" data-id="' + esc(d.id) + '"><option value="pending" ' + (d.status === 'pending' ? 'selected' : '') + '>' + t('approval_pending') + '</option><option value="submitted" ' + (d.status === 'submitted' ? 'selected' : '') + '>' + t('approval_submitted') + '</option><option value="approved" ' + (d.status === 'approved' ? 'selected' : '') + '>' + t('approval_approved') + '</option><option value="revision" ' + (d.status === 'revision' ? 'selected' : '') + '>' + t('approval_revision') + '</option></select><button class="text-action danger" data-action="delete-deliverable" data-id="' + esc(d.id) + '" type="button">حذف</button></article>').join('') + '</div>' : '<p class="muted small">لا توجد تسليمات مسجلة لهذا المشروع.</p>');
 }
@@ -948,33 +953,34 @@ function renderProjectFollowUp(project) {
   return `<details class="card glass project-followup-panel project-extra-panel"><summary class="project-panel-summary"><span><b>متابعة العميل</b><small>${date?`${esc(date)}${project.followUpNote?' · '+esc(project.followUpNote):''}`:'أضف موعدًا لتظهر المتابعة في الرئيسية'}</small></span>${date?`<span class="chip ${date<D.todayISO()?'late':''}">${date<D.todayISO()?'متأخرة':'مجدولة'}</span>`:''}</summary><div class="project-panel-body"><p class="muted small">الموعد والملاحظة يظهران في الرئيسية عند اقتراب الموعد.</p><form data-action="save-project-followup" data-id="${esc(project.id)}" class="entry-form"><div class="form-grid"><div><label class="lab" for="follow-up-date">موعد المتابعة</label><input class="input" id="follow-up-date" type="date" value="${esc(date)}" required></div><div><label class="lab" for="follow-up-note">ملاحظة قصيرة</label><input class="input" id="follow-up-note" maxlength="160" value="${esc(project.followUpNote||'')}" placeholder="مستني رد على التصميم"></div></div><div class="btnrow"><button class="btn primary" type="submit">حفظ الموعد</button>${date?`<button class="btn" type="button" data-action="clear-project-followup" data-id="${esc(project.id)}">مسح المتابعة</button>`:''}</div></form></div></details>`;
 }
 
+function openReportWindow(html) {
+  const w = window.open('', '_blank'); if (!w) { toast(t('print_popup_blocked')); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+function reportData(p) {
+  const id = p.id;
+  const ds = S.deliverables.filter((x) => x.projectId === id).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+  const fs = S.financeEntries.filter((x) => x.projectId === id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const reqs = S.requirements.filter((x) => x.projectId === id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const totals = projectFinanceTotals(p, fs), progress = projectProgressData(p, ds);
+  const ar = lang() === 'ar';
+  const phaseNames = { design: ar ? 'التصميم' : 'Design', '3d': '3D', technical_drawings: ar ? 'اللوحات الفنية' : 'Technical drawings', execution: ar ? 'التنفيذ' : 'Execution' };
+  return {
+    project: { name: p.name, client: p.client, typeLabel: projectTypeLabel(p.type), statusLabel: projectStatusLabel(p.status), location: p.location, scopeLabel: projectScopeLabel(p.workScope || []), notes: p.notes, contract: totals.contract },
+    progress: { ...progress, phases: progress.phases.map((x) => ({ ...x, label: phaseNames[x.key] || x.label })) },
+    totals,
+    deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage), kindLabel: deliverableKindLabel(x.kind), due: x.dueDate, status: x.status, statusLabel: approvalLabel(x.status), notes: x.notes })),
+    finance: fs, money,
+    requirements: reqs.map((x) => ({ text: x.text, source: x.sourceLabel || x.source, date: x.date, statusLabel: ({ open: lang() === 'ar' ? 'مفتوح' : 'Open', doing: lang() === 'ar' ? 'قيد التنفيذ' : 'In progress', done: lang() === 'ar' ? 'تم' : 'Done' })[x.status] || x.status })),
+  };
+}
 function printProjectReport(id, mode) {
-  const p = S.projects.find(x => x.id === id); if (!p) return;
-  const ds = S.deliverables.filter(x => x.projectId === id).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-  const fs = S.financeEntries.filter(x => x.projectId === id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const income=fs.filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0), expense=fs.filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);
-  const financial = mode === 'finance';
-  const rows = financial ? fs.map(x=>`<tr><td>${esc(x.date||'—')}</td><td>${esc(x.category||'—')}</td><td>${x.kind==='income'?'تحصيل':'مصروف'}</td><td>${money(x.amount)} ج.م</td><td>${esc(x.description||'')}</td></tr>`).join('') : ds.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.stage||'—')}</td><td>${esc(x.kind||'—')}</td><td>${esc(x.dueDate||'—')}</td><td>${esc(({pending:'لم يُرسل',submitted:'مرسل للمراجعة',approved:'معتمد',revision:'مطلوب تعديل'})[x.status]||x.status||'—')}</td><td>${esc(x.notes||'')}</td></tr>`).join('');
-  const title = financial ? 'التقرير المالي للمشروع' : 'تقرير موقف المشروع';
-  const summary = financial ? `<div class="stats"><p>قيمة التعاقد: <b>${money(p.contractValue)} ج.م</b></p><p>إجمالي التحصيلات: <b>${money(income)} ج.م</b></p><p>إجمالي المصروفات: <b>${money(expense)} ج.م</b></p><p>صافي التدفق النقدي: <b>${money(income-expense)} ج.م</b></p><p>المتبقي للتحصيل: <b>${money(Number(p.contractValue||0)-income)} ج.م</b></p></div>` : `<div class="stats"><p>نوع المشروع: <b>${esc(projectTypeLabel(p.type))}</b></p><p>الحالة: <b>${esc(projectStatusLabel(p.status))}</b></p><p>العميل: <b>${esc(p.client||'—')}</b></p><p>الموقع: <b>${esc(p.location||'—')}</b></p><p>التسليمات: <b>${ds.length}</b> · المعتمد: <b>${ds.filter(x=>x.status==='approved').length}</b></p><p>ملاحظات: ${esc(p.notes||'—')}</p></div>`;
-  const headers = financial ? '<th>التاريخ</th><th>البند</th><th>الحركة</th><th>المبلغ</th><th>الوصف</th>' : '<th>التسليم</th><th>المرحلة</th><th>النوع</th><th>الموعد</th><th>الاعتماد</th><th>ملاحظات</th>';
-  const w=window.open('', '_blank'); if(!w){toast(t('print_popup_blocked'));return;}
-  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} - ${esc(p.name)}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#222;line-height:1.6}h1{font-size:24px}h2{font-size:18px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px;border:1px solid #ddd;padding:12px;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #bbb;padding:7px;text-align:right}th{background:#eee}.meta{color:#666}@media print{button{display:none}body{padding:0}.stats{break-inside:avoid}}</style><h1>${title}</h1><h2>${esc(p.name)}</h2><div class="meta">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>${summary}<table><thead><tr>${headers}</tr></thead><tbody>${rows||`<tr><td colspan="6">لا توجد بيانات مسجلة</td></tr>`}</tbody></table><p class="meta">تم إنشاء التقرير من WeeklyPlanner</p><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></html>`);
-  w.document.close();
+  const p = S.projects.find((x) => x.id === id); if (!p) return;
+  openReportWindow(buildProjectReport(mode === 'finance' ? 'finance' : 'status', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
 }
 function printProjectFullReport(id) {
-  const p = S.projects.find(x => x.id === id); if (!p) return;
-  const ds = S.deliverables.filter(x => x.projectId === id).sort((a,b)=>(a.dueDate || '').localeCompare(b.dueDate || ''));
-  const fs = S.financeEntries.filter(x => x.projectId === id).sort((a,b)=>(b.date || '').localeCompare(a.date || ''));
-  const reqs = S.requirements.filter(x => x.projectId === id).sort((a,b)=>(b.createdAt || 0) - (a.createdAt || 0));
-  const totals = projectFinanceTotals(p, fs), progress = projectProgressData(p, ds);
-  const deliverableRows = ds.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + esc(x.stage || '—') + '</td><td>' + esc(x.kind || '—') + '</td><td>' + esc(x.dueDate || '—') + '</td><td>' + esc(({pending:'لم يُرسل',submitted:'مرسل للمراجعة',approved:'معتمد',revision:'مطلوب تعديل'})[x.status] || x.status || '—') + '</td><td>' + esc(x.notes || '') + '</td></tr>').join('');
-  const financeRows = fs.map(x => '<tr><td>' + esc(x.date || '—') + '</td><td>' + esc(x.category || '—') + '</td><td>' + (x.kind === 'income' ? 'تحصيل' : 'مصروف') + '</td><td>' + money(x.amount) + ' ج.م</td><td>' + esc(x.description || '') + '</td></tr>').join('');
-  const requirementRows = reqs.map(x => '<tr><td>' + esc(x.text) + '</td><td>' + esc(x.sourceLabel || x.source || '—') + '</td><td>' + esc(x.date || '—') + '</td><td>' + esc(({open:'مفتوح',doing:'قيد التنفيذ',done:'تم'})[x.status] || x.status || '—') + '</td></tr>').join('');
-  const phaseRows = progress.phases.map(x => '<tr><td>' + esc(x.label) + '</td><td>' + x.done + ' / ' + x.total + '</td><td>' + (x.total ? x.percent + '%' : '—') + '</td></tr>').join('');
-  const w = window.open('', '_blank'); if (!w) { toast(t('print_popup_blocked')); return; }
-  w.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>التقرير الشامل - ' + esc(p.name) + '</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#222;line-height:1.65}h1{font-size:24px;margin-bottom:4px}h2{font-size:17px;margin:24px 0 8px}.meta{color:#666;font-size:12px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px;padding:12px 0;margin:10px 0;border-block:1px solid #ddd}.stats p{margin:4px 0}table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0 18px}th,td{border-bottom:1px solid #ddd;padding:7px;text-align:right;vertical-align:top}th{font-weight:600;background:#f6f6f6}.empty{color:#777;font-size:12px}@media print{body{padding:0}h2{break-after:avoid}tr{break-inside:avoid}}</style><h1>التقرير الشامل للمشروع</h1><h2>' + esc(p.name) + '</h2><div class="meta">تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG') + '</div><div class="stats"><p>العميل: <b>' + esc(p.client || '—') + '</b></p><p>نوع المشروع: <b>' + esc(projectTypeLabel(p.type)) + '</b></p><p>الحالة: <b>' + esc(projectStatusLabel(p.status)) + '</b></p><p>الموقع: <b>' + esc(p.location || '—') + '</b></p><p>نطاق العمل: <b>' + esc(projectScopeLabel(p.workScope || []) || '—') + '</b></p><p>قيمة التعاقد: <b>' + money(totals.contract) + ' ج.م</b></p><p>الإنجاز الفني: <b>' + (progress.percent === null ? '—' : progress.percent + '%') + '</b></p><p>نسبة التحصيل: <b>' + (totals.collectionPct === null ? '—' : Math.round(totals.collectionPct) + '%') + '</b></p><p>إجمالي التحصيل: <b>' + money(totals.income) + ' ج.م</b></p><p>إجمالي المصروف: <b>' + money(totals.expense) + ' ج.م</b></p><p>صافي الربح: <b>' + money(totals.net) + ' ج.م</b></p><p>ملاحظات: ' + esc(p.notes || '—') + '</p></div><h2>مراحل الإنجاز الفني</h2>' + (phaseRows ? '<table><thead><tr><th>المرحلة</th><th>المنجز</th><th>النسبة</th></tr></thead><tbody>' + phaseRows + '</tbody></table>' : '<p class="empty">لا توجد مراحل فنية محددة.</p>') + '<h2>متطلبات العميل</h2>' + (requirementRows ? '<table><thead><tr><th>المتطلب</th><th>المصدر</th><th>التاريخ</th><th>الحالة</th></tr></thead><tbody>' + requirementRows + '</tbody></table>' : '<p class="empty">لا توجد متطلبات مسجلة.</p>') + '<h2>التسليمات واللوحات</h2>' + (deliverableRows ? '<table><thead><tr><th>التسليم</th><th>المرحلة</th><th>النوع</th><th>الموعد</th><th>الحالة</th><th>ملاحظات</th></tr></thead><tbody>' + deliverableRows + '</tbody></table>' : '<p class="empty">لا توجد تسليمات مسجلة.</p>') + '<h2>الحركة المالية</h2>' + (financeRows ? '<table><thead><tr><th>التاريخ</th><th>البند</th><th>النوع</th><th>المبلغ</th><th>الوصف</th></tr></thead><tbody>' + financeRows + '</tbody></table>' : '<p class="empty">لا توجد حركات مالية مسجلة.</p>') + '<p class="meta">تم إنشاء التقرير من WeeklyPlanner</p><script>window.onload=()=>setTimeout(()=>window.print(),300)<\\/script></html>');
-  w.document.close();
+  const p = S.projects.find((x) => x.id === id); if (!p) return;
+  openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
 }
 function openPrintChoice(id) {
   const p=S.projects.find(x=>x.id===id); if(!p)return;
@@ -1484,46 +1490,20 @@ function startMeetingRecognition(){
   rec.onend=()=>{S.meetingRecognition=null;toast('انتهى الإملاء الصوتي. راجع النص قبل الحفظ.');};
   try{rec.start();toast('بدأ الإملاء الصوتي. اترك صفحة التطبيق مفتوحة.');}catch(e){toast('تعذر بدء التسجيل الصوتي.');}
 }
-function printMeetingReport(id){
-  const m=S.meetings.find(x=>x.id===id);if(!m)return;const p=S.projects.find(x=>x.id===m.projectId)||null;
-  const w=window.open('','_blank');if(!w){toast(t('print_popup_blocked'));return;}
-  const textBlock=(label,value)=>value?'<section><h2>'+label+'</h2><div class="body-text">'+esc(value).replace(/\n/g,'<br>')+'</div></section>':'';
-  const client=m.secondParty||m.client||p?.client||'—';
-  const first=m.firstParty||S.user?.displayName||S.user?.name||S.user?.email||'—';
-  const cat=({design:'Design / 3D Design','shop-drawings':'Shop Drawings',site:'Site Execution',materials:'Colors & Materials','client-review':'Client Review / Approval',general:'General Meeting'})[m.category]||m.category||'General Meeting';
-  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>Minutes of Meeting</title><style>
-    @page{size:A4;margin:18mm}*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;padding:0;line-height:1.8;color:#202124;font-size:13px}
-    header{text-align:center;border-bottom:2px solid #333;padding-bottom:14px;margin-bottom:18px}h1{font-size:25px;margin:0 0 4px}header p{margin:0;color:#666}
-    h2{font-size:16px;margin:18px 0 7px;border-bottom:1px solid #ddd;padding-bottom:5px}
-    .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;background:#f5f5f5;padding:12px;border-radius:6px}
-    .meta div{padding:2px}.meta b{display:block;color:#555;font-size:11px}.body-text{white-space:normal}
-    .attendees{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}.attendee{border:1px solid #ddd;padding:12px;border-radius:5px}
-    footer{border-top:1px solid #ddd;margin-top:28px;padding-top:8px;text-align:center;color:#777;font-size:10px}
-    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-  </style></head><body>
-  <header><h1>MINUTES OF MEETING</h1><p>محضر اجتماع</p></header>
-  <div class="meta">
-    <div><b>Meeting Title | عنوان الاجتماع</b>${esc(m.title||'—')}</div>
-    <div><b>Project | المشروع</b>${esc(p?.name||m.projectName||'—')}</div>
-    <div><b>Client | العميل</b>${esc(client)}</div>
-    <div><b>Date | التاريخ</b>${esc(m.date||'—')} ${esc(m.time||'')}</div>
-    <div><b>Meeting Category | تصنيف الاجتماع</b>${esc(cat)}</div>
-    <div><b>Meeting Type | نوع الاجتماع</b>${m.mode==='online'?'Online':'Offline'}</div>
-  </div>
-  ${textBlock('Purpose | الغرض من الاجتماع',m.purpose)}
-  ${textBlock('Topics | المواضيع',m.topics)}
-  ${textBlock('Minutes of Meeting | موضوعات المناقشة',m.minutes)}
-  ${textBlock('Agreements & Decisions | تم الاتفاق على',m.decisions)}
-  ${textBlock('Client Requirements | طلبات العميل',m.requirements)}
-  ${textBlock('Action Items | المهام والمسؤوليات والمواعيد',m.actions)}
-  <section><h2>Meeting Attendees | أطراف الاجتماع</h2><div class="attendees">
-    <div class="attendee"><b>First Party | الطرف الأول</b><br>${esc(first)}</div>
-    <div class="attendee"><b>Second Party | الطرف الثاني</b><br>${esc(client)}</div>
-  </div></section>
-  ${textBlock('Other Attendees | الحضور الآخرون',m.participants)}
-  ${textBlock('Transcript | النص الكامل للاجتماع',m.transcript)}
-  <footer>WeeklyPlanner · محضر اجتماع · ${esc(m.date||'')}</footer>
-  <script>window.onload=()=>setTimeout(()=>window.print(),250)<\\/script></body></html>`);w.document.close();
+function printMeetingReport(id) {
+  const m = S.meetings.find((x) => x.id === id); if (!m) return;
+  const p = S.projects.find((x) => x.id === m.projectId) || null;
+  const block = (label, value) => value ? `<h2>${rEsc(label)}</h2><div class="note">${rEsc(value)}</div>` : '';
+  const client = m.secondParty || m.client || p?.client || '—';
+  const first = m.firstParty || S.user?.displayName || S.user?.name || S.user?.email || '—';
+  const cat = ({ design: 'Design / 3D Design', 'shop-drawings': 'Shop Drawings', site: 'Site Execution', materials: 'Colors & Materials', 'client-review': 'Client Review / Approval', general: 'General Meeting' })[m.category] || m.category || 'General Meeting';
+  const meta = [['Meeting Title | عنوان الاجتماع', m.title], ['Project | المشروع', p?.name || m.projectName], ['Client | العميل', client],
+    ['Date | التاريخ', [m.date, m.time].filter(Boolean).join(' ')], ['Category | التصنيف', cat], ['Type | النوع', m.mode === 'online' ? 'Online' : 'Offline']];
+  const attendees = `<h2>Meeting Attendees | الحضور</h2><table><tbody><tr><td><small>First Party | الطرف الأول</small><br><b>${rEsc(first)}</b></td><td><small>Second Party | الطرف الثاني</small><br><b>${rEsc(client)}</b></td></tr></tbody></table>`;
+  const body = block('Purpose | الغرض من الاجتماع', m.purpose) + block('Topics | المواضيع', m.topics) + block('Minutes of Meeting | موضوعات المناقشة', m.minutes) +
+    block('Agreements & Decisions | القرارات والاتفاقات', m.decisions) + block('Client Requirements | طلبات العميل', m.requirements) + block('Action Items | المهام والمسؤوليات والمواعيد', m.actions) +
+    attendees + block('Other Attendees | الحضور الآخرون', m.participants) + block('Transcript | النص الكامل للاجتماع', m.transcript);
+  openReportWindow(reportShell({ lang: lang(), title: 'Minutes of Meeting', subtitle: 'محضر اجتماع', brand: S.settings.brand || {}, meta, body }));
 }
 
 // ملخص المحضر بالحقول التسعة: Title/Purpose/Date/Client/Topics/Attendees/Decisions/Requirements/Action Items
@@ -1751,6 +1731,25 @@ function deleteTask() {
 }
 
 // ================================================================== الإعدادات
+// يصغّر اللوجو إلى 360px كحد أقصى ويحفظه داخل الإعدادات (data URL) كي يظهر في كل تقرير بدون ملفات خارجية.
+function importBrandLogo(file) {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { toast(L('اختر صورة PNG أو JPG أو WebP.', 'Choose a PNG, JPG or WebP image.')); return; }
+  if (file.size > 8e6) { toast(L('الصورة كبيرة جدًا.', 'Image too large.')); return; }
+  const url = URL.createObjectURL(file); const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 360 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const png = c.toDataURL('image/png');
+    const data = png.length > 180000 ? c.toDataURL('image/jpeg', 0.85) : png;
+    updateSettings({ brand: { ...(S.settings.brand || {}), logo: data } });
+    toast(L('تم حفظ اللوجو.', 'Logo saved.'));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast(L('تعذر قراءة الصورة.', 'Could not read the image.')); };
+  img.src = url;
+}
+
 function renderSettings() {
   const th = S.settings.theme;
   const sc = shownColors(th);
@@ -1893,7 +1892,22 @@ function renderSettings() {
       <div><b>${t('app')}</b><small>${t('version')} ${VERSION} · ${t('stage')}</small></div></div>
     <p class="muted">${t('about_text')}</p>`;
 
+
+  const brandS = S.settings.brand || {};
+  const bf = (key, labelAr, labelEn, ph = '') => `<label class="lab" for="brand-${key}">${lang() === 'ar' ? labelAr : labelEn}</label><input class="input" id="brand-${key}" data-input="brand-field" data-key="${key}" value="${esc(brandS[key] || '')}" placeholder="${esc(ph)}" maxlength="160">`;
+  const brandSettings = `
+    <p class="muted small">${L('تظهر هذه البيانات في رأس وتذييل كل تقرير (فني أو مالي أو شامل أو محضر اجتماع)، والروابط قابلة للنقر داخل الـ PDF.', 'These details appear in the header and footer of every report; links are clickable inside the PDF.')}</p>
+    <div class="brand-logo-row">${brandS.logo ? `<img class="brand-logo-preview" src="${esc(brandS.logo)}" alt="logo">` : `<span class="muted small">${L('لا يوجد لوجو بعد', 'No logo yet')}</span>`}
+      <div class="btnrow"><button class="btn sm" type="button" data-action="brand-logo-pick">${L('رفع اللوجو', 'Upload logo')}</button>${brandS.logo ? `<button class="btn sm" type="button" data-action="brand-logo-clear">${L('إزالة', 'Remove')}</button>` : ''}</div>
+      <input type="file" id="brand-logo-file" accept="image/png,image/jpeg,image/webp" hidden data-change="brand-logo"></div>
+    ${bf('name', 'اسم الشركة / المكتب', 'Company / studio name')}${bf('tagline', 'وصف قصير تحت الاسم', 'Tagline')}
+    ${bf('phone1', 'رقم التواصل 1', 'Phone 1', '+20 …')}${bf('phone2', 'رقم التواصل 2', 'Phone 2', '+20 …')}${bf('whatsapp', 'واتساب', 'WhatsApp', '+20 …')}
+    ${bf('email', 'البريد الإلكتروني', 'Email')}${bf('website', 'الموقع', 'Website', 'example.com')}
+    ${bf('instagram', 'Instagram', 'Instagram', '@username')}${bf('behance', 'Behance', 'Behance', 'username')}${bf('linkedin', 'LinkedIn', 'LinkedIn', 'username')}${bf('facebook', 'Facebook', 'Facebook', 'page')}
+    ${bf('address', 'العنوان', 'Address')}`;
+
   return `<div class="settings">
+    ${group('brand', 'user', lang() === 'ar' ? 'هوية الشركة والتقارير' : 'Company identity & reports', brandSettings)}
     ${group('appearance', 'palette', 'g_appearance', appearance)}
     ${group('finance-targets', 'finance', lang() === 'ar' ? 'تخصيص النسب المالية' : 'Finance ratio targets', financeTargetSettings)}
     ${group('ratio-appearance', 'palette', lang() === 'ar' ? 'شكل وألوان مؤشرات النسب' : 'Ratio indicator style & colors', ratioAppearanceSettings)}
@@ -2180,6 +2194,8 @@ async function onClick(e) {
     case 'nav': closeProjectPanel(true); S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'nav-expand': S.navOpenSection=S.navOpenSection===el.dataset.section?'':el.dataset.section; if(!S.navExpanded){S.navExpanded=true;localStorage.setItem('wp1:nav-expanded','1');} render(); break;
     case 'nav-collapse': S.navExpanded=!S.navExpanded; localStorage.setItem('wp1:nav-expanded',S.navExpanded?'1':'0'); render(); break;
+    case 'brand-logo-pick': $('#brand-logo-file')?.click(); break;
+    case 'brand-logo-clear': updateSettings({ brand: { ...(S.settings.brand || {}), logo: '' } }); break;
     case 'scope-preset': { const on = new Set(el.dataset.scopes.split(',')); document.querySelectorAll('input[name="p-scope"]').forEach((c) => { c.checked = on.has(c.value); }); break; }
     case 'mgr-open': openManagerSheet(); break;
     case 'mgr-view': openManagerSheet(el.dataset.view); break;
@@ -2428,6 +2444,7 @@ function onInput(e) {
   if (!el) return;
   const k = el.dataset.input;
   const v = el.value;
+  if (k === 'brand-field') { updateSettings({ brand: { ...(S.settings.brand || {}), [el.dataset.key]: v.trim() } }, { render: false }); return; }
   const mode = effectiveMode(S.settings.theme);
   switch (k) {
     case 'ratio-color': {
@@ -2476,6 +2493,9 @@ function onChange(e) {
     const mode = effectiveMode(S.settings.theme);
     const auto = shownColors({ ...S.settings.theme, text: { light: null, dark: null } }).text;
     updateTheme((x) => { x.text[mode] = el.checked ? null : auto; }, { render: true });
+  } else if (k === 'brand-logo') {
+    if (el.files && el.files[0]) importBrandLogo(el.files[0]);
+    el.value = '';
   } else if (k === 'import-file') {
     if (el.files && el.files[0]) importData(el.files[0]);
     el.value = '';
