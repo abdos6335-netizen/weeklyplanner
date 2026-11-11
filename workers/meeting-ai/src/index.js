@@ -7,7 +7,7 @@ function cors(origin) {
   const allowed = origin === ALLOWED_ORIGIN;
   return {
     "Access-Control-Allow-Origin": allowed ? origin : ALLOWED_ORIGIN,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin"
@@ -57,6 +57,8 @@ export default {
   if(origin && origin!==ALLOWED_ORIGIN)return new Response("Forbidden origin",{status:403});
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});
   const url=new URL(request.url);
+  // Public, read-only deployment check. Deliberately exposes no configuration or secrets.
+  if(request.method==="GET"&&url.pathname==="/health")return json({ok:true,service:"weeklyplanner-meeting-ai"},200,origin);
   if(request.method!=="POST"||!["/transcribe","/minutes","/manager"].includes(url.pathname))return json({error:"Not found"},404,origin);
   try{
     await authorize(request,env);
