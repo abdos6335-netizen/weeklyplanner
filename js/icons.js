@@ -12,7 +12,7 @@ const PHOSPHOR = {
   auto: 'circle-half', info: 'info', layers: 'stack',
   mic: 'microphone', printer: 'printer', alert: 'warning',
   sparkles: 'sparkle', move: 'arrows-out-cardinal', feather: 'feather',
-  'minus-circle': 'minus-circle',
+  'minus-circle': 'minus-circle', more: 'dots-three', today: 'check-circle',
 };
 
 function phosphorName(name) {

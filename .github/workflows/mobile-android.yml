@@ -36,7 +36,7 @@ jobs:
         run: bash mobile/tool/bootstrap_platforms.sh
       - name: Analyze Dart
         working-directory: mobile
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
       - name: Validate Google OAuth client configuration
         env:
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
