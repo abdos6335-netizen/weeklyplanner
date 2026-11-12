@@ -104,6 +104,9 @@ const S = {
   animateNextRender: false,
   navExpanded: localStorage.getItem('wp1:nav-expanded') !== '0',
   navOpenSection: 'today',
+  sbCollapsed: localStorage.getItem('wp1:sb-collapsed') === '1',
+  sbOpen: false,
+  sbClosed: (() => { try { return new Set(JSON.parse(localStorage.getItem('wp1:sb-closed') || '[]')); } catch { return new Set(); } })(),
 };
 
 function mergeSettings(saved) {
@@ -315,40 +318,123 @@ function navPreview(id) {
  return '';
 }
 
+const NAV_ICON = { today: 'today', tasks: 'tasks', projects: 'projects', finance: 'finance', meetings: 'meetings', dashboard: 'dashboard' };
+
+function sidebarData() {
+  const today = D.todayISO();
+  const td = buildToday({ projects: S.projects, deliverables: S.deliverables, tasks: S.tasks, meetings: S.meetings, today });
+  const live = S.projects.filter((p) => !p.archivedAt);
+  return {
+    td, live,
+    archived: S.projects.length - live.length,
+    openTasks: S.tasks.filter((x) => x.status !== 'done').length,
+    upcoming: S.meetings.filter((m) => m.date && m.date >= today).length,
+    review: S.tasks.filter((x) => x.status !== 'done' && String(x.id).startsWith('cap_')).length,
+  };
+}
+
+function railHtml(sec) {
+  const items = [['today', 'nav_today'], ['tasks', 'nav_tasks'], ['projects', 'nav_projects'], ['finance', 'nav_finance'], ['meetings', 'nav_meetings'], ['dashboard', 'nav_dashboard']];
+  return `<aside class="rail-col" aria-label="main">
+    <div class="rail-pill grow">
+      <nav class="rail-dark">
+        <span class="rail-mark" aria-hidden="true">${icon('asterisk', 24)}</span>
+        ${items.map(([id, key]) => `<button class="rail-btn ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}" aria-label="${t(key)}" title="${t(key)}" ${sec === id ? 'aria-current="page"' : ''}>${icon(NAV_ICON[id], 22, sec === id)}</button>`).join('')}
+      </nav>
+      <span class="rail-label" aria-hidden="true">WEEKLY PLANNER · NAV</span>
+    </div>
+    <div class="rail-pill">
+      <span class="rail-label" aria-hidden="true">SETTINGS</span>
+      <button class="rail-dark rail-set ${sec === 'settings' ? 'on' : ''}" data-action="open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings', 22, sec === 'settings')}</button>
+    </div>
+  </aside>`;
+}
+
+function sidebarHtml(sec) {
+  const d = sidebarData();
+  const cnt = (n) => n === undefined ? '' : `<em class="sb-count">${n}</em>`;
+  const item = (id, label, ic, count, action = 'nav', extra = '') => {
+    const on = action === 'nav' && sec === id && !S.activeProjectId;
+    return `<button class="sb-item ${on ? 'on' : ''}" data-action="${action}" data-section="${id}" ${extra}>${icon(ic, 20, on)}<span>${esc(label)}</span>${cnt(count)}</button>`;
+  };
+  const u = S.user || {};
+  const name = u.name || (u.email ? u.email.split('@')[0] : L('حسابي', 'My account'));
+  const avatar = u.photo ? `<img src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer">` : `<span>${esc((name || '?').trim().charAt(0).toUpperCase())}</span>`;
+  const types = [...new Set(d.live.map((p) => p.type || 'other'))];
+  const typeLabel = (ty) => ty === 'other' ? L('أخرى', 'Other') : projectTypeLabel(ty);
+  const tree = types.map((ty) => {
+    const rows = d.live.filter((p) => (p.type || 'other') === ty).sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+    const closed = S.sbClosed.has(ty);
+    return `<div class="sb-group ${closed ? 'closed' : ''}"><button class="sb-folder" data-action="sb-group" data-id="${esc(ty)}" aria-expanded="${!closed}">${icon(closed ? 'folder' : 'folderOpen', 18)}<span>${esc(typeLabel(ty))}</span>${cnt(rows.length)}</button><div class="sb-children">${rows.map((p) => `<button class="sb-leaf ${S.activeProjectId === p.id ? 'on' : ''}" data-action="open-project" data-id="${esc(p.id)}" data-name="${esc(String(p.name || '').toLowerCase())}">${icon('folder', 17)}<span>${esc(p.name)}</span>${cnt(S.deliverables.filter((x) => x.projectId === p.id && x.status !== 'approved').length)}</button>`).join('')}</div></div>`;
+  }).join('');
+  return `
+    <div class="sb-top"><span class="sb-dots" aria-hidden="true"><i></i><i></i><i></i></span><button class="sb-toggle" data-action="sidebar-toggle" aria-label="${L('إخفاء القائمة', 'Hide sidebar')}">${icon('sidebar', 20)}</button></div>
+    <button class="sb-profile" data-action="open-settings" aria-label="${t('settings')}"><span class="sb-avatar">${avatar}</span><span class="sb-who"><strong>${esc(name)}</strong><small>${esc(u.email || '')}</small></span>${icon('chevD', 14)}</button>
+    <div class="sb-scroll">
+      <h3 class="sb-label">${L('المساحة', 'Workspace')}</h3>
+      ${item('today', t('nav_today'), 'today', d.td.todayTasks.length)}
+      ${item('tasks', t('nav_tasks'), 'tasks', d.openTasks)}
+      ${item('projects', t('nav_projects'), 'projects', d.live.length)}
+      ${item('finance', t('nav_finance'), 'finance')}
+      ${item('meetings', t('nav_meetings'), 'meetings', d.upcoming)}
+      ${item('dashboard', t('nav_dashboard'), 'dashboard')}
+      <hr class="sb-rule">
+      <h3 class="sb-label">${L('الحالة', 'Status')}</h3>
+      ${item('today', L('متأخر', 'Overdue'), 'late', d.td.counts.late + d.td.lateTasks.length, 'nav-status')}
+      ${item('today', L('مستني ردّ', 'Waiting'), 'wait', d.td.waiting.length, 'nav-status')}
+      ${item('today', L('للمراجعة', 'To review'), 'review', d.review, 'nav-status')}
+      <hr class="sb-rule">
+      <h3 class="sb-label">${L('السجل', 'History')}</h3>
+      ${item('projects', L('آخر ما عدّلته', 'Recently edited'), 'recent', undefined, 'nav-recent')}
+      ${item('projects', L('الأرشيف', 'Archive'), 'archive', d.archived, 'sb-archive')}
+    </div>
+    <div class="sb-docs">
+      <div class="sb-docs-head"><h3 class="sb-label">${L('المشاريع', 'Projects')}</h3><button class="sb-plus" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 16)}</button></div>
+      <label class="sb-search">${icon('search', 18)}<input type="search" data-input="sb-search" placeholder="${L('بحث', 'Search')}" autocomplete="off" aria-label="${L('بحث في المشاريع', 'Search projects')}"></label>
+      <div class="sb-tree">${tree || `<p class="sb-empty">${L('لا توجد مشاريع بعد', 'No projects yet')}</p>`}</div>
+    </div>`;
+}
+
 function shell() {
   const sec = S.section;
   const rtl = dir() === 'rtl';
   const nav = navList();
   const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : t('nav_' + sec);
+  const subs = {
+    today: D.fmt(D.todayISO(), locale(), { weekday: 'long', day: 'numeric', month: 'long' }),
+    tasks: L('مهامك على مدار الأسبوع', 'Your tasks across the week'),
+    projects: L('كل مشاريعك وحالة كل مشروع', 'All your projects and where each stands'),
+    finance: L('التحصيلات والمصروفات والربحية', 'Collections, expenses and profit'),
+    meetings: L('اجتماعاتك ومحاضرها', 'Your meetings and minutes'),
+    dashboard: L('ملخص يومك ومتابعتك', 'Your day at a glance'),
+    settings: L('المظهر والحساب وهوية التقارير', 'Appearance, account and report identity'),
+  };
   const content = sec === 'today' ? renderToday() : sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
   const animatePage = S.animateNextRender;
   S.animateNextRender = false;
+  const tabs = [['today', 'nav_today'], ['projects', 'nav_projects'], ['finance', 'nav_finance']];
   return `
-  <div class="shell">
-    <nav class="rail glass ${S.navExpanded?'expanded':'collapsed'}" aria-label="main">
-      <div class="rail-top"><img class="rail-logo" src="icons/logo.svg" alt="WeeklyPlanner" width="40" height="40"><button class="rail-toggle" data-action="nav-collapse" aria-label="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}" title="${S.navExpanded?'تصغير القائمة':'توسيع القائمة'}">${icon(S.navExpanded?'chevL':'chevR',20)}</button></div>
-      ${nav.map(([id,key])=>`
-        <div class="nav-entry ${S.navOpenSection===id&&S.navExpanded?'preview-open':''}">
-          <div class="nav-entry-head"><button class="nav-item ${sec===id?'on':''}" data-action="nav" data-section="${id}">${badge(id,21,undefined,sec===id)}<span>${t(key)}</span></button><button class="nav-expand" data-action="nav-expand" data-section="${id}" aria-label="عرض ${t(key)}" title="عرض مختصر">${icon('chevD',16)}</button></div>
-          ${S.navExpanded&&S.navOpenSection===id?`<div class="nav-preview">${navPreview(id)}</div>`:''}
-        </div>`).join('')}
-    </nav>
+  <div class="shell ${S.sbCollapsed ? 'sb-collapsed' : ''} ${S.sbOpen ? 'sb-open' : ''}" data-section="${esc(sec)}">
+    ${railHtml(sec)}
+    <aside class="sidebar" aria-label="${L('القائمة', 'Menu')}">${sidebarHtml(sec)}</aside>
+    <div class="sb-scrim" data-action="sidebar-toggle"></div>
     <main class="main ${animatePage ? 'page-transition' : ''} ${S.activeProjectId ? 'project-open' : ''}">
       <header class="topbar">
         <div class="tb-start">
           ${sec === 'settings' ? `<button class="btn icon-btn" data-action="back" aria-label="${t('cancel')}">${icon(rtl ? 'chevR' : 'chevL', 20)}</button>` : ''}
-          <h1>${esc(title)}</h1>
+          <div class="tb-title"><h1>${esc(title)}</h1><p class="tb-sub">${esc(subs[sec] || '')}</p></div>
         </div>
         <span id="sync-indicator" class="sync-indicator" data-state="${esc(S.syncStatus.state)}">${esc(S.syncStatus.message)}</span>
-        ${sec !== 'settings' ? `<button class="btn icon-btn more-btn" data-action="open-more" aria-label="${L('المزيد', 'More')}">${icon('more', 20)}</button><button class="btn icon-btn" data-action="open-settings" aria-label="${t('settings')}">${badge('settings', 20)}</button>` : ''}
+        <button class="btn icon-btn sb-open-btn" data-action="sidebar-toggle" aria-label="${L('القائمة', 'Menu')}">${icon('sidebar', 20)}</button>
       </header>
       ${content}
     </main>
-    <nav class="tabbar glass" aria-label="main">
-      ${nav.filter(([id]) => ['today', 'projects', 'finance'].includes(id)).map(([id, key]) => `
-        <button class="tab ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}">
-          ${badge(id, 21, undefined, sec === id)}<span>${t(key)}</span>
+    <nav class="tabbar" aria-label="main">
+      ${tabs.map(([id, key]) => `
+        <button class="tab ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}" aria-label="${t(key)}">
+          ${icon(NAV_ICON[id], 22, sec === id)}<span>${t(key)}</span>
         </button>`).join('')}
+      <button class="tab ${['tasks', 'meetings', 'dashboard', 'settings'].includes(sec) ? 'on' : ''}" data-action="open-more" aria-label="${L('المزيد', 'More')}">${icon('more', 22, ['tasks', 'meetings', 'dashboard', 'settings'].includes(sec))}<span>${L('المزيد', 'More')}</span></button>
     </nav>
     ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? (S.activeProjectId ? `<button class="fab" data-action="scroll-deliverable-form" aria-label="${t('add_deliverable')}">${icon('plus', 26)}<span>${t('add_deliverable')}</span></button>` : `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>`) : ''}
     <button class="voice-fab" data-action="capture-open" aria-label="${L('تسجيل سريع', 'Quick capture')}">${icon('mic', 24)}<span>${L('تسجيل سريع', 'Quick capture')}</span></button>
@@ -509,11 +595,13 @@ function renderToday() {
   const section = (title, rows) => rows ? `<h2 class="td-label">${title}</h2>${rows}` : '';
   const empty = !lateRows && !waitRows && !taskRows && !meetRows;
   return `<section class="today" aria-label="${L('النهارده', 'Today')}">
-    <div class="td-summary">
-      <div><small>${L('مستحق لي', 'Due to me')}</small><div class="td-big">${tdMoney(d.dueTotal)} <span>${L('ج.م', 'EGP')}</span></div></div>
+    <div class="td-summary mcard">
+      <div class="mc-title">${L('مستحق لي', 'Due to me')}</div>
+      <div class="mc-row"><div class="td-big">${tdMoney(d.dueTotal)} <span>${L('ج.م', 'EGP')}</span></div><span class="mc-badge ${d.counts.late ? 'bad' : 'ok'}">${d.counts.late ? `${icon('late', 14)} ${L(`متأخر ${d.counts.late}`, `${d.counts.late} late`)}` : `${icon('check', 14)} ${L('لا متأخر', 'On track')}`}</span></div>
       <div class="td-stats"><div><b class="${d.counts.late ? 'late' : ''}">${d.counts.late}</b><small>${L('متأخر', 'late')}</small></div><div><b>${d.counts.tasks}</b><small>${L('مهام', 'tasks')}</small></div></div>
     </div>
-    <p class="td-date">${esc(dateLabel)}${d.lateTasks.length ? ` · <button class="td-link" data-action="nav" data-section="tasks">${L(`${d.lateTasks.length} مهام متأخرة`, `${d.lateTasks.length} overdue tasks`)}</button>` : ''} · <button class="td-link plain" data-action="mgr-open">${L('المدير الذكي', 'AI manager')}</button></p>
+    <button class="btn wide-btn" data-action="nav" data-section="finance">${L('افتح الماليات', 'See report')} ${icon('arrowR', 16)}</button>
+    <p class="td-date">${d.lateTasks.length ? `<button class="td-link" data-action="nav" data-section="tasks">${L(`${d.lateTasks.length} مهام متأخرة`, `${d.lateTasks.length} overdue tasks`)}</button> · ` : ''}<button class="td-link plain" data-action="mgr-open">${L('المدير الذكي', 'AI manager')}</button></p>
     ${section(L('عاجل', 'Urgent'), lateRows)}
     ${section(L('مستني ردّ', 'Waiting for reply'), waitRows)}
     ${section(L('مهام اليوم', "Today's tasks"), taskRows + meetRows)}
@@ -1980,7 +2068,7 @@ function renderSettings() {
       <div class="gbody">${body}</div>
     </section>`;
 
-  const presetIds = ['monochrome', 'quiet', 'paper', 'midnight', 'forest', 'sand', 'rose', 'ocean'];
+  const presetIds = ['soft', 'sage', 'sand', 'slate', 'rose', 'ocean'];
   const modeIcon = { auto: 'auto', light: 'sun', dark: 'moon' };
 
   if (open('icons')) Object.keys(FONTS).forEach(ensureFont);
@@ -2402,7 +2490,15 @@ async function onClick(e) {
     case 'auth-toggle': S.authMode=S.authMode==='signup'?'signin':'signup'; renderLogin(); break;
     case 'auth-reset': { const email=$('#auth-email')?.value.trim(); if(!email){toast('اكتب بريدك الإلكتروني أولًا.');break;} try{await S.store.resetPassword(email);toast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.');}catch(err){toast(err.message||'تعذر إرسال الرابط.');} break; }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
-    case 'nav': closeProjectPanel(true); S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'nav': closeProjectPanel(true); S.sbOpen = false; S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'sidebar-toggle': {
+      if (window.innerWidth >= 1100) { S.sbCollapsed = !S.sbCollapsed; try { localStorage.setItem('wp1:sb-collapsed', S.sbCollapsed ? '1' : '0'); } catch {} }
+      else S.sbOpen = !S.sbOpen;
+      render(); break;
+    }
+    case 'sb-group': { const id = el.dataset.id; if (S.sbClosed.has(id)) S.sbClosed.delete(id); else S.sbClosed.add(id); try { localStorage.setItem('wp1:sb-closed', JSON.stringify([...S.sbClosed])); } catch {} el.closest('.sb-group')?.classList.toggle('closed', S.sbClosed.has(id)); el.setAttribute('aria-expanded', String(!S.sbClosed.has(id))); const ic = el.querySelector('.ic'); if (ic) { ic.classList.remove('ph-folder', 'ph-folder-open'); ic.classList.add(S.sbClosed.has(id) ? 'ph-folder' : 'ph-folder-open'); } break; }
+    case 'nav-status': case 'nav-recent': closeProjectPanel(true); S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.sbOpen = false; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'sb-archive': closeProjectPanel(true); S.section = 'projects'; S.showArchivedProjects = true; S.activeProjectId = null; S.sbOpen = false; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'nav-expand': S.navOpenSection=S.navOpenSection===el.dataset.section?'':el.dataset.section; if(!S.navExpanded){S.navExpanded=true;localStorage.setItem('wp1:nav-expanded','1');} render(); break;
     case 'nav-collapse': S.navExpanded=!S.navExpanded; localStorage.setItem('wp1:nav-expanded',S.navExpanded?'1':'0'); render(); break;
     case 'brand-logo-pick': $('#brand-logo-file')?.click(); break;
@@ -2528,7 +2624,7 @@ async function onClick(e) {
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
     case 'edit-project': openProjectSheet(el.dataset.id); break;
-    case 'open-project': S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
+    case 'open-project': S.sbOpen = false; S.activeProjectId = el.dataset.id; S.section='projects'; S.navOpenSection='projects'; S.animateNextRender=true; render(); window.scrollTo(0,0); break;
     case 'toggle-project': closeProjectPanel(true); S.activeProjectId = S.activeProjectId === el.dataset.id ? null : el.dataset.id; S.animateNextRender = true; render(); break;
     case 'open-panel': S.activeProjectId = el.dataset.id; openProjectPanel(el.dataset.id, el.dataset.panel); break;
     case 'close-panel': closeProjectPanel(); break;
@@ -2611,9 +2707,9 @@ async function onClick(e) {
     case 'set-icons': updateTheme((x) => { x.icons = v; }, { render: true }); break;
     case 'set-font': updateTheme((x) => { x.font = v; }, { render: true }); break;
     case 'reset-colors': {
-      const p = PRESETS.monochrome;
+      const p = PRESETS.soft;
       updateTheme((x) => {
-        x.preset = 'monochrome'; x.accent = p.accent; x.sat = 0;
+        x.preset = 'soft'; x.accent = p.accent; x.sat = p.sat;
         x.bg = { ...p.bg }; x.text = { light: null, dark: null }; x.surface = 'tint';
       }, { render: true }); break;
     }
@@ -2698,6 +2794,12 @@ function onInput(e) {
   if (!el) return;
   const k = el.dataset.input;
   const v = el.value;
+  if (k === 'sb-search') {
+    const q = v.trim().toLowerCase();
+    const tree = el.closest('.sb-docs')?.querySelector('.sb-tree');
+    if (tree) { tree.classList.toggle('searching', !!q); tree.querySelectorAll('.sb-leaf').forEach((b) => { b.hidden = !!q && !b.dataset.name.includes(q); }); tree.querySelectorAll('.sb-group').forEach((g) => { g.hidden = !!q && ![...g.querySelectorAll('.sb-leaf')].some((b) => !b.hidden); }); }
+    return;
+  }
   if (k === 'brand-field') { updateSettings({ brand: { ...(S.settings.brand || {}), [el.dataset.key]: v.trim() } }, { render: false }); return; }
   const mode = effectiveMode(S.settings.theme);
   switch (k) {
