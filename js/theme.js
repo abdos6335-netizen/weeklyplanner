@@ -56,21 +56,21 @@ export function mix(a, b, t) {
 
 // ------------------------------------------------------------------ الخطوط
 export const FONTS = {
-  // الإنجليزي دائمًا Roboto Condensed (الخط المعتمد)، والعربي حسب الاختيار.
-  ibm: { label: 'IBM Plex Sans Arabic', family: 'IBM Plex Sans Arabic', stack: '"Roboto Condensed","IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600' },
-  alexandria: { label: 'Alexandria', family: 'Alexandria', stack: '"Roboto Condensed","Alexandria"', gf: 'Alexandria:wght@300;400;500;600' },
-  readex: { label: 'Readex Pro', family: 'Readex Pro', stack: '"Roboto Condensed","Readex Pro"', gf: 'Readex+Pro:wght@300;400;500;600' },
-  noto: { label: 'Noto Sans Arabic', family: 'Noto Sans Arabic', stack: '"Roboto Condensed","Noto Sans Arabic"', gf: 'Noto+Sans+Arabic:wght@300;400;500;600' },
-  almarai: { label: 'Almarai', family: 'Almarai', stack: '"Roboto Condensed","Almarai"', gf: 'Almarai:wght@300;400;700' },
-  cairo: { label: 'Cairo', family: 'Cairo', stack: '"Roboto Condensed","Cairo"', gf: 'Cairo:wght@300;400;500;600' },
-  tajawal: { label: 'Tajawal', family: 'Tajawal', stack: '"Roboto Condensed","Tajawal"', gf: 'Tajawal:wght@300;400;500;700' },
-  system: { label: 'System', family: 'system-ui', stack: '"Roboto Condensed",system-ui', gf: null },
+  // الإنجليزي Inter (مطابق للتصميم المرجعي)، والعربي حسب الاختيار.
+  ibm: { label: 'IBM Plex Sans Arabic', family: 'IBM Plex Sans Arabic', stack: '"Inter","IBM Plex Sans Arabic"', gf: 'IBM+Plex+Sans+Arabic:wght@400;500;600' },
+  alexandria: { label: 'Alexandria', family: 'Alexandria', stack: '"Inter","Alexandria"', gf: 'Alexandria:wght@300;400;500;600' },
+  readex: { label: 'Readex Pro', family: 'Readex Pro', stack: '"Inter","Readex Pro"', gf: 'Readex+Pro:wght@300;400;500;600' },
+  noto: { label: 'Noto Sans Arabic', family: 'Noto Sans Arabic', stack: '"Inter","Noto Sans Arabic"', gf: 'Noto+Sans+Arabic:wght@300;400;500;600' },
+  almarai: { label: 'Almarai', family: 'Almarai', stack: '"Inter","Almarai"', gf: 'Almarai:wght@300;400;700' },
+  cairo: { label: 'Cairo', family: 'Cairo', stack: '"Inter","Cairo"', gf: 'Cairo:wght@300;400;500;600' },
+  tajawal: { label: 'Tajawal', family: 'Tajawal', stack: '"Inter","Tajawal"', gf: 'Tajawal:wght@300;400;500;700' },
+  system: { label: 'System', family: 'system-ui', stack: '"Inter",system-ui', gf: null },
 };
 // أسماء قديمة محفوظة عند المستخدمين
 const FONT_ALIASES = { editorial: 'ibm', inter: 'ibm' };
 export const fontKey = (id) => FONTS[id] ? id : (FONT_ALIASES[id] || 'ibm');
 
-const loadedFonts = new Set(['ibm']); // IBM Plex Sans Arabic وRoboto Condensed محمّلان من index.html
+const loadedFonts = new Set(['ibm']); // IBM Plex Sans Arabic وInter محمّلان من index.html
 export function ensureFont(id) {
   const f = FONTS[fontKey(id)];
   if (!f || !f.gf || loadedFonts.has(id)) return;
@@ -83,23 +83,29 @@ export function ensureFont(id) {
 
 // ------------------------------------------------------------------ الثيمات الجاهزة
 export const PRESETS = {
+  // الثيمات الجديدة (v6): ألوان هادئة بدرجات رمادية دافئة/باردة، كلها لها نسخة فاتحة وداكنة
+  soft: { accent: '#2c2c30', bg: { light: '#e8e8ea', dark: '#19191b' }, sat: 100 },
+  sage: { accent: '#3f5a4a', bg: { light: '#dfe6df', dark: '#161c18' }, sat: 100 },
+  sand: { accent: '#6b5a43', bg: { light: '#ebe4d8', dark: '#1d1a15' }, sat: 100 },
+  slate: { accent: '#38465c', bg: { light: '#dde2ea', dark: '#15181e' }, sat: 100 },
+  rose: { accent: '#7a3b4f', bg: { light: '#ede2e5', dark: '#1c1518' }, sat: 100 },
+  ocean: { accent: '#1f5f73', bg: { light: '#dbe8ec', dark: '#121b1e' }, sat: 100 },
+  // قديمة (محفوظة عند مستخدمين سابقين)
   monochrome: { accent: '#5b5b60', bg: { light: '#f4f4f5', dark: '#171719' }, sat: 0 },
   quiet: { accent: '#1a73e8', bg: { light: null, dark: null }, sat: 100 },
   paper: { accent: '#6b5b45', bg: { light: '#f4efe6', dark: '#211e1a' }, sat: 85 },
   midnight: { accent: '#8ab4f8', bg: { light: '#eef1f8', dark: '#0f1320' }, sat: 100 },
   forest: { accent: '#1e8e5a', bg: { light: '#eef4ee', dark: '#14201a' }, sat: 100 },
-  sand: { accent: '#c2762b', bg: { light: '#f7f0e4', dark: '#241c14' }, sat: 100 },
-  rose: { accent: '#d6457a', bg: { light: '#faf0f3', dark: '#251820' }, sat: 100 },
-  ocean: { accent: '#0891b2', bg: { light: '#eaf5f8', dark: '#0e1e24' }, sat: 100 },
 };
 
 export const DEFAULT_THEME = {
+  v: 6,                    // إصدار نظام التصميم (الأقدم يُعاد لافتراضيات v6 مع الاحتفاظ بالمود والتكبير)
   mode: 'auto',            // auto | light | dark
-  preset: 'monochrome',
-  accent: '#5b5b60',
-  bg: { light: '#f4f4f5', dark: '#171719' },
+  preset: 'soft',
+  accent: '#2c2c30',
+  bg: { light: '#e8e8ea', dark: '#19191b' },
   text: { light: null, dark: null },
-  sat: 0,                  // 0..150
+  sat: 100,                // 0..150
   surface: 'tint',         // tint (بلون مغاير) | same (بنفس لون الخلفية)
   glass: true,
   blur: 16,                // 0..32
@@ -110,8 +116,13 @@ export const DEFAULT_THEME = {
 
 const DEFAULT_BG = { light: '#f6f4ef', dark: '#1c1d21' };
 
-export function mergeTheme(saved) {
-  const t = { ...DEFAULT_THEME, ...(saved || {}) };
+export function mergeTheme(input) {
+  let saved = input;
+  if (saved && saved.v !== 6) {
+    saved = {};
+    for (const k of ['mode', 'scale', 'font']) if (input[k] !== undefined) saved[k] = input[k];
+  }
+  const t = { ...DEFAULT_THEME, ...(saved || {}), v: 6 };
   t.bg = { ...DEFAULT_THEME.bg, ...((saved && saved.bg) || {}) };
   t.text = { ...DEFAULT_THEME.text, ...((saved && saved.text) || {}) };
   return t;
@@ -167,6 +178,20 @@ export function buildVars(theme) {
 
   const f = FONTS[fontKey(theme.font)];
 
+  // أسطح التصميم الجديد: لوحات مرفوعة وغائرة + شريط داكن للأيقونات
+  const tone = (l, sk = 1) => hslToHex(bh, clamp(bs * sk), clamp(l));
+  const sidebar = dark ? tone(bl + 0.045) : tone(bl + 0.04);
+  const panel = dark ? tone(bl + 0.028) : tone(bl + 0.022);
+  const rail = dark ? hslToHex(bh, clamp(bs * 0.5, 0, 0.2), 0.2) : hslToHex(bh, clamp(bs * 0.6, 0, 0.18), 0.15);
+  const raise = dark
+    ? '0 1px 0 rgba(255,255,255,.06) inset, 0 10px 24px -8px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.4)'
+    : '0 1px 0 rgba(255,255,255,.75) inset, 0 8px 20px -6px rgba(24,24,32,.17), 0 1px 3px rgba(24,24,32,.10)';
+  const inset = dark
+    ? 'inset 0 2px 6px rgba(0,0,0,.45), inset 0 -1px 0 rgba(255,255,255,.04)'
+    : 'inset 0 2px 5px rgba(24,24,32,.10), inset 0 -1px 0 rgba(255,255,255,.65)';
+  const good = dark ? '#5fd3a0' : '#23895f';
+  const goodSoft = dark ? 'rgba(95,211,160,.16)' : 'rgba(47,158,114,.16)';
+
   const glow1 = `hsl(${ah} ${Math.round(70 * k)}% ${dark ? 32 : 78}% / ${dark ? 0.45 : 0.55})`;
   const glow2 = `hsl(${(ah + 55) % 360} ${Math.round(65 * k)}% ${dark ? 30 : 82}% / ${dark ? 0.35 : 0.45})`;
 
@@ -197,6 +222,17 @@ export function buildVars(theme) {
       '--icon-bg-a': theme.icons === 'plain' ? '0' : (dark ? '0.2' : '0.14'),
       '--scale': String(clamp(theme.scale, 90, 120) / 100),
       '--font': `${f.stack}, system-ui, sans-serif`,
+      '--sidebar': sidebar,
+      '--panel': panel,
+      '--rail': rail,
+      '--rail-ink': '#f3f3f5',
+      '--rail-dim': 'rgba(255,255,255,.58)',
+      '--rail-on': 'rgba(255,255,255,.15)',
+      '--raise': raise,
+      '--inset': inset,
+      '--good': good,
+      '--good-soft': goodSoft,
+      '--line': mix(bg, text, dark ? 0.14 : 0.12),
     },
   };
 }

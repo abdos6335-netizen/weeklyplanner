@@ -1,4 +1,4 @@
-// WeeklyPlanner — Phosphor Icons: Regular للواجهة وFill للحالة النشطة.
+// WeeklyPlanner — Phosphor Icons: Light (خط رفيع) للحالة العادية وRegular للحالة النشطة.
 const PHOSPHOR = {
   check: 'check', plus: 'plus', tasks: 'check-square-offset',
   dashboard: 'squares-four', meetings: 'calendar-check',
@@ -13,6 +13,8 @@ const PHOSPHOR = {
   mic: 'microphone', printer: 'printer', alert: 'warning',
   sparkles: 'sparkle', move: 'arrows-out-cardinal', feather: 'feather',
   'minus-circle': 'minus-circle', more: 'dots-three', today: 'check-circle',
+  search: 'magnifying-glass', folder: 'folder', folderOpen: 'folder-open', late: 'warning-circle', wait: 'hourglass-medium', review: 'bell-simple',
+  recent: 'clock-counter-clockwise', archive: 'archive', sidebar: 'sidebar-simple', asterisk: 'asterisk-simple', arrowUp: 'arrow-up', arrowR: 'arrow-right', userRound: 'user-circle',
 };
 
 function phosphorName(name) {
@@ -21,13 +23,13 @@ function phosphorName(name) {
 
 /** أيقونة Phosphor بدون دائرة أو خلفية. */
 export function icon(name, size = 22, filled = false) {
-  const weight = filled ? 'ph-fill' : 'ph';
+  const weight = filled ? 'ph' : 'ph-light';
   return `<i class="${weight} ph-${phosphorName(name)} ic" style="font-size:${Number(size) || 22}px" aria-hidden="true"></i>`;
 }
 
 /** التوافق مع الاستدعاءات القديمة: badge أصبحت أيقونة مستقلة بلا شارة دائرية. */
 export function badge(name, size = 22, _hue, filled = false) {
-  const weight = filled ? 'ph-fill' : 'ph';
+  const weight = filled ? 'ph' : 'ph-light';
   return `<i class="${weight} ph-${phosphorName(name)} ic badge" style="font-size:${Number(size) || 22}px" aria-hidden="true"></i>`;
 }
 
