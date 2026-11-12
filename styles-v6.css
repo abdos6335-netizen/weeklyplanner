@@ -285,3 +285,22 @@ html body .shell .fab span, html body .shell .voice-fab span { display: none; }
 html body .shell .td-link, html body .shell .td-link.plain { color: var(--text-2) !important; text-decoration: none; }
 html body .shell .td-link:hover { color: var(--text) !important; }
 html body .shell .wide-btn { border: 1px solid var(--line) !important; background: transparent !important; }
+
+/* ================================================== صف المشروع: الاسم كاملًا في سطر، وبيانات المشروع في السطر التالي */
+html body .shell main .project-list-row-wrap { align-items: flex-start; gap: .4rem; }
+html body .shell main .project-list-row-wrap .project-list-row {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: .6rem; row-gap: .15rem; min-width: 0; flex: 1 1 0;
+}
+html body .shell main .project-list-name {
+  grid-column: 1; grid-row: 1; min-width: 0; white-space: normal; overflow-wrap: break-word !important; word-break: normal; line-height: 1.35;
+}
+html body .shell main .project-list-chevron { grid-column: 2; grid-row: 1; }
+html body .shell main .project-list-ratios {
+  grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; gap: .1rem .8rem; white-space: nowrap; font-size: .74rem;
+}
+html body .shell main .project-list-report { flex: none; align-self: center; white-space: nowrap; }
+html body .shell main .project-list-ratios { margin-inline-start: 0 !important; justify-content: flex-start; }
+
+/* بطاقات مجموعات المهام في لوحة المتابعة تأخذ عرض العمود بالكامل (كانت تنكمش وتُكسّر النص) */
+html body .shell main .dashboard-task-group { width: 100%; justify-self: stretch; box-sizing: border-box; }
+html body .shell main .dashboard-row small { overflow-wrap: break-word; }
