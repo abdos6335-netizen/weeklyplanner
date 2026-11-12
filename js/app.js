@@ -31,7 +31,7 @@ function translateNode(root) {
     let n;
     while ((n = walker.nextNode())) {
       const p = n.parentElement;
-      if (!p || ['SCRIPT', 'STYLE', 'TEXTAREA'].includes(p.tagName) || p.closest('[data-no-tr]')) continue;
+      if (!p || ['SCRIPT', 'STYLE', 'TEXTAREA'].includes(p.tagName) || p.closest('[data-no-tr], .project-list-name, .sb-leaf, .task .ttl')) continue; // أسماء المشاريع والمهام نص المستخدم: لا تُترجم
       const v = translateText(n.nodeValue);
       if (v !== n.nodeValue) n.nodeValue = v;
     }
