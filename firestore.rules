@@ -14,6 +14,35 @@ service cloud.firestore {
       //                    && request.auth.token.email_verified == true;
     }
 
+    // ---------------------------------------------------------------------------
+    // مشاركة المشاريع (المرحلة 1: قراءة فقط للمستخدمين)
+    //
+    // بيانات المدير الأصلية في users/{uid}/... لا تُفتح لأحد. برنامج المدير يكتب «نسخة مشتركة» هنا،
+    // كل قسم في مستند مستقل فيه قائمة البريد المسموح لها بقراءته (readers).
+    // معرّف المشاركة = {uid المدير}_{معرّف المشروع}، ومنه نعرف المالك دون الاعتماد على حقل يمكن تزويره.
+    // ---------------------------------------------------------------------------
+    function ownsShare(shareId) {
+      return request.auth != null && shareId.matches(request.auth.uid + '_.+');
+    }
+    function isVerifiedUser() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+
+    match /shares/{shareId} {
+      // مستند التعريف: اسم المشروع وقائمة كل من له أي صلاحية (يقرؤه الضيوف المسجلون فقط، والمالك).
+      allow read: if ownsShare(shareId)
+        || (isVerifiedUser() && request.auth.token.email.lower() in resource.data.members);
+      allow write: if ownsShare(shareId);
+
+      match /sections/{section} {
+        allow read: if ownsShare(shareId)
+          || (isVerifiedUser() && request.auth.token.email.lower() in resource.data.readers);
+        allow write: if ownsShare(shareId);
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

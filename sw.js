@@ -1,8 +1,8 @@
 // Service worker: يخزّن هيكل التطبيق ليعمل أوفلاين. غيّر VERSION عند نشر تحديث.
-const VERSION = 'wp-v6.0.1';
+const VERSION = 'wp-v6.1.0';
 const SHELL = [
   './', 'index.html', 'styles.css', 'styles-v6.css', 'manifest.webmanifest',
-  'js/app.js', 'js/store.js', 'js/theme.js', 'js/i18n.js', 'js/i18n-en.js', 'js/report.js', 'js/assistant.js', 'js/today.js', 'js/icons.js', 'js/dates.js', 'js/firebase-config.js',
+  'js/app.js', 'js/store.js', 'js/theme.js', 'js/i18n.js', 'js/i18n-en.js', 'js/report.js', 'js/assistant.js', 'js/today.js', 'js/icons.js', 'js/dates.js', 'js/firebase-config.js', 'js/share.js', 'js/share-core.js', 'share.css',
   'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-48.png',
 ];
 // نطاقات خارجية نخزّنها أثناء التشغيل (الخطوط ووحدات Firebase). باقي الطلبات (Firestore/Auth) تمر مباشرة.
