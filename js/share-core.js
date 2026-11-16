@@ -61,7 +61,7 @@ export function cleanGuests(guests) {
 
 // من يقرأ كل قسم ومن يعدّله (التعديل لا يفعّل أي كتابة في المرحلة الأولى؛ القواعد لا تمنحه شيئًا بعد).
 export function audience(config) {
-  const guests = cleanGuests(config && config.guests);
+  const guests = cleanGuests(config && config.guests).filter((guest) => SECTIONS.some((section) => guest.access[section] !== 'none'));
   const out = {};
   for (const s of SECTIONS) {
     const readers = [];
