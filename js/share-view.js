@@ -4,7 +4,7 @@
 
 import { firebaseConfig } from './firebase-config.js';
 import { FB_BASE } from './store.js';
-import { normalizeRequest } from './share-core.js';
+import { normalizeRequest, canEditSection } from './share-core.js';
 
 const SECTIONS = ['report', 'technical', 'deliverables', 'finance', 'expenses', 'meetings'];
 const TAB_LABEL = { report: 'الملخص', technical: 'الحالة الفنية', deliverables: 'التسليمات', finance: 'التحصيلات', expenses: 'المصروفات', meetings: 'الاجتماعات' };
@@ -173,7 +173,7 @@ const PANELS = {
 };
 
 // ------------------------------------------------------------------ تعديلات الضيف = طلبات تنتظر موافقة المدير
-const canEdit = (section) => !!(state.user && state.sections[section] && Array.isArray(state.sections[section].editors) && state.sections[section].editors.includes(state.user.email));
+const canEdit = (section) => !!(state.user && canEditSection(state.meta && state.meta.sections, section));
 const pendingMine = (type, targetId) => state.requests.some((r) => r.status === 'pending' && r.type === type && r.targetId === targetId);
 const TYPE_LABEL = { deliverable_status: 'اعتماد / تعديل تسليم', requirement_add: 'متطلب أو ملاحظة', meeting_note: 'ملاحظة على اجتماع', installment_paid: 'دفعة مدفوعة' };
 const STATE_PILL = { pending: ['بانتظار موافقة المدير', 'warn'], approved: ['تمت الموافقة', ''], rejected: ['مرفوض', 'dim'] };
