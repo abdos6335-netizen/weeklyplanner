@@ -29,7 +29,7 @@ const forProject = (rows, projectId) => (Array.isArray(rows) ? rows : []).filter
 
 export function normalizeEmail(raw) {
   const e = String(raw ?? '').trim().toLowerCase();
-  if (e.length > 254 || !/^[^\s@,;<>()"']+@[^\s@,;<>()"']+\.[^\s@,;<>()"']+$/.test(e)) return '';
+  if (e.length > 254 || !/^[^\s@,;<>/()"']+@[^\s@,;<>/()"']+\.[^\s@,;<>/()"']+$/.test(e)) return '';
   return e;
 }
 
@@ -195,29 +195,54 @@ export function hashOf(value) {
 export function planPublish({ ownerUid, project, config, built, published = {} }) {
   const shareId = shareIdFor(ownerUid, project.id);
   const aud = audience(config);
+  const guests = cleanGuests(config && config.guests);
   const sections = [];
   for (const section of SECTIONS) {
-    const { readers, editors } = aud[section];
+    const { readers } = aud[section];
     if (!readers.length) {
       sections.push({ section, op: published[section] ? 'delete' : 'skip', hash: null });
       continue;
     }
     const data = built[section];
-    const hash = hashOf({ readers, editors, data });
+    const hash = hashOf(data);
     sections.push({
       section, hash, op: published[section] === hash ? 'skip' : 'set',
-      doc: { ownerUid, projectId: project.id, section, readers, editors, data },
+      // لا نضع عناوين البريد أو قوائم الصلاحيات داخل مستند القسم؛ الصلاحية في access/{email}.
+      doc: { ownerUid, projectId: project.id, section, data },
     });
   }
-  const members = membersOf(config);
+
+  // مستند مستقل لكل ضيف. قواعد Firestore تسمح له بقراءة مستنده فقط، ولا تسمح بتعداد المجموعة.
+  const previousAccess = published.access && typeof published.access === 'object' ? published.access : {};
+  const access = guests.map((guest) => {
+    const sections = {};
+    for (const section of SECTIONS) {
+      sections[section] = {
+        view: guest.access[section] === 'view' || guest.access[section] === 'edit',
+        edit: guest.access[section] === 'edit',
+      };
+    }
+    const doc = { projectName: str(project.name, 160), sections };
+    const hash = hashOf(doc);
+    return { email: guest.email, hash, op: previousAccess[guest.email] === hash ? 'skip' : 'set', doc };
+  });
+  const currentEmails = new Set(guests.map((g) => g.email));
+  for (const email of Object.keys(previousAccess)) {
+    if (!currentEmails.has(email)) access.push({ email, hash: null, op: 'delete', doc: null });
+  }
+
+  // مستند المشروع لا يحمل قائمة أعضاء؛ الضيوف يحصلون على الاسم من access/{their-email}.
   let meta;
-  if (!members.length) {
+  if (!guests.length) {
     meta = { op: published.meta ? 'delete' : 'skip', hash: null };
   } else {
-    const hash = hashOf({ name: project.name, members });
-    meta = { hash, op: published.meta === hash ? 'skip' : 'set', doc: { ownerUid, projectId: project.id, projectName: str(project.name, 160), members } };
+    const hash = hashOf({ name: project.name });
+    meta = {
+      hash, op: published.meta === hash ? 'skip' : 'set',
+      doc: { ownerUid, projectId: project.id, projectName: str(project.name, 160) },
+    };
   }
-  return { shareId, sections, meta };
+  return { shareId, sections, access, meta };
 }
 
 
