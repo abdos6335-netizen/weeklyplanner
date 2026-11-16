@@ -112,7 +112,7 @@ test('الجمهور: كل قسم يقرأه من أُعطي صلاحيته فق
   assert.deepEqual(membersOf(config), ['client@x.com', 'worker@x.com']);
 });
 
-test('خطة النشر: أقسام بلا قراء لا تُكتب أبدًا', () => {
+test('خطة النشر: بيانات الأقسام والبيانات الوصفية لا تكشف بريد أي ضيف', () => {
   const config = { guests: [{ email: 'worker@x.com', access: PRESETS.contractor }] };
   const plan = planPublish({ ownerUid: 'U', project, config, built: built() });
   const byName = Object.fromEntries(plan.sections.map((s) => [s.section, s]));
@@ -120,18 +120,26 @@ test('خطة النشر: أقسام بلا قراء لا تُكتب أبدًا',
   assert.equal(byName.expenses.op, 'skip');
   assert.equal(byName.meetings.op, 'skip');
   assert.equal(byName.technical.op, 'set');
-  assert.deepEqual(byName.technical.doc.readers, ['worker@x.com']);
+  assert.ok(!('readers' in byName.technical.doc) && !('editors' in byName.technical.doc));
+  assert.ok(!JSON.stringify(byName).includes('worker@x.com'));
   assert.equal(plan.meta.op, 'set');
-  assert.deepEqual(plan.meta.doc.members, ['worker@x.com']);
+  assert.ok(!('members' in plan.meta.doc));
+  assert.ok(!JSON.stringify(plan.meta.doc).includes('worker@x.com'));
+  assert.equal(plan.access.length, 1);
+  assert.equal(plan.access[0].email, 'worker@x.com');
+  assert.equal(plan.access[0].doc.sections.technical.view, true);
+  assert.equal(plan.access[0].doc.sections.technical.edit, false);
+  assert.equal(plan.access[0].doc.sections.finance.view, false);
   assert.ok(plan.shareId.startsWith('U_'));
 });
 
-test('خطة النشر: بدون تغيير لا كتابة، وتغيير البيانات يكتب القسم المتأثر فقط', () => {
+test('خطة النشر: لا كتابة عند عدم التغيير، وتحديث البيانات يكتب الأقسام المتأثرة فقط', () => {
   const config = { guests: [{ email: 'c@x.com', access: PRESETS.client }] };
   const first = planPublish({ ownerUid: 'U', project, config, built: built() });
   const published = Object.fromEntries([...first.sections.filter((s) => s.hash).map((s) => [s.section, s.hash]), ['meta', first.meta.hash]]);
+  published.access = Object.fromEntries(first.access.filter((a) => a.hash).map((a) => [a.email, a.hash]));
   const again = planPublish({ ownerUid: 'U', project, config, built: built(), published });
-  assert.ok(again.sections.every((s) => s.op === 'skip') && again.meta.op === 'skip');
+  assert.ok(again.sections.every((s) => s.op === 'skip') && again.access.every((a) => a.op === 'skip') && again.meta.op === 'skip');
 
   const changed = buildSections({ project, deliverables: [...deliverables, { id: 'd9', projectId: 'p1', name: 'جديد', status: 'pending' }], financeEntries, meetings, requirements, progress });
   const third = planPublish({ ownerUid: 'U', project, config, built: changed, published });
@@ -140,26 +148,30 @@ test('خطة النشر: بدون تغيير لا كتابة، وتغيير ال
   assert.equal(ops.report, 'set');
   assert.equal(ops.technical, 'skip');
   assert.equal(ops.finance, 'skip');
+  assert.ok(third.access.every((a) => a.op === 'skip'));
 });
 
-test('سحب الصلاحية: إزالة ضيف أو قسم تُحدّث القراء أو تحذف القسم', () => {
+test('سحب الصلاحية: حذف سجل الضيف أو القسم من سجله الخاص دون تعديل بيانات القسم', () => {
   const both = { guests: [{ email: 'c@x.com', access: PRESETS.client }, { email: 'd@x.com', access: PRESETS.client }] };
   const p1 = planPublish({ ownerUid: 'U', project, config: both, built: built() });
   const published = Object.fromEntries([...p1.sections.filter((s) => s.hash).map((s) => [s.section, s.hash]), ['meta', p1.meta.hash]]);
+  published.access = Object.fromEntries(p1.access.filter((a) => a.hash).map((a) => [a.email, a.hash]));
 
   const onlyOne = { guests: [{ email: 'c@x.com', access: PRESETS.client }] };
   const p2 = planPublish({ ownerUid: 'U', project, config: onlyOne, built: built(), published });
-  const fin = p2.sections.find((s) => s.section === 'finance');
-  assert.equal(fin.op, 'set');
-  assert.deepEqual(fin.doc.readers, ['c@x.com']);
+  assert.ok(p2.sections.every((s) => s.op === 'skip'));
+  assert.deepEqual(p2.access.map((a) => [a.email, a.op]), [['c@x.com', 'skip'], ['d@x.com', 'delete']]);
 
   const nobody = planPublish({ ownerUid: 'U', project, config: { guests: [] }, built: built(), published });
   assert.ok(nobody.sections.filter((s) => published[s.section]).every((s) => s.op === 'delete'));
   assert.equal(nobody.meta.op, 'delete');
+  assert.deepEqual(nobody.access.map((a) => [a.email, a.op]), [['c@x.com', 'delete'], ['d@x.com', 'delete']]);
 
   const noFinance = { guests: [{ email: 'c@x.com', access: { ...PRESETS.client, finance: 'none' } }] };
   const p3 = planPublish({ ownerUid: 'U', project, config: noFinance, built: built(), published });
   assert.equal(p3.sections.find((s) => s.section === 'finance').op, 'delete');
+  assert.equal(p3.access[0].doc.sections.finance.view, false);
+  assert.equal(p3.access[0].doc.sections.finance.edit, false);
 });
 
 test('fit يقلّص المصفوفات الكبيرة ويحافظ على الأحدث', () => {
