@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SECTIONS, PRESETS, normalizeEmail, shareIdFor, cleanGuests, audience, membersOf,
   buildSections, fit, hashOf, planPublish,
+  REQUEST_TYPES, EDITABLE_SECTIONS, normalizeRequest, viewOf, planApply,
 } from '../js/share-core.js';
 
 // كل قيمة «سرّية» تحمل علامة SECRET_ حتى نتأكد أنها لا تظهر في أي قسم.
@@ -175,4 +176,139 @@ test('hashOf ثابت ويتغير بتغير القيمة', () => {
 
 test('كل الأقسام معرّفة في القوالب', () => {
   for (const p of Object.values(PRESETS)) assert.deepEqual(Object.keys(p).sort(), [...SECTIONS].sort());
+});
+
+
+// ====================================================================== طلبات التعديل (المرحلة 2)
+const cfgEdit = { guests: [{ email: 'client@x.com', access: { ...PRESETS.client, deliverables: 'edit', technical: 'edit', meetings: 'edit', finance: 'edit' } }] };
+const mkReq = (over = {}) => normalizeRequest('r1', { type: 'deliverable_status', targetId: 'd1', payload: { status: 'revision', text: 'غيّر اللون' }, authorEmail: 'Client@X.com', authorName: 'أحمد', status: 'pending', createdAt: 1, ...over });
+const baseCtx = () => ({ project: { ...project }, deliverables: deliverables.map((d) => ({ ...d })), meetings: meetings.map((m) => ({ ...m })), now: 1000, today: '2026-11-15' });
+
+test('كل نوع طلب مرتبط بقسم، والتعديل مسموح في أربعة أقسام فقط', () => {
+  assert.deepEqual(Object.values(REQUEST_TYPES).sort(), ['deliverables', 'finance', 'meetings', 'technical']);
+  assert.deepEqual([...EDITABLE_SECTIONS].sort(), ['deliverables', 'finance', 'meetings', 'technical']);
+});
+
+test('normalizeRequest: القسم يُشتق من النوع لا من الضيف، والنوع الغريب يُرفض، والبريد يُطبَّع', () => {
+  const r = normalizeRequest('x', { type: 'deliverable_status', section: 'finance', targetId: 'd1', payload: { status: 'approved', evil: 'x' }, authorEmail: ' A@B.COM ', authorName: 'ن', status: 'weird' });
+  assert.equal(r.section, 'deliverables');
+  assert.equal(r.authorEmail, 'a@b.com');
+  assert.equal(r.status, 'pending');
+  assert.deepEqual(Object.keys(r.payload).sort(), ['status', 'text']);
+  assert.equal(normalizeRequest('x', { type: 'delete_everything' }), null);
+  assert.equal(normalizeRequest('x', null), null);
+});
+
+test('planApply: طلب تعديل على تسليم يرفع الإصدار ويسجل اسم الضيف في الملاحظات', () => {
+  const c = baseCtx();
+  const plan = planApply({ req: mkReq(), config: cfgEdit, ...c });
+  assert.equal(plan.ok, true);
+  const doc = plan.saves[0].doc;
+  assert.equal(plan.saves[0].col, 'deliverables');
+  assert.equal(doc.status, 'revision');
+  assert.equal(doc.rev, 3);
+  assert.ok(doc.notes.includes('أحمد') && doc.notes.includes('غيّر اللون'));
+  assert.deepEqual(doc.appliedRequestIds, ['r1']);
+  assert.equal(doc.projectId, 'p1');
+});
+
+test('planApply: إعادة الموافقة على نفس الطلب لا تكرر التعديل', () => {
+  const c = baseCtx();
+  const first = planApply({ req: mkReq(), config: cfgEdit, ...c });
+  c.deliverables = c.deliverables.map((d) => (d.id === 'd1' ? first.saves[0].doc : d));
+  const again = planApply({ req: mkReq(), config: cfgEdit, ...c });
+  assert.equal(again.ok, true);
+  assert.equal(again.noop, true);
+  assert.equal(again.saves.length, 0);
+});
+
+test('planApply: اعتماد تسليم', () => {
+  const c = baseCtx();
+  const plan = planApply({ req: mkReq({ targetId: 'd2', payload: { status: 'approved' } }), config: cfgEdit, ...c });
+  assert.equal(plan.saves[0].doc.status, 'approved');
+  assert.equal(plan.saves[0].doc.rev, 1);
+});
+
+test('planApply: حالة غير مسموحة أو تسليم من مشروع آخر أو غير موجود تُرفض', () => {
+  const c = baseCtx();
+  assert.equal(planApply({ req: mkReq({ payload: { status: 'pending' } }), config: cfgEdit, ...c }).reason, 'invalid');
+  assert.equal(planApply({ req: mkReq({ targetId: 'd3' }), config: cfgEdit, ...c }).reason, 'target_missing');
+  assert.equal(planApply({ req: mkReq({ targetId: 'nope' }), config: cfgEdit, ...c }).reason, 'target_missing');
+});
+
+test('planApply: بلا صلاحية «عرض وتعديل» على القسم لحظة الموافقة → يُرفض', () => {
+  const c = baseCtx();
+  const viewOnly = { guests: [{ email: 'client@x.com', access: PRESETS.client }] };
+  assert.equal(planApply({ req: mkReq(), config: viewOnly, ...c }).reason, 'no_access');
+  assert.equal(planApply({ req: mkReq(), config: { guests: [] }, ...c }).reason, 'no_access');
+  const otherSection = { guests: [{ email: 'client@x.com', access: { ...PRESETS.client, meetings: 'edit' } }] };
+  assert.equal(planApply({ req: mkReq(), config: otherSection, ...c }).reason, 'no_access');
+  const other = { guests: [{ email: 'someone@x.com', access: { ...PRESETS.client, deliverables: 'edit' } }] };
+  assert.equal(planApply({ req: mkReq(), config: other, ...c }).reason, 'no_access');
+});
+
+test('planApply: طلب تمت معالجته لا يُطبَّق مرة ثانية', () => {
+  assert.equal(planApply({ req: mkReq({ status: 'approved' }), config: cfgEdit, ...baseCtx() }).reason, 'resolved');
+  assert.equal(planApply({ req: mkReq({ status: 'rejected' }), config: cfgEdit, ...baseCtx() }).reason, 'resolved');
+});
+
+test('planApply: متطلب جديد باسم الضيف وبمعرّف ثابت (لا تكرار)', () => {
+  const r = mkReq({ type: 'requirement_add', targetId: 'p1', payload: { text: 'ضيفوا مخرج كهرباء' } });
+  const plan = planApply({ req: r, config: cfgEdit, ...baseCtx() });
+  const doc = plan.saves[0].doc;
+  assert.equal(plan.saves[0].col, 'requirements');
+  assert.equal(doc.id, 'gr_r1');
+  assert.equal(doc.projectId, 'p1');
+  assert.equal(doc.source, 'guest');
+  assert.equal(doc.sourceLabel, 'أحمد');
+  assert.equal(doc.status, 'open');
+  assert.equal(planApply({ req: mkReq({ type: 'requirement_add', payload: { text: '   ' } }), config: cfgEdit, ...baseCtx() }).reason, 'invalid');
+});
+
+test('planApply: بدون اسم يُسجَّل البريد، والنص الطويل يُقصّ', () => {
+  const r = mkReq({ type: 'requirement_add', authorName: '', payload: { text: 'x'.repeat(5000) } });
+  const doc = planApply({ req: r, config: cfgEdit, ...baseCtx() }).saves[0].doc;
+  assert.equal(doc.sourceLabel, 'client@x.com');
+  assert.ok(doc.text.length <= 1200);
+});
+
+test('planApply: ملاحظة اجتماع تُلحق بالمحضر باسم الضيف ولا تتكرر', () => {
+  const c = baseCtx();
+  const r = mkReq({ type: 'meeting_note', targetId: 'm1', payload: { text: 'أؤكد الموعد' } });
+  const plan = planApply({ req: r, config: cfgEdit, ...c });
+  const doc = plan.saves[0].doc;
+  assert.equal(plan.saves[0].col, 'meetings');
+  assert.ok(doc.minutes.startsWith('محضر') && doc.minutes.includes('أحمد') && doc.minutes.includes('أؤكد الموعد'));
+  assert.equal(doc.transcript, 'SECRET_TRANSCRIPT'); // باقي الحقول كما هي
+  c.meetings = c.meetings.map((m) => (m.id === 'm1' ? doc : m));
+  assert.equal(planApply({ req: r, config: cfgEdit, ...c }).noop, true);
+  assert.equal(planApply({ req: mkReq({ type: 'meeting_note', targetId: 'm2', payload: { text: 'x' } }), config: cfgEdit, ...c }).reason, 'target_missing');
+});
+
+test('planApply: دفعة مدفوعة = حركة تحصيل بمعرّف installment_ ثم تحديث الدفعة، وتتراجع الأولى إن فشلت الثانية', () => {
+  const c = baseCtx();
+  const r = mkReq({ type: 'installment_paid', targetId: 'i2', payload: {} });
+  const plan = planApply({ req: r, config: cfgEdit, ...c });
+  assert.deepEqual(plan.saves.map((x) => x.col), ['financeEntries', 'projects']);
+  const [entry, proj] = [plan.saves[0].doc, plan.saves[1].doc];
+  assert.equal(entry.id, 'installment_i2');
+  assert.equal(entry.kind, 'income');
+  assert.equal(entry.amount, 20000);
+  assert.equal(entry.date, '2026-11-15');
+  assert.deepEqual(plan.saves[0].undo, { col: 'financeEntries', id: 'installment_i2' });
+  assert.equal(proj.installments.find((i) => i.id === 'i2').status, 'paid');
+  assert.equal(proj.installments.find((i) => i.id === 'i1').status, 'paid');
+  assert.equal(proj.client, 'SECRET_CLIENT'); // لا يضيع أي حقل في المشروع
+  // دفعة مدفوعة سلفًا أو غير موجودة
+  assert.equal(planApply({ req: mkReq({ type: 'installment_paid', targetId: 'i1', payload: {} }), config: cfgEdit, ...c }).noop, true);
+  assert.equal(planApply({ req: mkReq({ type: 'installment_paid', targetId: 'zzz', payload: {} }), config: cfgEdit, ...c }).reason, 'target_missing');
+});
+
+test('viewOf: المبلغ والاسم يأتيان من بياناتك لا من الضيف', () => {
+  const c = baseCtx();
+  const v = viewOf(mkReq({ type: 'installment_paid', targetId: 'i2', payload: { text: 'مبلغ 1' } }), c);
+  assert.equal(v.amount, 20000);
+  assert.equal(v.targetName, 'دفعة ثانية');
+  assert.equal(viewOf(mkReq(), c).targetName, 'مسقط');
+  assert.equal(viewOf(mkReq(), { ...c, project: null }).reason, 'project_missing');
 });

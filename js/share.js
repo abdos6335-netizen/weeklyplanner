@@ -6,7 +6,7 @@
 
 import { FB_BASE } from './store.js';
 import { lang } from './i18n.js';
-import { SECTIONS, PRESETS, normalizeEmail, shareIdFor, cleanGuests, buildSections, planPublish } from './share-core.js';
+import { SECTIONS, PRESETS, EDITABLE_SECTIONS, normalizeEmail, shareIdFor, cleanGuests, buildSections, planPublish, normalizeRequest, viewOf, planApply } from './share-core.js';
 
 const L = (ar, en) => (lang() === 'ar' ? ar : en);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -29,7 +29,7 @@ const PRESET_LABEL = {
 };
 const sectionLabel = (s) => L(SECTION_LABEL[s][0], SECTION_LABEL[s][1]);
 
-let ctx = null; // { store, toast, rerender, isActive, progressOf }
+let ctx = null; // { store, toast, rerender, isActive, progressOf, openItem }
 let st = null; // حالة الجلسة الحالية
 let eventsBound = false;
 
@@ -44,6 +44,7 @@ export function initShare(c) {
     data: { projects: [], deliverables: [], financeEntries: [], meetings: [], requirements: [], shareConfigs: [] },
     ready: new Set(), unsubs: [], timer: null, queue: Promise.resolve(), fb: null,
     status: {}, sheetProjectId: null, listSig: '',
+    requests: {}, reqUnsubs: {}, known: {}, busy: new Set(),
   };
   bindEvents();
   const me = st;
@@ -61,7 +62,7 @@ export function initShare(c) {
           me.data[name] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           // لا ننشر شيئًا قبل أن يصل كل مجموعة من الخادم، حتى لا نكتب نسخة ناقصة من ذاكرة الجهاز المؤقتة.
           if (!snap.metadata.fromCache) me.ready.add(name);
-          if (name === 'shareConfigs') refreshList();
+          if (name === 'shareConfigs') { refreshList(); syncRequestListeners(); }
           schedule(name === 'shareConfigs' ? 0 : SYNC_DELAY);
         },
         (err) => { if (st === me) { me.status._global = { state: 'error', message: errMsg(err) }; refreshList(true); } },
@@ -73,6 +74,8 @@ export function initShare(c) {
 
 export function disposeShare() {
   if (st && st.unsubs) st.unsubs.forEach((u) => { try { u(); } catch { /* تجاهل */ } });
+  if (st && st.reqUnsubs) Object.values(st.reqUnsubs).forEach((u) => { try { u(); } catch { /* تجاهل */ } });
+  if (st && st.cloud) setTitleBadge(0);
   if (st && st.timer) clearTimeout(st.timer);
   st = null;
   const layer = document.getElementById('layer');
@@ -196,13 +199,16 @@ export function renderSharing() {
   const orphanRows = orphans.map((c) => `<div class="sh-row"><div class="sh-row-main"><strong>${esc(c.projectName || c.projectId)}</strong><small>${L('مشروع محذوف ما زالت له مشاركة', 'Deleted project that is still shared')}</small></div><button class="btn sm danger" data-share-stop="${esc(c.id)}" type="button">${L('إيقاف المشاركة', 'Stop sharing')}</button></div>`).join('');
   return `<div class="sh-page">
     <section class="sh-note"><strong>${L('من يرى ماذا', 'Who sees what')}</strong><p>${L('اختر مشروعًا وأضف بريد Google للضيف، ثم حدّد الأقسام التي يراها. الضيف لا يرى أي شيء آخر في البرنامج: لا مهام ولا اجتماعات عامة ولا ماليات لم تسمح بها.', 'Pick a project and add the guest’s Google email, then choose the sections they can see. Guests see nothing else in the app.')}</p>${globalErr}</section>
+    ${renderShareRequests()}
     <div class="sh-list">${rows || `<p class="muted">${L('لا توجد مشاريع بعد.', 'No projects yet.')}</p>`}</div>
+    ${requestLog()}
     ${orphanRows ? `<h3 class="sh-h">${L('مشاركات يتيمة', 'Orphaned shares')}</h3><div class="sh-list">${orphanRows}</div>` : ''}
   </div>`;
 }
 
 export function shareButton(projectId) {
-  return `<button class="text-action" data-share-open="${esc(projectId)}" type="button">${L('مشاركة', 'Share')}</button>`;
+  const n = pendingFor(projectId);
+  return `<button class="text-action" data-share-open="${esc(projectId)}" type="button">${L('مشاركة', 'Share')}</button>${n ? `<span class="rq-badge" title="${L('طلبات تعديل بانتظار موافقتك', 'Edit requests waiting for you')}">${n}</span>` : ''}`;
 }
 
 function refreshList(force) {
@@ -249,7 +255,7 @@ function paintSheet() {
       <div class="sh-access">${SECTIONS.map((s) => `<label class="sh-acc"><span>${esc(sectionLabel(s))}</span><select class="input" data-share-access="${s}" data-email="${esc(g.email)}" aria-label="${esc(sectionLabel(s))}">
         <option value="none" ${g.access[s] === 'none' ? 'selected' : ''}>${L('مخفي', 'Hidden')}</option>
         <option value="view" ${g.access[s] === 'view' ? 'selected' : ''}>${L('عرض فقط', 'View only')}</option>
-        <option value="edit" ${g.access[s] === 'edit' ? 'selected' : ''} disabled>${L('عرض وتعديل (المرحلة التالية)', 'View & edit (next phase)')}</option></select></label>`).join('')}</div>
+        ${EDITABLE_SECTIONS.includes(s) ? `<option value="edit" ${g.access[s] === 'edit' ? 'selected' : ''}>${L('عرض وتعديل (بموافقتك)', 'View & edit (you approve)')}</option>` : ''}</select></label>`).join('')}</div>
       ${g.access.expenses !== 'none' && g.access.finance !== 'none' ? `<p class="sh-warn">${L('تنبيه: رؤية التحصيلات مع المصروفات تكشف له هامش ربح المشروع.', 'Heads-up: seeing collections together with expenses reveals the project’s margin.')}</p>` : ''}
     </div>`).join('');
   layer.innerHTML = `<div class="overlay" data-share-overlay><section class="sheet glass sh-sheet" role="dialog" aria-modal="true" aria-label="${L('مشاركة المشروع', 'Share project')}">
@@ -289,7 +295,7 @@ function closeSheet() {
 async function onClick(e) {
   const t = e.target;
   if (t.matches && t.matches('[data-share-overlay]')) { closeSheet(); return; }
-  const el = t.closest && t.closest('[data-share-open],[data-share-close],[data-share-add],[data-share-remove],[data-share-copy],[data-share-stop],[data-share-republish]');
+  const el = t.closest && t.closest('[data-share-open],[data-share-close],[data-share-add],[data-share-remove],[data-share-copy],[data-share-stop],[data-share-republish],[data-rq-approve],[data-rq-reject],[data-rq-open]');
   if (!el || !ctx) return;
   const d = el.dataset;
   try {
@@ -300,7 +306,10 @@ async function onClick(e) {
     if (d.shareAdd !== undefined) { await addGuest(); return; }
     if (d.shareRemove !== undefined) { await removeGuest(d.shareRemove); return; }
     if (d.shareStop !== undefined) { await stopSharing(d.shareStop); return; }
-    if (d.shareRepublish !== undefined) { await republish(d.shareRepublish); }
+    if (d.shareRepublish !== undefined) { await republish(d.shareRepublish); return; }
+    if (d.rqApprove !== undefined) { await resolveRequest(d.rqApprove, true); return; }
+    if (d.rqReject !== undefined) { await resolveRequest(d.rqReject, false); return; }
+    if (d.rqOpen !== undefined) { openRequestItem(d.rqOpen); }
   } catch (err) { ctx.toast(errMsg(err)); }
 }
 
@@ -311,8 +320,9 @@ async function onChange(e) {
   const cfg = configOf(projectId);
   if (!cfg) return;
   const section = el.dataset.shareAccess;
-  const value = el.value === 'view' ? 'view' : 'none'; // التعديل يُفتح في المرحلة الثانية
   if (!SECTIONS.includes(section)) return;
+  // «عرض وتعديل» متاح لأربعة أقسام فقط، وكل تعديل يمر عليك كطلب موافقة.
+  const value = el.value === 'edit' && EDITABLE_SECTIONS.includes(section) ? 'edit' : el.value === 'view' ? 'view' : 'none';
   const guests = cfg.guests.map((g) => (g.email === el.dataset.email ? { ...g, access: { ...g.access, [section]: value } } : g));
   await commitGuests(projectId, guests);
 }
@@ -351,7 +361,8 @@ async function removeGuest(email) {
 }
 
 async function stopSharing(projectId) {
-  if (!confirm(L('إيقاف مشاركة هذا المشروع بالكامل؟ سيفقد كل الضيوف الوصول وتُحذف النسخة المشتركة.', 'Stop sharing this project entirely? All guests lose access and the shared copy is deleted.'))) return;
+  if (!confirm(L('إيقاف مشاركة هذا المشروع بالكامل؟ سيفقد كل الضيوف الوصول وتُحذف النسخة المشتركة وطلباتها.', 'Stop sharing this project entirely? All guests lose access and the shared copy and its requests are deleted.'))) return;
+  await purgeRequests(projectId);
   await commitGuests(projectId, []);
   closeSheet();
 }
@@ -370,4 +381,206 @@ async function copyLink() {
   const url = shareUrl(st.sheetProjectId);
   try { await navigator.clipboard.writeText(url); ctx.toast(L('تم نسخ الرابط.', 'Link copied.')); }
   catch { const i = document.getElementById('sh-link'); if (i) { i.focus(); i.select(); } ctx.toast(L('انسخ الرابط يدويًا.', 'Copy the link manually.')); }
+}
+
+
+// ====================================================================== طلبات تعديل الضيوف (المرحلة 2)
+// الضيف ينشئ طلبًا في shares/{id}/requests. هنا نسمع لهذه الطلبات، ننبّهك، ونطبّقها على بياناتك الأصلية فقط عند موافقتك.
+const APPROVAL_LABEL = { pending: ['لم يُرسل', 'Not sent'], submitted: ['مرسل للمراجعة', 'Sent for review'], approved: ['معتمد', 'Approved'], revision: ['مطلوب تعديل', 'Revision requested'] };
+const STATE_LABEL = { pending: ['بانتظار قرارك', 'Waiting for you'], approved: ['تمت الموافقة', 'Approved'], rejected: ['مرفوض', 'Rejected'] };
+const REASON_LABEL = {
+  no_access: ['لم يعد هذا الضيف مصرّحًا له بالتعديل في هذا القسم.', 'This guest is no longer allowed to edit this section.'],
+  target_missing: ['العنصر المطلوب لم يعد موجودًا في المشروع.', 'The requested item no longer exists in the project.'],
+  invalid: ['الطلب غير صالح.', 'The request is not valid.'],
+  project_missing: ['المشروع غير موجود.', 'The project no longer exists.'],
+  resolved: ['تمت معالجة هذا الطلب من قبل.', 'This request was already handled.'],
+};
+const localISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+const money = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
+const nameOf = (r) => r.authorName || r.authorEmail || L('ضيف', 'Guest');
+const projectOf = (projectId) => (st.data.projects || []).find((p) => p.id === projectId) || null;
+
+function allRequests() {
+  const out = [];
+  for (const [projectId, list] of Object.entries(st.requests || {})) for (const r of list) out.push({ ...r, projectId });
+  return out.sort((a, b) => b.createdAt - a.createdAt);
+}
+const pendingList = () => allRequests().filter((r) => r.status === 'pending');
+export function pendingShareCount() { return st && st.cloud ? pendingList().length : 0; }
+const pendingFor = (projectId) => (st && st.cloud ? pendingList().filter((r) => r.projectId === projectId).length : 0);
+
+function setTitleBadge(n) {
+  try { document.title = (n ? `(${n}) ` : '') + document.title.replace(/^\(\d+\)\s*/, ''); } catch { /* تجاهل */ }
+}
+
+function syncRequestListeners() {
+  if (!st || !st.cloud || !st.fb) return;
+  const me = st;
+  const { fs, db } = st.fb;
+  const want = new Set(configs().filter((c) => c.guests.length).map((c) => c.projectId || c.id));
+  for (const pid of Object.keys(st.reqUnsubs)) {
+    if (want.has(pid)) continue;
+    try { st.reqUnsubs[pid](); } catch { /* تجاهل */ }
+    delete st.reqUnsubs[pid]; delete st.requests[pid]; delete st.known[pid];
+  }
+  for (const pid of want) {
+    if (st.reqUnsubs[pid]) continue;
+    const q = fs.query(fs.collection(db, 'shares', shareIdFor(st.uid, pid), 'requests'), fs.orderBy('createdAt', 'desc'), fs.limit(200));
+    st.reqUnsubs[pid] = fs.onSnapshot(q, (snap) => {
+      if (st !== me) return;
+      const list = snap.docs.map((d) => normalizeRequest(d.id, d.data())).filter(Boolean);
+      me.requests[pid] = list;
+      // لا ننبّه على ما كان موجودًا قبل فتح البرنامج: نبدأ التنبيه بعد أول لقطة من الخادم.
+      if (!snap.metadata || !snap.metadata.fromCache) {
+        const seen = me.known[pid];
+        if (seen) list.filter((r) => r.status === 'pending' && !seen.has(r.id)).forEach((r) => announce(pid, r));
+        me.known[pid] = new Set(list.map((r) => r.id));
+      }
+      afterRequestsChange();
+    }, (err) => { if (st === me) { me.status._global = { state: 'error', message: errMsg(err) }; refreshList(true); } });
+  }
+}
+
+function afterRequestsChange() {
+  if (!st) return;
+  setTitleBadge(pendingShareCount());
+  if (ctx && ctx.isActive && ctx.isActive()) ctx.rerender();
+}
+
+function announce(projectId, r) {
+  const project = projectOf(projectId);
+  const msg = L(`${nameOf(r)} طلب تعديلًا${project ? ` في «${project.name}»` : ''}`, `${nameOf(r)} requested an edit${project ? ` in “${project.name}”` : ''}`);
+  ctx.toast(msg, { label: L('عرض', 'View'), fn: () => ctx.openItem && ctx.openItem({ today: true }) });
+  try { if (document.hidden && window.Notification && Notification.permission === 'granted') new Notification(msg); } catch { /* تجاهل */ }
+}
+
+function describe(r, view) {
+  const who = view.targetName ? `«${esc(view.targetName)}»` : '';
+  if (r.type === 'deliverable_status') {
+    const to = r.payload.status === 'approved' ? L('اعتماد', 'Approve') : L('طلب تعديل', 'Request revision');
+    const cur = APPROVAL_LABEL[view.current] ? L(...APPROVAL_LABEL[view.current]) : '';
+    const target = r.payload.status === 'approved' ? L('معتمد', 'Approved') : L('مطلوب تعديل', 'Revision requested');
+    return { title: `${to} ${who}`, detail: `${cur ? `${esc(cur)} ← ${esc(target)}` : esc(target)}${r.payload.text ? `<br>${esc(r.payload.text)}` : ''}` };
+  }
+  if (r.type === 'requirement_add') return { title: L('إضافة متطلب أو ملاحظة', 'Add a requirement or note'), detail: esc(r.payload.text) };
+  if (r.type === 'meeting_note') return { title: `${L('ملاحظة على اجتماع', 'Meeting note')} ${who}`, detail: esc(r.payload.text) };
+  return { title: `${L('تسجيل دفعة كمدفوعة', 'Mark payment as received')} ${who}`, detail: view.amount != null ? `${money(view.amount)} ${L('ج.م', 'EGP')}` : '' };
+}
+
+function ago(ts) {
+  const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (m < 1) return L('الآن', 'now');
+  if (m < 60) return L(`منذ ${m} دقيقة`, `${m} min ago`);
+  const h = Math.round(m / 60);
+  if (h < 24) return L(`منذ ${h} ساعة`, `${h} h ago`);
+  const dd = Math.round(h / 24);
+  return L(`منذ ${dd} يوم`, `${dd} d ago`);
+}
+
+function requestCard(r) {
+  const project = projectOf(r.projectId);
+  const cfg = configOf(r.projectId);
+  const view = viewOf(r, { project, deliverables: st.data.deliverables, meetings: st.data.meetings });
+  const guest = cfg && cfg.guests.find((g) => g.email === r.authorEmail);
+  const allowed = !!(guest && guest.access[r.section] === 'edit');
+  const problem = !view.valid ? view.reason : (!allowed ? 'no_access' : '');
+  const d = describe(r, view);
+  const busy = st.busy.has(`${r.projectId}|${r.id}`);
+  const key = `${esc(r.projectId)}|${esc(r.id)}`;
+  return `<article class="rq-card" data-rq-card="${key}">
+    <header class="rq-top"><span class="rq-avatar" aria-hidden="true">${esc([...nameOf(r)][0] || '?')}</span><div class="rq-who"><strong>${esc(nameOf(r))}</strong><small dir="ltr">${esc(r.authorEmail)}</small></div><span class="rq-time">${esc(ago(r.createdAt))}</span></header>
+    <p class="rq-proj">${esc(project ? project.name : '')}</p>
+    <div class="rq-body"><strong>${d.title}</strong>${d.detail ? `<p>${d.detail}</p>` : ''}</div>
+    ${problem ? `<p class="rq-warn">${esc(L(...REASON_LABEL[problem]))}</p>` : ''}
+    <div class="rq-actions">
+      ${problem ? '' : `<button class="btn primary sm" data-rq-approve="${key}" type="button" ${busy ? 'disabled' : ''}>${L('موافقة', 'Approve')}</button>`}
+      <button class="btn sm" data-rq-reject="${key}" type="button" ${busy ? 'disabled' : ''}>${L('رفض', 'Reject')}</button>
+      ${problem ? '' : `<button class="text-action" data-rq-open="${key}" type="button">${L('افتح العنصر', 'Open item')}</button>`}
+    </div></article>`;
+}
+
+// تُستدعى من شاشة «النهارده» ومن تبويب المشاركة: كروت الطلبات المعلقة (مميزة بلون مختلف).
+export function renderShareRequests() {
+  if (!st || !st.cloud) return '';
+  const list = pendingList();
+  if (!list.length) return '';
+  ensureStyles();
+  const shown = list.slice(0, 20);
+  return `<section class="rq-wrap" aria-label="${L('طلبات تعديل من الضيوف', 'Edit requests from guests')}">
+    <h2 class="rq-head"><span class="rq-dot" aria-hidden="true"></span>${L('طلبات تعديل بانتظار موافقتك', 'Edit requests waiting for your approval')} <span class="rq-count">${list.length}</span></h2>
+    ${shown.map(requestCard).join('')}
+    ${list.length > shown.length ? `<p class="sh-dim">${L(`و${list.length - shown.length} طلبات أخرى — أنهِ هذه أولًا.`, `${list.length - shown.length} more — handle these first.`)}</p>` : ''}
+  </section>`;
+}
+
+// سجل الطلبات في تبويب المشاركة: ما أضافه الضيوف اليوم وما قبله، ومن قرّر فيه.
+function requestLog() {
+  const done = allRequests().filter((r) => r.status !== 'pending');
+  if (!done.length) return '';
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const today = done.filter((r) => r.createdAt >= start.getTime());
+  const older = done.filter((r) => r.createdAt < start.getTime()).slice(0, 30);
+  const row = (r) => {
+    const project = projectOf(r.projectId);
+    const d = describe(r, viewOf(r, { project, deliverables: st.data.deliverables, meetings: st.data.meetings }));
+    return `<div class="sh-row"><div class="sh-row-main"><strong>${esc(nameOf(r))} · ${d.title}</strong><small>${esc(project ? project.name : '')} · ${esc(ago(r.createdAt))}</small>${d.detail ? `<small class="rq-clip">${d.detail}</small>` : ''}</div><div class="rq-state"><span class="sv-pill rq-${r.status}">${esc(L(...STATE_LABEL[r.status]))}</span>${r.status === 'approved' ? `<button class="text-action" data-rq-open="${esc(r.projectId)}|${esc(r.id)}" type="button">${L('افتح', 'Open')}</button>` : ''}</div></div>`;
+  };
+  return `${today.length ? `<h3 class="sh-h">${L('ما سجّله الضيوف اليوم', 'What guests logged today')}</h3><div class="sh-list">${today.map(row).join('')}</div>` : ''}
+    ${older.length ? `<h3 class="sh-h">${L('طلبات سابقة', 'Earlier requests')}</h3><div class="sh-list">${older.map(row).join('')}</div>` : ''}`;
+}
+
+function findRequest(key) {
+  const [projectId, id] = String(key).split('|');
+  const r = ((st.requests || {})[projectId] || []).find((x) => x.id === id);
+  return r ? { ...r, projectId } : null;
+}
+
+async function runSaves(saves) {
+  const done = [];
+  try {
+    for (const s of saves) { await ctx.store.save(s.col, s.doc); done.push(s); }
+  } catch (err) {
+    for (const d of done.reverse()) if (d.undo) await ctx.store.remove(d.undo.col, d.undo.id).catch(() => {});
+    throw err;
+  }
+}
+
+async function resolveRequest(key, approve) {
+  const r = findRequest(key);
+  if (!r || !st.fb) return;
+  const busyKey = `${r.projectId}|${r.id}`;
+  if (st.busy.has(busyKey)) return;
+  st.busy.add(busyKey);
+  if (ctx.isActive && ctx.isActive()) ctx.rerender();
+  const { fs, db } = st.fb;
+  try {
+    if (approve) {
+      const project = projectOf(r.projectId);
+      const plan = planApply({ req: r, config: configOf(r.projectId), project, deliverables: st.data.deliverables, meetings: st.data.meetings, now: Date.now(), today: localISO() });
+      if (!plan.ok) { ctx.toast(L(...(REASON_LABEL[plan.reason] || REASON_LABEL.invalid))); return; }
+      await runSaves(plan.saves);
+    }
+    await fs.setDoc(fs.doc(db, 'shares', shareIdFor(st.uid, r.projectId), 'requests', r.id), { status: approve ? 'approved' : 'rejected', resolvedAt: Date.now() }, { merge: true });
+    ctx.toast(approve ? L('تمت الموافقة وطُبّق التعديل.', 'Approved and applied.') : L('تم رفض الطلب.', 'Request rejected.'));
+  } catch (err) {
+    ctx.toast(errMsg(err));
+  } finally {
+    st.busy.delete(busyKey);
+    if (ctx.isActive && ctx.isActive()) ctx.rerender();
+  }
+}
+
+function openRequestItem(key) {
+  const r = findRequest(key);
+  if (!r || !ctx.openItem) return;
+  ctx.openItem({ projectId: r.projectId, type: r.type, targetId: r.type === 'requirement_add' ? `gr_${String(r.id).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120)}` : r.targetId });
+}
+
+// عند إيقاف مشاركة مشروع: احذف طلباته أيضًا (Firestore لا يحذف المجموعات الفرعية تلقائيًا).
+async function purgeRequests(projectId) {
+  const list = (st.requests || {})[projectId] || [];
+  if (!list.length || !st.fb) return;
+  const { fs, db } = st.fb;
+  const sid = shareIdFor(st.uid, projectId);
+  for (const r of list) { try { await fs.deleteDoc(fs.doc(db, 'shares', sid, 'requests', r.id)); } catch { /* تجاهل */ } }
 }

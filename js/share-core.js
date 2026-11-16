@@ -219,3 +219,112 @@ export function planPublish({ ownerUid, project, config, built, published = {} }
   }
   return { shareId, sections, meta };
 }
+
+
+// ====================================================================== طلبات تعديل الضيوف (المرحلة 2)
+// الضيف لا يكتب في بياناتك أبدًا: ينشئ «طلبًا» في shares/{id}/requests، وبرنامج المدير يراجعه ويطبّقه بعد موافقتك.
+// كل نوع طلب مرتبط بقسم واحد، ولا يُقبل إلا إن كان الضيف «عرض وتعديل» على هذا القسم لحظة الموافقة.
+export const REQUEST_TYPES = {
+  deliverable_status: 'deliverables', // اعتماد تسليم أو طلب تعديل عليه
+  requirement_add: 'technical', // إضافة متطلب أو ملاحظة للمشروع
+  meeting_note: 'meetings', // ملاحظة على اجتماع
+  installment_paid: 'finance', // تسجيل دفعة على أنها دُفعت
+};
+export const EDITABLE_SECTIONS = Object.values(REQUEST_TYPES);
+const REQ_STATUS = ['pending', 'approved', 'rejected'];
+const safeId = (v) => String(v ?? '').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
+
+export function normalizeRequest(id, raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const type = String(raw.type || '');
+  if (!Object.hasOwn(REQUEST_TYPES, type)) return null;
+  const payload = raw.payload && typeof raw.payload === 'object' ? raw.payload : {};
+  return {
+    id: str(id, 120), type, section: REQUEST_TYPES[type],
+    targetId: str(raw.targetId, 120),
+    payload: { status: str(payload.status, 20), text: str(payload.text, 2000).trim() },
+    authorEmail: normalizeEmail(raw.authorEmail), authorName: str(raw.authorName, 80).trim(),
+    status: REQ_STATUS.includes(raw.status) ? raw.status : 'pending',
+    createdAt: num(raw.createdAt) || 0, resolvedAt: num(raw.resolvedAt) || null,
+  };
+}
+
+// ما الذي يخص هذا الطلب في بياناتك الآن؟ يُستعمل للعرض وللتحقق قبل التطبيق (لا نثق بأي اسم أو قيمة من الضيف).
+export function viewOf(req, { project, deliverables = [], meetings = [] }) {
+  const pid = project && project.id;
+  const base = { kind: req.type, projectName: project ? str(project.name, 160) : '', targetName: '', current: '', valid: true, reason: '' };
+  const bad = (reason) => ({ ...base, valid: false, reason });
+  if (!project) return bad('project_missing');
+  if (req.type === 'deliverable_status') {
+    const d = forProject(deliverables, pid).find((x) => x.id === req.targetId);
+    if (!d) return bad('target_missing');
+    if (!['approved', 'revision'].includes(req.payload.status)) return bad('invalid');
+    return { ...base, targetName: str(d.name, 160), current: str(d.status, 20) };
+  }
+  if (req.type === 'requirement_add') {
+    if (!req.payload.text) return bad('invalid');
+    return base;
+  }
+  if (req.type === 'meeting_note') {
+    const m = forProject(meetings, pid).find((x) => x.id === req.targetId);
+    if (!m) return bad('target_missing');
+    if (!req.payload.text) return bad('invalid');
+    return { ...base, targetName: str(m.title, 160) };
+  }
+  if (req.type === 'installment_paid') {
+    const inst = (Array.isArray(project.installments) ? project.installments : []).find((i) => i && i.id === req.targetId);
+    if (!inst) return bad('target_missing');
+    return { ...base, targetName: str(inst.title || inst.name || '', 80), current: inst.status === 'paid' ? 'paid' : 'pending', amount: Math.max(0, num(inst.amount)) };
+  }
+  return bad('invalid');
+}
+
+const fail = (reason) => ({ ok: false, reason });
+
+// خطة تطبيق الطلب على بياناتك الأصلية: قائمة حفظ مرتبة. لا تنفيذ هنا — الدالة نقية للاختبار.
+// undo: مستند أنشأناه قبل خطوة قد تفشل، يُحذف إن فشلت التالية.
+export function planApply({ req, config, project, deliverables = [], meetings = [], now = Date.now(), today }) {
+  if (!req || req.status !== 'pending') return fail('resolved');
+  const guest = cleanGuests(config && config.guests).find((g) => g.email === req.authorEmail);
+  if (!guest || guest.access[req.section] !== 'edit') return fail('no_access');
+  const v = viewOf(req, { project, deliverables, meetings });
+  if (!v.valid) return fail(v.reason);
+  const who = req.authorName || req.authorEmail;
+
+  if (req.type === 'deliverable_status') {
+    const d = forProject(deliverables, project.id).find((x) => x.id === req.targetId);
+    if (req.payload.status === 'approved') {
+      if (d.status === 'approved') return { ok: true, saves: [], noop: true };
+      return { ok: true, saves: [{ col: 'deliverables', doc: { ...d, status: 'approved', updatedAt: now } }] };
+    }
+    const applied = Array.isArray(d.appliedRequestIds) ? d.appliedRequestIds : [];
+    if (applied.includes(req.id)) return { ok: true, saves: [], noop: true }; // أُعيدت الموافقة بعد فشل جزئي: لا نزيد الإصدار مرتين
+    const rev = (Number(d.rev) || 1) + 1;
+    const notes = `${d.notes ? d.notes + ' · ' : ''}تعديل (${who}): ${req.payload.text || '—'}`.slice(0, 1000);
+    return { ok: true, saves: [{ col: 'deliverables', doc: { ...d, status: 'revision', rev, notes, appliedRequestIds: [...applied, req.id].slice(-50), updatedAt: now } }] };
+  }
+  if (req.type === 'requirement_add') {
+    return { ok: true, saves: [{ col: 'requirements', doc: {
+      id: `gr_${safeId(req.id)}`, projectId: project.id, text: req.payload.text.slice(0, 1200), source: 'guest', sourceId: req.id,
+      sourceLabel: who, date: today, status: 'open', createdAt: now, updatedAt: now,
+    } }] };
+  }
+  if (req.type === 'meeting_note') {
+    const m = forProject(meetings, project.id).find((x) => x.id === req.targetId);
+    const applied = Array.isArray(m.appliedRequestIds) ? m.appliedRequestIds : [];
+    if (applied.includes(req.id)) return { ok: true, saves: [], noop: true };
+    const line = `— ملاحظة من ${who} (${today}): ${req.payload.text.slice(0, 2000)}`;
+    const minutes = Array.isArray(m.minutes) ? [...m.minutes, line] : `${m.minutes ? m.minutes + '\n\n' : ''}${line}`;
+    return { ok: true, saves: [{ col: 'meetings', doc: { ...m, minutes, appliedRequestIds: [...applied, req.id].slice(-50), updatedAt: now } }] };
+  }
+  // installment_paid — نفس خطوات البرنامج عند تسجيل دفعة: حركة تحصيل ثم تحديث الدفعة في المشروع
+  const list = Array.isArray(project.installments) ? project.installments : [];
+  const inst = list.find((i) => i && i.id === req.targetId);
+  if (inst.status === 'paid') return { ok: true, saves: [], noop: true };
+  const entry = {
+    id: `installment_${inst.id}`, projectId: project.id, kind: 'income', amount: Math.max(0, num(inst.amount)), date: today,
+    category: 'دفعة تعاقد', description: `تحصيل دفعة: ${inst.title || inst.name || 'دفعة'}`, installmentId: inst.id, createdAt: now,
+  };
+  const updated = { ...project, installments: list.map((x) => (x.id === inst.id ? { ...x, status: 'paid', paidAt: today } : x)), updatedAt: now };
+  return { ok: true, saves: [{ col: 'financeEntries', doc: entry, undo: { col: 'financeEntries', id: entry.id } }, { col: 'projects', doc: updated }] };
+}

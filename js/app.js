@@ -7,7 +7,7 @@ import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport,
 import { buildToday, parseCaptureActions, revisionState, ACTION_KIND } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
-import { initShare, disposeShare, renderSharing, shareButton } from './share.js';
+import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount } from './share.js';
 import {
   applyTheme, mergeTheme, DEFAULT_THEME, PRESETS, FONTS, ensureFont, fontKey,
   effectiveMode, shownColors, watchSystemMode,
@@ -226,7 +226,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard' || S.section === 'today') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
-  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing', progressOf: projectProgressData }));
+  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, openItem: openShareItem }));
   render();
   const q = new URLSearchParams(location.search);
   if (q.get('new') === '1') { history.replaceState(null, '', location.pathname); openSheet(null); }
@@ -332,7 +332,7 @@ function sidebarData() {
     archived: S.projects.length - live.length,
     openTasks: S.tasks.filter((x) => x.status !== 'done').length,
     upcoming: S.meetings.filter((m) => m.date && m.date >= today).length,
-    review: S.tasks.filter((x) => x.status !== 'done' && String(x.id).startsWith('cap_')).length,
+    review: S.tasks.filter((x) => x.status !== 'done' && String(x.id).startsWith('cap_')).length + pendingShareCount(),
   };
 }
 
@@ -600,6 +600,7 @@ function renderToday() {
   const section = (title, rows) => rows ? `<h2 class="td-label">${title}</h2>${rows}` : '';
   const empty = !lateRows && !waitRows && !taskRows && !meetRows;
   return `<section class="today" aria-label="${L('النهارده', 'Today')}">
+    ${renderShareRequests()}
     <div class="td-summary mcard">
       <div class="mc-title">${L('مستحق لي', 'Due to me')}</div>
       <div class="mc-row"><div class="td-big">${tdMoney(d.dueTotal)} <span>${L('ج.م', 'EGP')}</span></div><span class="mc-badge ${d.counts.late ? 'bad' : 'ok'}">${d.counts.late ? `${icon('late', 14)} ${L(`متأخر ${d.counts.late}`, `${d.counts.late} late`)}` : `${icon('check', 14)} ${L('لا متأخر', 'On track')}`}</span></div>
@@ -932,6 +933,25 @@ function panelMarkup(d) {
 function panelDuration() {
   const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-duration'));
   return Number.isFinite(v) ? v : 260;
+}
+
+// فتح العنصر الذي طلبه/سجّله الضيف مباشرة (من كارت الطلب في «النهارده» أو من سجل المشاركة).
+function openShareItem(o) {
+  const layer = $('#layer'); if (layer) layer.innerHTML = '';
+  closeProjectPanel(true); S.sbOpen = false; S.animateNextRender = true;
+  if (o.today) { S.section = 'today'; S.navOpenSection = 'today'; S.activeProjectId = null; S.activeMeetingProjectId = null; render(); window.scrollTo(0, 0); return; }
+  if (o.type === 'meeting_note') { S.section = 'meetings'; S.navOpenSection = 'meetings'; S.activeProjectId = null; S.activeMeetingProjectId = o.projectId; render(); window.scrollTo(0, 0); setTimeout(() => flashShareTarget(o), 150); return; }
+  S.section = 'projects'; S.navOpenSection = 'projects'; S.activeProjectId = o.projectId; S.activeMeetingProjectId = null; render(); window.scrollTo(0, 0);
+  const panel = { deliverable_status: 'deliverables', requirement_add: 'requirements', installment_paid: 'finance' }[o.type];
+  if (panel) setTimeout(() => { openProjectPanel(o.projectId, panel); setTimeout(() => flashShareTarget(o), 380); }, 80);
+}
+function flashShareTarget(o) {
+  const sel = { deliverable_status: `[data-change="deliverable-status"][data-id="${o.targetId}"]`, requirement_add: `[data-change="requirement-status"][data-id="${o.targetId}"]`, meeting_note: `[data-id="${o.targetId}"]` }[o.type];
+  const el = sel ? document.querySelector(sel) : null;
+  const box = el && (el.closest('article, li, .project-deliverable-row') || el.parentElement);
+  if (!box) return;
+  box.classList.add('rq-flash'); box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(() => box.classList.remove('rq-flash'), 4000);
 }
 
 function openProjectPanel(projectId, panel) {
