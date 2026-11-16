@@ -78,7 +78,7 @@ test('حالة تسليم غريبة لا تكسر العدّاد', () => {
 
 test('normalizeEmail', () => {
   assert.equal(normalizeEmail('  Ali@Example.COM '), 'ali@example.com');
-  for (const bad of ['', 'x', 'a@b', 'a b@c.com', 'a@b.c,d@e.f', '<a@b.com>', null, undefined]) assert.equal(normalizeEmail(bad), '', String(bad));
+  for (const bad of ['', 'x', 'a@b', 'a b@c.com', 'a@b.c,d@e.f', '<a@b.com>', 'a/b@c.com', null, undefined]) assert.equal(normalizeEmail(bad), '', String(bad));
 });
 
 test('shareIdFor يبدأ بـ uid المدير ولا يحتوي /', () => {
