@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SECTIONS, PRESETS, normalizeEmail, shareIdFor, cleanGuests, audience, membersOf,
+  SECTIONS, PRESETS, normalizeEmail, shareIdFor, cleanGuests, audience, membersOf, canEditSection,
   buildSections, fit, hashOf, planPublish,
   REQUEST_TYPES, EDITABLE_SECTIONS, normalizeRequest, viewOf, planApply,
 } from '../js/share-core.js';
@@ -85,6 +85,19 @@ test('shareIdFor يبدأ بـ uid المدير ولا يحتوي /', () => {
   const id = shareIdFor('UID123', 'a/b c');
   assert.ok(id.startsWith('UID123_'));
   assert.ok(!id.includes('/'));
+});
+
+test('canEditSection يعتمد على صلاحية الضيف الفردية فقط', () => {
+  const access = {
+    technical: { view: true, edit: false },
+    deliverables: { view: true, edit: true },
+    finance: { view: false, edit: false },
+  };
+  assert.equal(canEditSection(access, 'deliverables'), true);
+  assert.equal(canEditSection(access, 'technical'), false);
+  assert.equal(canEditSection(access, 'finance'), false);
+  assert.equal(canEditSection(access, 'meetings'), false);
+  assert.equal(canEditSection(null, 'deliverables'), false);
 });
 
 test('cleanGuests يزيل المكرر والبريد الخاطئ ويطبّع الصلاحيات', () => {
