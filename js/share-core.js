@@ -195,7 +195,7 @@ export function hashOf(value) {
 export function planPublish({ ownerUid, project, config, built, published = {} }) {
   const shareId = shareIdFor(ownerUid, project.id);
   const aud = audience(config);
-  const guests = cleanGuests(config && config.guests);
+  const guests = cleanGuests(config && config.guests).filter((guest) => SECTIONS.some((section) => guest.access[section] !== 'none'));
   const sections = [];
   for (const section of SECTIONS) {
     const { readers } = aud[section];
