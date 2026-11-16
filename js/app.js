@@ -2093,7 +2093,7 @@ function renderSettings() {
       <div class="gbody">${body}</div>
     </section>`;
 
-  const presetIds = ['soft', 'sage', 'sand', 'slate', 'rose', 'ocean'];
+  const presetIds = ['glass', 'soft', 'sage', 'sand', 'slate', 'rose', 'ocean'];
   const modeIcon = { auto: 'auto', light: 'sun', dark: 'moon' };
 
   if (open('icons')) Object.keys(FONTS).forEach(ensureFont);
@@ -2732,9 +2732,9 @@ async function onClick(e) {
     case 'set-icons': updateTheme((x) => { x.icons = v; }, { render: true }); break;
     case 'set-font': updateTheme((x) => { x.font = v; }, { render: true }); break;
     case 'reset-colors': {
-      const p = PRESETS.soft;
+      const p = PRESETS.glass;
       updateTheme((x) => {
-        x.preset = 'soft'; x.accent = p.accent; x.sat = p.sat;
+        x.preset = 'glass'; x.accent = p.accent; x.sat = p.sat;
         x.bg = { ...p.bg }; x.text = { light: null, dark: null }; x.surface = 'tint';
       }, { render: true }); break;
     }

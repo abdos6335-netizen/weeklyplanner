@@ -304,3 +304,44 @@ html body .shell main .project-list-ratios { margin-inline-start: 0 !important; 
 /* بطاقات مجموعات المهام في لوحة المتابعة تأخذ عرض العمود بالكامل (كانت تنكمش وتُكسّر النص) */
 html body .shell main .dashboard-task-group { width: 100%; justify-self: stretch; box-sizing: border-box; }
 html body .shell main .dashboard-row small { overflow-wrap: break-word; }
+
+/* ================================================== ثيم glass (المرجع): سطوح زجاجية مضيئة، حواف بيضاء رفيعة، ظلال ناعمة
+   كل الألوان من متغيرات theme.js الجديدة (--page-bg --rail-shell --item-on --badge --search --tree-sel --card --rim --shell-shadow) */
+html { background: var(--page-bg) fixed; }
+body { background: transparent; }
+body::before {
+  background: radial-gradient(900px 620px at 6% -6%, color-mix(in srgb, #fff 55%, transparent), transparent 62%) !important;
+}
+html[data-dark="1"] body::before { background: radial-gradient(900px 620px at 6% -6%, rgba(255,255,255,.05), transparent 62%) !important; }
+
+.rail-pill { background: var(--rail-shell); box-shadow: var(--shell-shadow); }
+.rail-dark { box-shadow: 0 10px 18px -8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.13), inset 0 0 0 1px rgba(255,255,255,.04); }
+.rail-btn.on { background: var(--rail-on); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 4px 8px -4px rgba(0,0,0,.5); }
+.sidebar { background: var(--sidebar); box-shadow: var(--shell-shadow); }
+@media (min-width: 1100px) { .sidebar { box-shadow: var(--shell-shadow); } }
+.main { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), var(--inset); }
+
+.sb-item.on { background: var(--item-on); box-shadow: inset 0 0 0 1px var(--item-on-line), 0 10px 16px -12px rgba(28,40,34,.45); }
+html[data-dark="1"] .sb-item.on { background: var(--item-on); }
+.sb-count { background: var(--badge); color: var(--badge-ink); }
+.sb-item.on .sb-count { background: var(--badge-on); color: var(--badge-on-ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.sb-search { background: var(--search); box-shadow: var(--inset); }
+.sb-tree { background: transparent; box-shadow: inset 0 0 0 1px var(--tree-line), inset 0 0 0 2px rgba(0,0,0,.025); }
+.sb-leaf.on { background: var(--tree-sel); box-shadow: none; }
+.sb-folder .sb-count, .sb-leaf .sb-count { background: var(--badge); }
+
+.td-summary.mcard, html body .shell main .dashboard-project-card, html body .shell main .stat {
+  background: var(--card); box-shadow: inset 0 0 0 1px var(--rim), 0 16px 28px -20px rgba(20,24,22,.35);
+}
+html[data-dark="1"] .td-summary.mcard { box-shadow: inset 0 0 0 1px var(--rim), 0 16px 28px -20px rgba(0,0,0,.7); }
+.td-big { font-weight: 300; color: color-mix(in srgb, var(--text) 86%, var(--sidebar)); }
+.mc-badge.ok { background: var(--good-soft); color: var(--good); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 14%, transparent); }
+
+html body .shell .wide-btn { background: var(--search) !important; border: 1px solid var(--line) !important; box-shadow: 0 1px 0 var(--rim) !important; }
+
+/* تبويبات الصفحة: خط سفلي فاتح مضيء تحت النشط */
+.project-filters .minimal-text-action { color: var(--text-2); border-bottom: 2px solid transparent; border-radius: 0; padding-bottom: 6px; }
+.project-filters .minimal-text-action.is-active { color: var(--text); border-bottom-color: var(--rim); box-shadow: 0 2px 3px -2px rgba(0,0,0,.25); }
+
+html body .shell main .btn.wide-btn { background: var(--search) !important; border: 1px solid var(--line) !important; box-shadow: 0 1px 0 var(--rim) !important; border-radius: 16px !important; }
+html body .shell main .td-act { color: var(--good) !important; }
