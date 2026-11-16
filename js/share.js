@@ -106,7 +106,7 @@ async function runSync(me) {
   const { fs, db } = me.fb;
   for (const cfg of configs()) {
     const found = me.data.projects.find((p) => p.id === cfg.projectId);
-    if (!found && cfg.guests.length) continue; // مشروع غير موجود: لا ننشر شيئًا (تظهر للمدير كمشاركة يتيمة)
+    if (!found && cfg.guests.length) continue;
     const project = found || { id: cfg.projectId, name: cfg.projectName || '' };
     const built = found ? buildSections({
       project, deliverables: me.data.deliverables, financeEntries: me.data.financeEntries,
@@ -114,23 +114,45 @@ async function runSync(me) {
       progress: ctx.progressOf ? ctx.progressOf(project, me.data.deliverables) : null,
     }) : {};
     const plan = planPublish({ ownerUid: me.uid, project, config: cfg, built, published: cfg.published });
-    const todo = [...plan.sections.filter((s) => s.op !== 'skip'), ...(plan.meta.op !== 'skip' ? [{ section: 'meta', ...plan.meta }] : [])];
-    if (!todo.length) { await cleanup(me, cfg); if (!me.status[cfg.id] || me.status[cfg.id].state !== 'ok') setStatus(cfg.id, { state: 'ok', at: Date.now() }); continue; }
+    const sectionTodo = plan.sections.filter((s) => s.op !== 'skip');
+    const accessTodo = plan.access.filter((a) => a.op !== 'skip');
+    const metaTodo = plan.meta.op !== 'skip';
+    if (!sectionTodo.length && !accessTodo.length && !metaTodo) {
+      await cleanup(me, cfg);
+      if (!me.status[cfg.id] || me.status[cfg.id].state !== 'ok') setStatus(cfg.id, { state: 'ok', at: Date.now() });
+      continue;
+    }
     setStatus(cfg.id, { state: 'syncing' });
     try {
       const shareRef = fs.doc(db, 'shares', plan.shareId);
       const now = Date.now();
-      // الإضافة: التعريف أولًا ثم الأقسام. السحب: الأقسام أولًا ثم التعريف. هكذا لا تبقى نافذة وصول زائدة.
-      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, updatedAt: now });
-      for (const s of plan.sections) {
-        if (s.op === 'skip') continue;
+
+      // نسحب وصول المحذوفين/المقيّدين أولًا. كل ضيف له مستند صلاحيات لا يستطيع غيره قراءته.
+      for (const a of accessTodo.filter((x) => x.op === 'delete')) {
+        await fs.deleteDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email));
+      }
+      for (const a of accessTodo.filter((x) => x.op === 'set')) {
+        await fs.setDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email), { ...a.doc, updatedAt: now });
+      }
+
+      // تحديث النسخة المشتركة بعد تجهيز الصلاحيات؛ مستندات الأقسام لا تحتوي أي بريد أو قائمة أعضاء.
+      for (const s of sectionTodo) {
         const ref = fs.doc(db, 'shares', plan.shareId, 'sections', s.section);
         if (s.op === 'set') await fs.setDoc(ref, { ...s.doc, updatedAt: now });
         else await fs.deleteDoc(ref);
       }
-      if (plan.meta.op === 'delete') await fs.deleteDoc(shareRef);
-      const published = {};
-      for (const s of todo) published[s.section] = s.op === 'set' ? s.hash : null;
+
+      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, updatedAt: now });
+      else if (plan.meta.op === 'delete') await fs.deleteDoc(shareRef);
+
+      const published = { ...(cfg.published || {}), access: { ...((cfg.published && cfg.published.access) || {}) } };
+      for (const s of sectionTodo) published[s.section] = s.op === 'set' ? s.hash : null;
+      for (const a of accessTodo) {
+        if (a.op === 'set') published.access[a.email] = a.hash;
+        else delete published.access[a.email];
+      }
+      if (!Object.keys(published.access).length) delete published.access;
+      if (metaTodo) published.meta = plan.meta.op === 'set' ? plan.meta.hash : null;
       await ctx.store.save('shareConfigs', { id: cfg.id, published });
       setStatus(cfg.id, { state: 'ok', at: Date.now() });
     } catch (err) {
