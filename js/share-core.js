@@ -47,6 +47,11 @@ export function cleanAccess(access) {
   return out;
 }
 
+// صلاحية التعديل تُقرأ من سجل وصول الضيف الخاص، لا من مستند القسم المشترك.
+export function canEditSection(sections, section) {
+  return !!(sections && sections[section] && sections[section].edit === true);
+}
+
 export function cleanGuests(guests) {
   const seen = new Set();
   const out = [];
