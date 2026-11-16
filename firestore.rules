@@ -73,7 +73,9 @@ service cloud.firestore {
         }
 
         allow read: if ownsShare(shareId)
-          || (isVerifiedUser() && resource.data.authorEmail == request.auth.token.email.lower());
+          || (isVerifiedUser()
+            && resource.data.authorEmail == request.auth.token.email.lower()
+            && exists(/databases/$(database)/documents/shares/$(shareId)/access/$(request.auth.token.email.lower())));
         allow create: if validRequest();
         allow update, delete: if ownsShare(shareId);
       }
