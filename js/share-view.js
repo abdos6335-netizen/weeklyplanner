@@ -73,7 +73,8 @@ function stopListening() {
 function startListening() {
   const { fs, db } = state.fb;
   screen('جارٍ التحميل…', '');
-  state.unsubs.push(fs.onSnapshot(fs.doc(db, 'shares', shareId),
+  // يقرأ الضيف سجل الصلاحيات الخاص ببريده فقط؛ لا يقرأ مستند المشروع أو قائمة المدعوين.
+  state.unsubs.push(fs.onSnapshot(fs.doc(db, 'shares', shareId, 'access', state.user.email),
     (snap) => { state.meta = snap.exists() ? snap.data() : null; render(); },
     () => { state.meta = null; render(); }));
   for (const s of SECTIONS) {
