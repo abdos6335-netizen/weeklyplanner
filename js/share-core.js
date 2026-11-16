@@ -59,7 +59,7 @@ export function cleanGuests(guests) {
   return out;
 }
 
-// من يقرأ كل قسم ومن يعدّله (التعديل لا يفعّل أي كتابة في المرحلة الأولى؛ القواعد لا تمنحه شيئًا بعد).
+// من يقرأ كل قسم ومن يُسمح له بإرسال طلب تعديل؛ لا يحصل الضيف على كتابة مباشرة في بيانات المالك.
 export function audience(config) {
   const guests = cleanGuests(config && config.guests).filter((guest) => SECTIONS.some((section) => guest.access[section] !== 'none'));
   const out = {};
@@ -191,7 +191,7 @@ export function hashOf(value) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
-// خطة النشر: ما الذي يُكتب أو يُحذف في Firestore. `published` هو {section: hash, meta: hash} من آخر نشر ناجح.
+// خطة النشر: بيانات الأقسام وسجل صلاحيات مستقل لكل ضيف. `published` يحتفظ ببصمات الأقسام والضيف والبيانات الوصفية.
 export function planPublish({ ownerUid, project, config, built, published = {} }) {
   const shareId = shareIdFor(ownerUid, project.id);
   const aud = audience(config);
