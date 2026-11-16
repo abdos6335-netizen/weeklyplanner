@@ -137,7 +137,8 @@ test('الضيف لا يقرأ طلب ضيف آخر ولا يحدّث أو يح�
 test('سحب سجل الوصول يمنع القراءة والطلبات فورًا', async () => {
   await assertSucceeds(deleteDoc(ref(owner(), accessPath('a@example.com'))));
   const db = guestA();
-  await assertFails(getDoc(ref(db, accessPath('a@example.com'))));
+  const revokedAccess = await assertSucceeds(getDoc(ref(db, accessPath('a@example.com'))));
+  assert.equal(revokedAccess.exists(), false, 'سجل الصلاحيات المحذوف لا يعيد بيانات');
   await assertFails(getDoc(ref(db, sectionPath('technical'))));
   await assertFails(getDoc(ref(db, requestPath('request-a'))));
   await assertFails(setDoc(ref(db, requestPath('after-revoke')), {
