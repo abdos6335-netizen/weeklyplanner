@@ -133,6 +133,14 @@ test('خطة النشر: بيانات الأقسام والبيانات الوص
   assert.ok(plan.shareId.startsWith('U_'));
 });
 
+test('ضيف بلا أي صلاحية لا يحصل على سجل وصول أو بيانات المشروع', () => {
+  const config = { guests: [{ email: 'none@x.com', access: PRESETS.custom }] };
+  const plan = planPublish({ ownerUid: 'U', project, config, built: built() });
+  assert.deepEqual(plan.access, []);
+  assert.equal(plan.meta.op, 'skip');
+  assert.ok(plan.sections.every((s) => s.op === 'skip'));
+});
+
 test('خطة النشر: لا كتابة عند عدم التغيير، وتحديث البيانات يكتب الأقسام المتأثرة فقط', () => {
   const config = { guests: [{ email: 'c@x.com', access: PRESETS.client }] };
   const first = planPublish({ ownerUid: 'U', project, config, built: built() });
