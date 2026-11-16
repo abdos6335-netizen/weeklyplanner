@@ -7,6 +7,7 @@ import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport,
 import { buildToday, parseCaptureActions, revisionState, ACTION_KIND } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
+import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount } from './share.js';
 import {
   applyTheme, mergeTheme, DEFAULT_THEME, PRESETS, FONTS, ensureFont, fontKey,
   effectiveMode, shownColors, watchSystemMode,
@@ -202,6 +203,7 @@ function registerSW() {
 
 function onAuth(user) {
   S.unsubs.forEach((u) => u()); S.unsubs = [];
+  disposeShare();
   S.user = user;
   S.tasks = []; S.projects = []; S.deliverables = []; S.financeEntries = []; S.personalExpenses = []; S.personalBudgets = []; S.meetings = []; S.requirements = [];
   if (!user) { renderLogin(); return; }
@@ -224,6 +226,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard' || S.section === 'today') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
+  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, openItem: openShareItem }));
   render();
   const q = new URLSearchParams(location.search);
   if (q.get('new') === '1') { history.replaceState(null, '', location.pathname); openSheet(null); }
@@ -329,7 +332,7 @@ function sidebarData() {
     archived: S.projects.length - live.length,
     openTasks: S.tasks.filter((x) => x.status !== 'done').length,
     upcoming: S.meetings.filter((m) => m.date && m.date >= today).length,
-    review: S.tasks.filter((x) => x.status !== 'done' && String(x.id).startsWith('cap_')).length,
+    review: S.tasks.filter((x) => x.status !== 'done' && String(x.id).startsWith('cap_')).length + pendingShareCount(),
   };
 }
 
@@ -378,6 +381,7 @@ function sidebarHtml(sec) {
       ${item('finance', t('nav_finance'), 'finance')}
       ${item('meetings', t('nav_meetings'), 'meetings', d.upcoming)}
       ${item('dashboard', t('nav_dashboard'), 'dashboard')}
+      ${item('sharing', L('المشاركة', 'Sharing'), 'user')}
       <hr class="sb-rule">
       <h3 class="sb-label">${L('الحالة', 'Status')}</h3>
       ${item('today', L('متأخر', 'Overdue'), 'late', d.td.counts.late + d.td.lateTasks.length, 'nav-status')}
@@ -399,7 +403,7 @@ function shell() {
   const sec = S.section;
   const rtl = dir() === 'rtl';
   const nav = navList();
-  const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : t('nav_' + sec);
+  const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : sec === 'sharing' ? L('المشاركة', 'Sharing') : t('nav_' + sec);
   const subs = {
     today: D.fmt(D.todayISO(), locale(), { weekday: 'long', day: 'numeric', month: 'long' }),
     tasks: L('مهامك على مدار الأسبوع', 'Your tasks across the week'),
@@ -408,8 +412,9 @@ function shell() {
     meetings: L('اجتماعاتك ومحاضرها', 'Your meetings and minutes'),
     dashboard: L('ملخص يومك ومتابعتك', 'Your day at a glance'),
     settings: L('المظهر والحساب وهوية التقارير', 'Appearance, account and report identity'),
+    sharing: L('من يرى أي مشروع وما الذي يراه', 'Who sees which project, and what'),
   };
-  const content = sec === 'today' ? renderToday() : sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : renderTasks();
+  const content = sec === 'today' ? renderToday() : sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : sec === 'sharing' ? renderSharing() : renderTasks();
   const animatePage = S.animateNextRender;
   S.animateNextRender = false;
   const tabs = [['today', 'nav_today'], ['projects', 'nav_projects'], ['finance', 'nav_finance']];
@@ -434,7 +439,7 @@ function shell() {
         <button class="tab ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}" aria-label="${t(key)}">
           ${icon(NAV_ICON[id], 22, sec === id)}<span>${t(key)}</span>
         </button>`).join('')}
-      <button class="tab ${['tasks', 'meetings', 'dashboard', 'settings'].includes(sec) ? 'on' : ''}" data-action="open-more" aria-label="${L('المزيد', 'More')}">${icon('more', 22, ['tasks', 'meetings', 'dashboard', 'settings'].includes(sec))}<span>${L('المزيد', 'More')}</span></button>
+      <button class="tab ${['tasks', 'meetings', 'dashboard', 'sharing', 'settings'].includes(sec) ? 'on' : ''}" data-action="open-more" aria-label="${L('المزيد', 'More')}">${icon('more', 22, ['tasks', 'meetings', 'dashboard', 'sharing', 'settings'].includes(sec))}<span>${L('المزيد', 'More')}</span></button>
     </nav>
     ${sec === 'tasks' ? `<button class="fab" data-action="add" aria-label="${t('new_task')}">${icon('plus', 26)}<span>${t('new_task')}</span></button>` : sec === 'projects' ? (S.activeProjectId ? `<button class="fab" data-action="scroll-deliverable-form" aria-label="${t('add_deliverable')}">${icon('plus', 26)}<span>${t('add_deliverable')}</span></button>` : `<button class="fab" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 26)}<span>${t('new_project')}</span></button>`) : ''}
     <button class="voice-fab" data-action="capture-open" aria-label="${L('تسجيل سريع', 'Quick capture')}">${icon('mic', 24)}<span>${L('تسجيل سريع', 'Quick capture')}</span></button>
@@ -595,6 +600,7 @@ function renderToday() {
   const section = (title, rows) => rows ? `<h2 class="td-label">${title}</h2>${rows}` : '';
   const empty = !lateRows && !waitRows && !taskRows && !meetRows;
   return `<section class="today" aria-label="${L('النهارده', 'Today')}">
+    ${renderShareRequests()}
     <div class="td-summary mcard">
       <div class="mc-title">${L('مستحق لي', 'Due to me')}</div>
       <div class="mc-row"><div class="td-big">${tdMoney(d.dueTotal)} <span>${L('ج.م', 'EGP')}</span></div><span class="mc-badge ${d.counts.late ? 'bad' : 'ok'}">${d.counts.late ? `${icon('late', 14)} ${L(`متأخر ${d.counts.late}`, `${d.counts.late} late`)}` : `${icon('check', 14)} ${L('لا متأخر', 'On track')}`}</span></div>
@@ -620,7 +626,7 @@ function remindText(kind, id, projectId) {
 
 function openMoreSheet() {
   const row = (section, label) => `<button class="more-row" data-action="more-go" data-section="${section}">${esc(label)}${icon(dir() === 'rtl' ? 'chevL' : 'chevR', 16)}</button>`;
-  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet more-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${L('المزيد', 'More')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div>${row('tasks', t('nav_tasks'))}${row('meetings', t('nav_meetings'))}${row('dashboard', t('nav_dashboard'))}${row('settings', t('settings'))}</section></div>`;
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet more-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${L('المزيد', 'More')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div>${row('tasks', t('nav_tasks'))}${row('meetings', t('nav_meetings'))}${row('dashboard', t('nav_dashboard'))}${row('sharing', L('المشاركة', 'Sharing'))}${row('settings', t('settings'))}</section></div>`;
 }
 
 function captureProjectOptions(selected) {
@@ -929,6 +935,25 @@ function panelDuration() {
   return Number.isFinite(v) ? v : 260;
 }
 
+// فتح العنصر الذي طلبه/سجّله الضيف مباشرة (من كارت الطلب في «النهارده» أو من سجل المشاركة).
+function openShareItem(o) {
+  const layer = $('#layer'); if (layer) layer.innerHTML = '';
+  closeProjectPanel(true); S.sbOpen = false; S.animateNextRender = true;
+  if (o.today) { S.section = 'today'; S.navOpenSection = 'today'; S.activeProjectId = null; S.activeMeetingProjectId = null; render(); window.scrollTo(0, 0); return; }
+  if (o.type === 'meeting_note') { S.section = 'meetings'; S.navOpenSection = 'meetings'; S.activeProjectId = null; S.activeMeetingProjectId = o.projectId; render(); window.scrollTo(0, 0); setTimeout(() => flashShareTarget(o), 150); return; }
+  S.section = 'projects'; S.navOpenSection = 'projects'; S.activeProjectId = o.projectId; S.activeMeetingProjectId = null; render(); window.scrollTo(0, 0);
+  const panel = { deliverable_status: 'deliverables', requirement_add: 'requirements', installment_paid: 'finance' }[o.type];
+  if (panel) setTimeout(() => { openProjectPanel(o.projectId, panel); setTimeout(() => flashShareTarget(o), 380); }, 80);
+}
+function flashShareTarget(o) {
+  const sel = { deliverable_status: `[data-change="deliverable-status"][data-id="${o.targetId}"]`, requirement_add: `[data-change="requirement-status"][data-id="${o.targetId}"]`, meeting_note: `[data-id="${o.targetId}"]` }[o.type];
+  const el = sel ? document.querySelector(sel) : null;
+  const box = el && (el.closest('article, li, .project-deliverable-row') || el.parentElement);
+  if (!box) return;
+  box.classList.add('rq-flash'); box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(() => box.classList.remove('rq-flash'), 4000);
+}
+
 function openProjectPanel(projectId, panel) {
   S.projectPanel = { projectId, panel };
   const d = panelData();
@@ -1064,7 +1089,7 @@ function renderProjectCard(project) {
     '<div class="project-list-row-wrap"><button class="project-list-row" data-action="toggle-project" data-id="' + esc(project.id) + '" type="button" aria-expanded="' + expanded + '"><span class="project-list-name">' + esc(project.name) + '</span><span class="project-list-ratios"><span>فني ' + techText + '</span><span>تحصيل ' + collectionText + '</span><span>صافي ' + profitText + '</span></span><span class="project-list-chevron">' + icon('chevD', 16) + '</span></button><button class="project-list-report" data-action="print-project" data-id="' + esc(project.id) + '" type="button">تقرير</button></div>' +
     (expanded ? '<div class="project-accordion-content"><div class="project-accordion-meta"><span>' + esc(projectTypeLabel(project.type)) + '</span><span>' + esc(projectStatusLabel(project.status)) + '</span><span>' + ds.length + ' تسليمات</span></div>' +
       projectCategories(project, ds, reqs).map(cat => renderProjectCategoryRow(project, cat)).join('') +
-      '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button><button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
+      '<div class="project-accordion-actions"><button class="text-action" data-action="edit-project" data-id="' + esc(project.id) + '" type="button">تعديل المشروع</button><button class="text-action" data-action="archive-project" data-id="' + esc(project.id) + '" type="button">' + (project.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة') + '</button>' + shareButton(project.id) + '<button class="text-action danger" data-action="delete-project" data-id="' + esc(project.id) + '" type="button">حذف</button></div></div>' : '') + '</article>';
 }
 
 function renderProjects() {

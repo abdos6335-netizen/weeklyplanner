@@ -14,6 +14,73 @@ service cloud.firestore {
       //                    && request.auth.token.email_verified == true;
     }
 
+    function ownsShare(shareId) {
+      return request.auth != null && shareId.matches(request.auth.uid + '_.+');
+    }
+
+    function isVerifiedUser() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+
+    match /shares/{shareId} {
+      // مستند المشروع للمالك فقط؛ لا يحتوي قائمة الضيوف.
+      allow read, write: if ownsShare(shareId);
+
+      // صلاحيات منفصلة لكل بريد. الضيف يستطيع قراءة مستنده فقط ولا يستطيع تعداد بقية الضيوف.
+      match /access/{guestEmail} {
+        allow get: if ownsShare(shareId)
+          || (isVerifiedUser() && request.auth.token.email.lower() == guestEmail);
+        allow list: if ownsShare(shareId);
+        allow create, update, delete: if ownsShare(shareId);
+      }
+
+      match /sections/{section} {
+        allow read: if ownsShare(shareId)
+          || (isVerifiedUser()
+            && get(/databases/$(database)/documents/shares/$(shareId)/access/$(request.auth.token.email.lower())).data.sections[section].view == true);
+        allow write: if ownsShare(shareId);
+      }
+
+      // طلبات تعديل الضيوف: إنشاء فقط، والمالك وحده يراجع ويطبّق.
+      match /requests/{requestId} {
+        function guestCanEdit(sectionName, email) {
+          return get(/databases/$(database)/documents/shares/$(shareId)/access/$(email)).data.sections[sectionName].edit == true;
+        }
+
+        function validRequest() {
+          let d = request.resource.data;
+          let email = request.auth.token.email.lower();
+          return isVerifiedUser()
+            && d.keys().hasOnly(['type', 'targetId', 'payload', 'authorEmail', 'authorName', 'status', 'createdAt'])
+            && d.keys().hasAll(['type', 'targetId', 'payload', 'authorEmail', 'authorName', 'status', 'createdAt'])
+            && d.status == 'pending'
+            && d.authorEmail == email
+            && d.authorName == request.auth.token.get('name', '')
+            && d.createdAt is int
+            && d.targetId is string && d.targetId.size() <= 120
+            && d.payload is map
+            && d.payload.keys().hasOnly(['status', 'text'])
+            && (!('status' in d.payload) || d.payload.status in ['approved', 'revision'])
+            && (!('text' in d.payload) || (d.payload.text is string && d.payload.text.size() <= 2000))
+            && (
+              (d.type == 'deliverable_status' && guestCanEdit('deliverables', email))
+              || (d.type == 'requirement_add' && guestCanEdit('technical', email))
+              || (d.type == 'meeting_note' && guestCanEdit('meetings', email))
+              || (d.type == 'installment_paid' && guestCanEdit('finance', email))
+            );
+        }
+
+        allow read: if ownsShare(shareId)
+          || (isVerifiedUser()
+            && resource.data.authorEmail == request.auth.token.email.lower()
+            && exists(/databases/$(database)/documents/shares/$(shareId)/access/$(request.auth.token.email.lower())));
+        allow create: if validRequest();
+        allow update, delete: if ownsShare(shareId);
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
