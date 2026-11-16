@@ -84,6 +84,8 @@ export function ensureFont(id) {
 // ------------------------------------------------------------------ الثيمات الجاهزة
 export const PRESETS = {
   // الثيمات الجديدة (v6): ألوان هادئة بدرجات رمادية دافئة/باردة، كلها لها نسخة فاتحة وداكنة
+  // glass: ثيم مطابق للتصميم المرجعي (زجاجي مضيء، شريط فحمي، ظلال ناعمة، تظليل أخضر باهت للنشط)
+  glass: { accent: '#302e32', bg: { light: '#e3e3e4', dark: '#1b1b1d' }, sat: 100 },
   soft: { accent: '#2c2c30', bg: { light: '#e8e8ea', dark: '#19191b' }, sat: 100 },
   sage: { accent: '#3f5a4a', bg: { light: '#dfe6df', dark: '#161c18' }, sat: 100 },
   sand: { accent: '#6b5a43', bg: { light: '#ebe4d8', dark: '#1d1a15' }, sat: 100 },
@@ -99,11 +101,11 @@ export const PRESETS = {
 };
 
 export const DEFAULT_THEME = {
-  v: 6,                    // إصدار نظام التصميم (الأقدم يُعاد لافتراضيات v6 مع الاحتفاظ بالمود والتكبير)
+  v: 7,                    // إصدار نظام التصميم (الأقدم يُعاد لافتراضيات v6 مع الاحتفاظ بالمود والتكبير)
   mode: 'auto',            // auto | light | dark
-  preset: 'soft',
-  accent: '#2c2c30',
-  bg: { light: '#e8e8ea', dark: '#19191b' },
+  preset: 'glass',
+  accent: '#302e32',
+  bg: { light: '#e3e3e4', dark: '#1b1b1d' },
   text: { light: null, dark: null },
   sat: 100,                // 0..150
   surface: 'tint',         // tint (بلون مغاير) | same (بنفس لون الخلفية)
@@ -118,11 +120,11 @@ const DEFAULT_BG = { light: '#f6f4ef', dark: '#1c1d21' };
 
 export function mergeTheme(input) {
   let saved = input;
-  if (saved && saved.v !== 6) {
+  if (saved && saved.v !== 7) {
     saved = {};
     for (const k of ['mode', 'scale', 'font']) if (input[k] !== undefined) saved[k] = input[k];
   }
-  const t = { ...DEFAULT_THEME, ...(saved || {}), v: 6 };
+  const t = { ...DEFAULT_THEME, ...(saved || {}), v: 7 };
   t.bg = { ...DEFAULT_THEME.bg, ...((saved && saved.bg) || {}) };
   t.text = { ...DEFAULT_THEME.text, ...((saved && saved.text) || {}) };
   return t;
@@ -142,6 +144,43 @@ export function shownColors(theme) {
   const autoText = dark ? hslToHex(bh, clamp(bs * 0.25), 0.93) : hslToHex(bh, clamp(bs * 0.6, 0, 0.35), 0.11);
   return { mode, bg, text: theme.text[mode] || autoText, accent: theme.accent };
 }
+
+
+// أسطح ثيم glass المطابق للمرجع (قيم مُقدّرة من الصورة بعد إزالة طبقة التعتيم الرمادية عنها)
+const GLASS = {
+  light: {
+    '--bg': '#e3e3e4', '--page-bg': 'linear-gradient(180deg,#e7e7e8 0%,#dcdcdd 60%,#d2d2d4 100%)',
+    '--sidebar': '#ececed', '--panel': '#ebebec', '--surface': '#f0f1f0', '--surface-2': '#e4e5e4',
+    '--text': '#161618', '--text-2': '#86868b', '--line': 'rgba(0,0,0,.085)',
+    '--rail': '#2e2c30', '--rail-ink': '#ffffff', '--rail-dim': 'rgba(255,255,255,.66)', '--rail-on': 'linear-gradient(180deg,#5a595d,#48474b)',
+    '--rail-shell': '#ececed',
+    '--item-on': 'linear-gradient(90deg,#fcfefd 0%,#f1f6f3 100%)',
+    '--item-on-line': 'rgba(255,255,255,.95)',
+    '--badge': 'rgba(0,0,0,.055)', '--badge-ink': '#8b8b90', '--badge-on': '#ffffff', '--badge-on-ink': '#6e6e73',
+    '--search': '#e2e2e3', '--tree-sel': '#dededf', '--tree-line': 'rgba(255,255,255,.7)',
+    '--card': 'linear-gradient(135deg,#f5f7f6 0%,#eaedeb 100%)', '--rim': 'rgba(255,255,255,.9)',
+    '--good': '#1f9c70', '--good-soft': 'rgba(52,190,140,.17)',
+    '--raise': '0 1px 0 rgba(255,255,255,.95) inset, 0 12px 28px -12px rgba(20,20,26,.25), 0 2px 5px rgba(20,20,26,.08)',
+    '--inset': 'inset 0 2px 5px rgba(20,20,26,.11), 0 1px 0 rgba(255,255,255,.85)',
+    '--shell-shadow': '0 18px 40px -16px rgba(20,20,26,.32), 0 1px 0 rgba(255,255,255,.9) inset',
+  },
+  dark: {
+    '--bg': '#1b1b1d', '--page-bg': 'linear-gradient(180deg,#202022 0%,#18181a 100%)',
+    '--sidebar': '#262628', '--panel': '#232325', '--surface': '#2a2a2d', '--surface-2': '#303033',
+    '--text': '#f2f2f4', '--text-2': '#9a9aa0', '--line': 'rgba(255,255,255,.08)',
+    '--rail': '#0f0f11', '--rail-ink': '#ffffff', '--rail-dim': 'rgba(255,255,255,.6)', '--rail-on': 'linear-gradient(180deg,#3d3d41,#2f2f33)',
+    '--rail-shell': '#262628',
+    '--item-on': 'linear-gradient(90deg,rgba(255,255,255,.10),rgba(255,255,255,.055))',
+    '--item-on-line': 'rgba(255,255,255,.12)',
+    '--badge': 'rgba(255,255,255,.07)', '--badge-ink': '#a0a0a6', '--badge-on': 'rgba(255,255,255,.14)', '--badge-on-ink': '#d8d8dc',
+    '--search': '#1e1e20', '--tree-sel': '#303033', '--tree-line': 'rgba(255,255,255,.06)',
+    '--card': 'linear-gradient(135deg,#2e2f30 0%,#272829 100%)', '--rim': 'rgba(255,255,255,.12)',
+    '--good': '#5fd3a0', '--good-soft': 'rgba(95,211,160,.16)',
+    '--raise': '0 1px 0 rgba(255,255,255,.07) inset, 0 14px 30px -12px rgba(0,0,0,.65), 0 2px 5px rgba(0,0,0,.4)',
+    '--inset': 'inset 0 2px 6px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.05)',
+    '--shell-shadow': '0 18px 40px -16px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.06) inset',
+  },
+};
 
 // ------------------------------------------------------------------ البناء
 export function buildVars(theme) {
@@ -195,10 +234,19 @@ export function buildVars(theme) {
   const glow1 = `hsl(${ah} ${Math.round(70 * k)}% ${dark ? 32 : 78}% / ${dark ? 0.45 : 0.55})`;
   const glow2 = `hsl(${(ah + 55) % 360} ${Math.round(65 * k)}% ${dark ? 30 : 82}% / ${dark ? 0.35 : 0.45})`;
 
-  return {
-    dark,
-    mode,
-    vars: {
+  const generic = {
+    '--page-bg': `linear-gradient(165deg, ${bg}, ${mix(bg, dark ? '#000000' : '#000000', 0.08)})`,
+    '--rail-shell': sidebar,
+    '--item-on': dark ? `linear-gradient(90deg, ${mix(sidebar, '#ffffff', 0.1)}, ${mix(sidebar, '#ffffff', 0.05)})` : `linear-gradient(90deg, ${mix(sidebar, '#ffffff', 0.7)}, ${mix(sidebar, '#ffffff', 0.45)})`,
+    '--item-on-line': dark ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.9)',
+    '--badge': dark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.055)', '--badge-ink': text2, '--badge-on': dark ? 'rgba(255,255,255,.14)' : '#ffffff', '--badge-on-ink': text2,
+    '--search': mix(sidebar, dark ? '#000000' : '#000000', dark ? 0.2 : 0.045),
+    '--tree-sel': mix(sidebar, dark ? '#ffffff' : '#000000', dark ? 0.1 : 0.06), '--tree-line': dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.7)',
+    '--card': sidebar, '--rim': dark ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.9)',
+    '--shell-shadow': raise,
+  };
+  const glassSet = theme.preset === 'glass' ? GLASS[dark ? 'dark' : 'light'] : null;
+  const out = {
       '--bg': bg,
       '--surface': surface,
       '--surface-2': surface2,
@@ -233,8 +281,8 @@ export function buildVars(theme) {
       '--good': good,
       '--good-soft': goodSoft,
       '--line': mix(bg, text, dark ? 0.14 : 0.12),
-    },
   };
+  return { dark, mode, vars: { ...out, ...generic, ...(glassSet || {}) } };
 }
 
 export function applyTheme(rawTheme) {
