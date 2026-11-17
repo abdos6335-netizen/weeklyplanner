@@ -2129,7 +2129,7 @@ function renderSettings() {
 
   const iconsFonts = `
     <div class="lab">${lang() === 'ar' ? 'نظام الأيقونات' : 'Icon system'}</div>
-    <p class="muted small">${lang() === 'ar' ? 'Phosphor Icons — Regular للأيقونات العادية وFill للحالة النشطة، بدون دوائر أو خلفيات.' : 'Phosphor Icons — Regular by default, Fill for active states, with no icon circles or backgrounds.'}</p>
+
     <div class="icon-preview">${['tasks', 'projects', 'finance', 'settings', 'palette', 'globe'].map((n) => badge(n, 24)).join('')}${badge('check', 24, undefined, true)}</div>
     <div class="lab">${t('font')}</div>
     <div class="fonts">${Object.entries(FONTS).map(([id, f]) =>
