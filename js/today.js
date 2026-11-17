@@ -102,13 +102,24 @@ export function buildToday({ projects = [], deliverables = [], tasks = [], meeti
   return { dueTotal, late, waiting, todayTasks, lateTasks, todayMeetings, counts: { late: late.length, tasks: todayTasks.length } };
 }
 
-/** بعد كم تعديل نعتبر العميل تعدّى المشمول في العقد؟ revisionsIncluded على المشروع (الافتراضي 2). */
+export function revLabel(rev) { return `REV-${Math.max(0, Math.max(1, Number(rev) || 1) - 1)}`; }
+export function revisionHistory(deliverable) {
+  const rev = Math.max(1, Number(deliverable?.rev) || 1);
+  if (Array.isArray(deliverable?.revHistory) && deliverable.revHistory.length) {
+    const seen = new Set();
+    return deliverable.revHistory.filter((x) => x && Number.isFinite(Number(x.rev)) && Number(x.rev) >= 1)
+      .map((x) => ({ rev: Math.floor(Number(x.rev)), date: String(x.date || '—') }))
+      .filter((x) => !seen.has(x.rev) && seen.add(x.rev)).sort((a, b) => a.rev - b.rev);
+  }
+  const stamp = typeof deliverable?.updatedAt === 'number' ? new Date(deliverable.updatedAt) : new Date(deliverable?.updatedAt || '');
+  const date = Number.isFinite(stamp.getTime()) ? stamp.toISOString().slice(0, 10) : '—';
+  return Array.from({ length: rev }, (_, i) => ({ rev: i + 1, date: i + 1 === rev ? date : '—' }));
+}
 export function revisionState(project, deliverable) {
   const raw = project?.revisionsIncluded;
   const included = raw !== null && raw !== undefined && raw !== '' && Number.isFinite(Number(raw)) && Number(raw) >= 0 ? Number(raw) : 2;
-  const rev = Math.max(1, Number(deliverable?.rev) || 1);
-  const requested = rev - 1;
-  return { rev, requested, included, over: requested > included };
+  const rev = Math.max(1, Number(deliverable?.rev) || 1), requested = rev - 1;
+  return { rev, requested, included, over: requested > included, history: revisionHistory(deliverable) };
 }
 
 // ---------------------------------------------------------------- تحليل رسالة الالتقاط

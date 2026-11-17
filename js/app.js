@@ -4,7 +4,7 @@ import { t, setLang, lang, dir, locale } from './i18n.js';
 import { translateText } from './i18n-en.js';
 import { buildProjectReport, buildDocument, reportShell, esc as rEsc } from './report.js';
 import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
-import { buildToday, parseCaptureActions, revisionState, ACTION_KIND, shortTitle } from './today.js';
+import { buildToday, parseCaptureActions, revisionState, revLabel, revisionHistory, ACTION_KIND, shortTitle } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
 import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount } from './share.js';
@@ -597,7 +597,7 @@ function renderToday() {
   const dateLabel = D.fmt(today, locale(), { weekday: 'long', day: 'numeric', month: 'long' });
   const daysText = (n, kind) => n <= 0 ? (kind === 'late' ? L('مستحق اليوم', 'Due today') : L('اتبعت النهارده', 'Sent today')) : (kind === 'late' ? L(`متأخر ${n} يوم`, `${n} day(s) late`) : L(`من ${n} يوم`, `${n} day(s) ago`));
   const lateRows = d.late.map((x) => `<div class="td-row"><span class="td-dot late"></span><button class="td-main" data-action="open-project" data-id="${esc(x.projectId)}"><strong>${esc(x.title || L('دفعة', 'Installment'))} · ${esc(x.projectName)}</strong><small>${esc(daysText(x.days, 'late'))} · ${tdMoney(x.amount)} ${L('ج.م', 'EGP')}</small></button><button class="td-act" data-action="td-remind" data-kind="pay" data-project="${esc(x.projectId)}" data-id="${esc(x.installmentId)}">${L('ذكّره', 'Remind')}</button></div>`).join('');
-  const waitRows = d.waiting.map((x) => `<div class="td-row"><span class="td-dot wait"></span><button class="td-main" data-action="open-project" data-id="${esc(x.projectId)}"><strong>${esc(x.name)} <span class="td-v">V${x.rev}</span></strong><small>${esc(x.projectName)} · ${esc(daysText(x.days, 'wait'))}</small></button><button class="td-act" data-action="td-remind" data-kind="wait" data-id="${esc(x.id)}">${L('ذكّره', 'Remind')}</button></div>`).join('');
+  const waitRows = d.waiting.map((x) => `<div class="td-row"><span class="td-dot wait"></span><button class="td-main" data-action="open-project" data-id="${esc(x.projectId)}"><strong>${esc(x.name)} <span class="td-v">${revLabel(x.rev)}</span></strong><small>${esc(x.projectName)} · ${esc(daysText(x.days, 'wait'))}</small></button><button class="td-act" data-action="td-remind" data-kind="wait" data-id="${esc(x.id)}">${L('ذكّره', 'Remind')}</button></div>`).join('');
   const taskRows = d.todayTasks.map((x) => `<div class="td-row"><button class="td-check" data-action="toggle" data-id="${esc(x.id)}" aria-label="${L('تم', 'Done')}"></button><div class="td-main plain"><strong>${esc(x.title)}</strong>${x.notes && x.id.startsWith('cap_') ? `<small>${esc(x.notes.split('\n').filter(Boolean).length)} ${L('إجراءات اتسجلت · راجعها وعلّم', 'actions recorded · review and tick')}</small>` : ''}</div></div>`).join('');
   const meetRows = d.todayMeetings.map((m) => `<div class="td-row"><span class="td-dot"></span><button class="td-main" data-action="nav" data-section="meetings"><strong>${esc(m.title || L('اجتماع', 'Meeting'))}</strong><small>${esc(S.projects.find((p) => p.id === m.projectId)?.name || '')}</small></button></div>`).join('');
   const section = (title, rows) => rows ? `<h2 class="td-label">${title}</h2>${rows}` : '';
@@ -624,7 +624,7 @@ function remindText(kind, id, projectId) {
     return L(`أهلًا ${p.client || ''}، بخصوص ${i.title || 'الدفعة'} الخاصة بمشروع «${p.name}» بقيمة ${tdMoney(i.amount)} ج.م والمستحقة بتاريخ ${i.dueDate || ''}. ممكن تأكيد موعد التحويل؟ شكرًا لحضرتك.`, `Hello ${p.client || ''}, regarding ${i.title || 'the installment'} for "${p.name}" (${tdMoney(i.amount)} EGP, due ${i.dueDate || ''}). Could you confirm the transfer date? Thank you.`);
   }
   const dv = S.deliverables.find((x) => x.id === id); const p = S.projects.find((x) => x.id === dv?.projectId); if (!dv || !p) return '';
-  return L(`أهلًا ${p.client || ''}، بخصوص «${dv.name}» (V${Number(dv.rev) || 1}) الخاصة بمشروع «${p.name}» اللي اتبعتت لحضرتك. ممكن ملاحظاتك أو الاعتماد؟ شكرًا.`, `Hello ${p.client || ''}, regarding "${dv.name}" (V${Number(dv.rev) || 1}) for "${p.name}" that I sent you. Could you share your feedback or approval? Thank you.`);
+  return L(`أهلًا ${p.client || ''}، بخصوص «${dv.name}» (${revLabel(dv.rev)}) الخاصة بمشروع «${p.name}» اللي اتبعتت لحضرتك. ممكن ملاحظاتك أو الاعتماد؟ شكرًا.`, `Hello ${p.client || ''}, regarding "${dv.name}" (${revLabel(dv.rev)}) for "${p.name}" that I sent you. Could you share your feedback or approval? Thank you.`);
 }
 
 function openMoreSheet() {
@@ -655,7 +655,7 @@ function captureActionHtml(a, project) {
   const dv = a.deliverableId ? S.deliverables.find((x) => x.id === a.deliverableId) : null;
   let main = esc(a.name || ''), meta = '';
   if (a.kind === 'revision') {
-    if (dv) { const st = revisionState(project, { rev: (Number(dv.rev) || 1) + 1 }); meta = `${L('التسليمات', 'Deliverables')} · ${L('تصبح', 'becomes')} V${st.rev} · ${L(`تعديل ${st.requested} من ${st.included}`, `revision ${st.requested} of ${st.included}`)}${st.over ? ` · <b class="over">${L('زائد عن المشمول', 'beyond included')}</b>` : ''}`; }
+    if (dv) { const st = revisionState(project, { rev: (Number(dv.rev) || 1) + 1 }); meta = `${L('التسليمات', 'Deliverables')} · ${L('تصبح', 'becomes')} ${revLabel(st.rev)} · ${L(`تعديل ${st.requested} من ${st.included}`, `revision ${st.requested} of ${st.included}`)}${st.over ? ` · <b class="over">${L('زائد عن المشمول', 'beyond included')}</b>` : ''}`; }
     else meta = L('التسليمات · هيتضاف تسليم جديد بحالة «مطلوب تعديل»', 'Deliverables · a new deliverable will be added as “revision requested”');
   } else if (a.kind === 'approve') meta = L('التسليمات · معتمد من العميل', 'Deliverables · approved by client');
   else if (a.kind === 'new') meta = L('التسليمات · الحالة: لم تبدأ', 'Deliverables · status: not started');
@@ -722,10 +722,11 @@ async function applyCaptureAction(a, project) {
   if (a.kind === 'revision') {
     if (dv) {
       const rev = (Number(dv.rev) || 1) + 1;
-      await S.store.save('deliverables', { ...dv, status: 'revision', rev, notes: `${dv.notes ? dv.notes + ' · ' : ''}${L('تعديل', 'Revision')}: ${a.text}`.slice(0, 1000), updatedAt: now });
-      return L(`تعديل على «${dv.name}» (V${rev})`, `Revision on “${dv.name}” (V${rev})`);
+      const revHistory = [...revisionHistory(dv).filter((item) => item.rev < rev), { rev, date: today }];
+      await S.store.save('deliverables', { ...dv, status: 'revision', rev, revHistory, notes: `${dv.notes ? dv.notes + ' · ' : ''}${L('تعديل', 'Revision')}: ${a.text}`.slice(0, 1000), updatedAt: now });
+      return L(`تعديل على «${dv.name}» (${revLabel(rev)})`, `Revision on “${dv.name}” (${revLabel(rev)})`);
     }
-    await S.store.save('deliverables', { id: uid(), projectId: project.id, name: String(a.name || a.text).slice(0, 120), stage: 'technical', kind: 'other', dueDate: null, status: 'revision', rev: 1, notes: a.text.slice(0, 1000), createdAt: now, updatedAt: now, source: 'capture' });
+    await S.store.save('deliverables', { id: uid(), projectId: project.id, name: String(a.name || a.text).slice(0, 120), stage: 'technical', kind: 'other', dueDate: null, status: 'revision', rev: 1, revHistory: [{ rev: 1, date: today }], notes: a.text.slice(0, 1000), createdAt: now, updatedAt: now, source: 'capture' });
     return L(`تعديل: ${a.name}`, `Revision: ${a.name}`);
   }
   if (a.kind === 'new' || a.kind === 'approve') {
@@ -746,7 +747,8 @@ async function saveCaptureSummaryTask(project, lines) {
 
 function vBadgeHtml(project, d) {
   const st = revisionState(project, d);
-  return `<span class="v-badge ${st.over ? 'over' : ''}" title="${esc(L(`تعديلات مطلوبة ${st.requested} من ${st.included} مشمولة`, `${st.requested} of ${st.included} included revisions used`))}">V${st.rev}</span>`;
+  const historyRows = st.history.map((item) => `<span class="rev-history-item"><b>${revLabel(item.rev)}</b><time>${esc(item.date || '—')}</time></span>`).join('');
+  return `<details class="rev-details"><summary class="v-badge ${st.over ? 'over' : ''} ${st.requested >= 3 ? 'is-high-rev' : ''}" title="${esc(L(`تعديلات مطلوبة ${st.requested} من ${st.included} مشمولة`, `${st.requested} of ${st.included} included revisions used`))}">${revLabel(st.rev)}</summary><div class="rev-history-pop" aria-label="${L('سجل التعديلات', 'Revision history')}">${historyRows}</div></details>`;
 }
 function vActionsHtml(project, d) {
   const st = revisionState(project, d);
@@ -1263,7 +1265,7 @@ function reportData(p) {
     project: { name: p.name, client: p.client, typeLabel: projectTypeLabel(p.type), statusLabel: projectStatusLabel(p.status), location: p.location, scopeLabel: projectScopeLabel(p.workScope || []), notes: p.notes, contract: totals.contract },
     progress: { ...progress, phases: progress.phases.map((x) => ({ ...x, label: phaseNames[x.key] || x.label })) },
     totals,
-    deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage), kindLabel: deliverableKindLabel(x.kind), due: x.dueDate, status: x.status, statusLabel: approvalLabel(x.status), notes: x.notes })),
+    deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage), kindLabel: deliverableKindLabel(x.kind), due: x.dueDate, status: x.status, statusLabel: approvalLabel(x.status), notes: x.notes, rev: Math.max(1, Number(x.rev) || 1), revHistory: revisionHistory(x) })),
     finance: fs, money,
     installments: (p.installments || []).map((i) => ({ name: i.title || i.name, dueDate: i.dueDate, amount: i.amount, status: i.status })),
     meetings: S.meetings.filter((x) => x.projectId === id).sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 5).map((x) => ({ date: x.date, title: x.title, decisions: x.decisions, actions: x.actions })),
@@ -2628,7 +2630,7 @@ async function onClick(e) {
       const text = remindText(el.dataset.kind, el.dataset.id, el.dataset.project); if (!text) break;
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener'); break;
     }
-    case 'deliverable-rev': { const d = S.deliverables.find((x) => x.id === el.dataset.id); if (!d) break; S.store.save('deliverables', { ...d, rev: (Number(d.rev) || 1) + 1, status: 'pending', submittedAt: null, updatedAt: Date.now() }).then(() => { toast(L('تم فتح نسخة جديدة.', 'New version opened.')); refreshProjectPanel(); }).catch((err) => toast(t('save_failed', { msg: err.message || err }))); break; }
+    case 'deliverable-rev': { const d = S.deliverables.find((x) => x.id === el.dataset.id); if (!d) break; const rev = (Number(d.rev) || 1) + 1, now = Date.now(); const revHistory = [...revisionHistory(d).filter((item) => item.rev < rev), { rev, date: D.todayISO() }]; S.store.save('deliverables', { ...d, rev, revHistory, status: 'pending', submittedAt: null, updatedAt: now }).then(() => { toast(L('تم فتح نسخة جديدة.', 'New version opened.')); refreshProjectPanel(); }).catch((err) => toast(t('save_failed', { msg: err.message || err }))); break; }
     case 'voice-start': S.voiceAutoAnalyze = el.classList.contains('cap-mic'); startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
     case 'finance-view': S.financeView=v; render(); break;
@@ -2858,7 +2860,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
     else if (a === 'add-personal-expense') { const kind=$('#pe-kind').value==='income'?'income':'expense'; const x={id:uid(),kind,amount:Number($('#pe-amount').value),date:$('#pe-date').value,category:$('#pe-category').value||'أخرى',description:$('#pe-description').value.trim(),createdAt:Date.now(),updatedAt:Date.now()}; if(!x.description||x.amount<=0) throw new Error('أدخل وصفًا ومبلغًا صحيحًا'); await S.store.save('personalExpenses',x); toast(kind==='income'?'تم تسجيل الدخل.':'تم تسجيل المصروف.'); el.reset(); $('#pe-date').value=D.todayISO(); }
     else if (a === 'edit-personal-expense') { /* edited through prompt in click handler */ }
     else if (a === 'add-requirement') { const textValue=$('#req-text').value.trim(), projectId=S.activeProjectId, source=$('#req-source').value; if(!textValue||!projectId)throw new Error('اكتب الطلب وتأكد من فتح المشروع.'); await S.store.save('requirements',{id:uid(),projectId,text:textValue.slice(0,1200),source,sourceId:null,sourceLabel:source==='whatsapp'?'WhatsApp':'طلب مباشر',date:$('#req-date').value||D.todayISO(),status:'open',createdAt:Date.now(),updatedAt:Date.now()}); el.reset(); $('#req-date').value=D.todayISO(); refreshProjectPanel({ reset: true }); toast('تمت إضافة Requirement للمشروع.'); }
-    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, rev:1, submittedAt:$('#d-status').value==='submitted'?Date.now():null, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); refreshProjectPanel({ reset: true }); toast('تم تسجيل بيانات التسليم بنجاح.'); }
+    else if (a === 'add-deliverable') { const d={id:uid(), projectId:$('#d-project').value, name:$('#d-name').value.trim(), stage:$('#d-stage').value, kind:$('#d-kind').value, dueDate:$('#d-date').value||null, status:$('#d-status').value, rev:1, revHistory:[{rev:1,date:D.todayISO()}], submittedAt:$('#d-status').value==='submitted'?Date.now():null, notes:$('#d-notes').value.trim(), createdAt:Date.now(), updatedAt:Date.now()}; if(!d.name){toast(t('title_required'));return;} await S.store.save('deliverables',d); el.reset(); refreshProjectPanel({ reset: true }); toast('تم تسجيل بيانات التسليم بنجاح.'); }
     else { const x={id:uid(),projectId:$('#f-project').value,kind:$('#f-kind').value,amount:Number($('#f-amount').value),date:$('#f-fin-date').value||D.todayISO(),category:$('#f-category').value,description:$('#f-description').value.trim(),createdAt:Date.now()}; if(!x.projectId||x.amount<=0){toast(t('form_required'));return;} await S.store.save('financeEntries',x); el.reset(); $('#f-fin-date').value=D.todayISO(); toast('تم تسجيل الحركة المالية بنجاح.'); }
   } catch(err) { S.autoProcessMeetingAfterSave=false;toast(t('save_failed',{msg:err.message||err})); }
   finally { if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=submitBtn.dataset.oldText||'حفظ';} }
