@@ -40,7 +40,7 @@ export function initShare(c) {
   const user = c.store && c.store.user;
   if (!c.store || c.store.mode !== 'cloud' || !user) { st = { cloud: false }; bindEvents(); return disposeShare; }
   st = {
-    cloud: true, uid: user.uid, email: String(user.email || '').toLowerCase(),
+    cloud: true, uid: user.uid, email: String(user.email || '').toLowerCase(), doneColor: typeof c.doneColor === 'function' ? c.doneColor() : '#1f9c70',
     data: { projects: [], deliverables: [], financeEntries: [], meetings: [], requirements: [], shareConfigs: [] },
     ready: new Set(), unsubs: [], timer: null, queue: Promise.resolve(), fb: null,
     status: {}, sheetProjectId: null, listSig: '',
@@ -142,7 +142,8 @@ async function runSync(me) {
         else await fs.deleteDoc(ref);
       }
 
-      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, doneColor: typeof me.doneColor === 'function' ? me.doneColor() : '#1f9c70', updatedAt: now });
+      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, doneColor: typeof ctx.doneColor === 'function' ? ctx.doneColor() : '#1f9c70', updatedAt: now });
+      else if (plan.meta.op !== 'delete') await fs.setDoc(shareRef, { doneColor: typeof ctx.doneColor === 'function' ? ctx.doneColor() : '#1f9c70' }, { merge: true });
       else if (plan.meta.op === 'delete') await fs.deleteDoc(shareRef);
 
       const published = { ...(cfg.published || {}), access: { ...((cfg.published && cfg.published.access) || {}) } };
