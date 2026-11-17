@@ -230,8 +230,8 @@ export function buildVars(theme) {
   const inset = dark
     ? 'inset 0 2px 6px rgba(0,0,0,.45), inset 0 -1px 0 rgba(255,255,255,.04)'
     : 'inset 0 2px 5px rgba(24,24,32,.10), inset 0 -1px 0 rgba(255,255,255,.65)';
-  const good = dark ? '#5fd3a0' : '#23895f';
-  const goodSoft = dark ? 'rgba(95,211,160,.16)' : 'rgba(47,158,114,.16)';
+  const good = dark ? '#5fd3a0' : '#1f9c70';
+  const goodSoft = dark ? 'rgba(95,211,160,.16)' : 'rgba(31,156,112,.16)';
   const done = theme.done === 'orange' ? (dark ? '#f0a35c' : '#e58a32') : good;
   const doneSoft = theme.done === 'orange' ? (dark ? 'rgba(240,163,92,.17)' : 'rgba(229,138,50,.16)') : goodSoft;
 
