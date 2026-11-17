@@ -404,6 +404,18 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
 .sb-dots i:nth-child(3) { background: radial-gradient(circle at 40% 35%, #bdeed8 0%, #86d6b0 70%, #62bd93 100%); }
 
 
+/* v6.4 — سجل REV داخل علامة التسليم */
+.rev-details { display: inline-block; position: relative; vertical-align: middle; }
+.rev-details > summary { list-style: none; cursor: pointer; }
+.rev-details > summary::-webkit-details-marker { display: none; }
+.rev-details[open] > summary { box-shadow: 0 0 0 2px var(--line); }
+.v-badge.is-high-rev { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, transparent); }
+.rev-history-pop { position: absolute; z-index: 30; inset-block-start: calc(100% + 7px); inset-inline-start: 0; min-width: 160px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--raise); }
+.rev-history-item { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 5px 7px; font-size: .78rem; white-space: nowrap; }
+.rev-history-item + .rev-history-item { border-top: 1px solid var(--line); }
+.rev-history-item b { color: var(--text); font-weight: 600; }
+.rev-history-item time { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
 /* v6.3 — التسجيل الصوتي اليدوي: مؤشر نابض لا يوقف التسجيل تلقائيًا */
 .cap-mic, .voice-controls [data-action="voice-start"], .voice-fab { position: relative; isolation: isolate; }
 .cap-mic.is-recording, .voice-controls [data-action="voice-start"].is-recording,
