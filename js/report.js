@@ -52,7 +52,7 @@ header.rh{display:flex;align-items:center;justify-content:space-between;gap:16px
 .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 18px;margin:16px 0;padding:12px 0;border-bottom:1px solid var(--line)}
 .meta div small{display:block;color:var(--mut);font-size:10.5px;letter-spacing:.02em}.meta div b{font-weight:500}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 18px}
-.kpi{background:var(--soft);border-radius:8px;padding:10px 12px}.kpi small{display:block;color:var(--mut);font-size:10.5px}.kpi b{font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+.kpi{background:var(--soft);border-radius:8px;padding:10px 12px}.kpi small{display:block;color:var(--mut);font-size:10.5px} .kpi b{font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}.pct{color:var(--done)}
 h2{font-size:14px;font-weight:600;margin:22px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line);break-after:avoid}
 table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:6px}
 th{background:var(--soft);font-weight:600;text-align:start;padding:7px 8px;border-bottom:1px solid var(--line)}
@@ -107,7 +107,7 @@ export function buildProjectReport(mode, data, { lang = 'ar', brand = {}, doneCo
   meta.push([L.ref, refNo]);
   const phases = (progress?.phases || []);
   const kpi = (k, v) => `<div class="kpi"><small>${esc(k)}</small><b>${v}</b></div>`;
-  const pctTxt = (v) => (v == null ? '—' : Math.round(v) + '%');
+  const pctTxt = (v) => (v == null ? '—' : `<span class="pct">${Math.round(v)}%</span>`);
   const netCls = totals.net < 0 ? 'neg' : 'pos';
   const kpis = mode === 'client'
     ? `<div class="kpis">${kpi(L.progress, pctTxt(progress?.percent))}${kpi(L.contract, m(totals.contract))}${kpi(L.income, m(totals.income))}${kpi(L.remaining, m(Math.max(0, totals.contract - totals.income)))}</div>`
@@ -115,7 +115,7 @@ export function buildProjectReport(mode, data, { lang = 'ar', brand = {}, doneCo
     ? `<div class="kpis">${kpi(L.contract, m(totals.contract))}${kpi(L.income, m(totals.income))}${kpi(L.expense, m(totals.expense))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}</div>`
     : `<div class="kpis">${kpi(L.progress, pctTxt(progress?.percent))}${kpi(L.collection, pctTxt(totals.collectionPct))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}${kpi(L.deliverables, String(deliverables.length))}</div>`;
   const phaseTable = phases.length ? table([L.phase, L.delivered, L.pct, L.state],
-    phases.map((ph) => `<tr><td>${esc(ph.label)}</td><td class="num">${ph.done} / ${ph.total}</td><td><div class="bar"><i style="width:${ph.total ? ph.percent : 0}%"></i></div><span class="num">${ph.total ? ph.percent + '%' : '—'}</span></td><td>${phaseState(ph, lang)}</td></tr>`), L) : '';
+    phases.map((ph) => `<tr><td>${esc(ph.label)}</td><td class="num">${ph.done} / ${ph.total}</td><td><div class="bar"><i style="width:${ph.total ? ph.percent : 0}%"></i></div><span class="num pct">${ph.total ? ph.percent + '%' : '—'}</span></td><td>${phaseState(ph, lang)}</td></tr>`), L) : '';
   const delivTable = table([L.name, L.stage, L.kind, L.due, L.approval, L.revisions, L.revisionDates, L.notes],
     deliverables.map((d) => {
       const rev = Math.max(1, Number(d.rev) || 1);
