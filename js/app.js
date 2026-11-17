@@ -13,7 +13,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.33';
+const VERSION = '3.1.34';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -71,6 +71,8 @@ const S = {
   personalExpenses: [],
   personalBudgets: [],
   meetings: [],
+  goals: [],
+  expandedGoalId: null,
   requirements: [],
   projectPanel: null,
   meetingView: 'calendar',
@@ -208,7 +210,7 @@ function onAuth(user) {
   S.unsubs.forEach((u) => u()); S.unsubs = [];
   disposeShare();
   S.user = user;
-  S.tasks = []; S.projects = []; S.deliverables = []; S.financeEntries = []; S.personalExpenses = []; S.personalBudgets = []; S.meetings = []; S.requirements = [];
+  S.tasks = []; S.projects = []; S.deliverables = []; S.financeEntries = []; S.personalExpenses = []; S.personalBudgets = []; S.meetings = []; S.goals = []; S.requirements = [];
   if (!user) { renderLogin(); return; }
   const today = D.todayISO();
   S.sel = today;
@@ -227,6 +229,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('personalExpenses', (docs) => { S.personalExpenses = docs; if (S.section === 'finance' || S.section === 'dashboard' || S.section === 'today') render(); }));
   S.unsubs.push(S.store.watch('personalBudgets', (docs) => { S.personalBudgets = docs; if (S.section === 'finance') render(); }));
   S.unsubs.push(S.store.watch('meetings', (docs) => { S.meetings = docs; if (S.section === 'meetings' || S.section === 'dashboard' || S.section === 'today') render(); }));
+  S.unsubs.push(S.store.watch('goals', (docs) => { S.goals = docs; if (S.section === 'goals') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
   S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, openItem: openShareItem }));
@@ -328,7 +331,7 @@ const NAV_ICON = { today: 'today', tasks: 'tasks', projects: 'projects', finance
 
 function sidebarData() {
   const today = D.todayISO();
-  const td = buildToday({ projects: S.projects, deliverables: S.deliverables, tasks: S.tasks, meetings: S.meetings, today });
+  const td = buildToday({ projects: S.projects, deliverables: S.deliverables, tasks: S.tasks, meetings: S.meetings, goals: S.goals, today });
   const live = S.projects.filter((p) => !p.archivedAt);
   return {
     td, live,
@@ -394,6 +397,8 @@ function sidebarHtml(sec) {
       <h3 class="sb-label">${L('السجل', 'History')}</h3>
       ${item('projects', L('آخر ما عدّلته', 'Recently edited'), 'recent', undefined, 'nav-recent')}
       ${item('projects', L('الأرشيف', 'Archive'), 'archive', d.archived, 'sb-archive')}
+      <hr class="sb-rule"><h3 class="sb-label">${L('شخصي', 'Personal')}</h3>
+      ${item('goals', L('الأهداف الشخصية', 'Personal goals'), 'target', S.goals.filter(g => Number(g.total) > goalCollected(g)).length)}
     </div>
     <div class="sb-docs">
       <div class="sb-docs-head"><h3 class="sb-label">${L('المشاريع', 'Projects')}</h3><button class="sb-plus" data-action="new-project" aria-label="${t('new_project')}">${icon('plus', 16)}</button></div>
@@ -406,7 +411,7 @@ function shell() {
   const sec = S.section;
   const rtl = dir() === 'rtl';
   const nav = navList();
-  const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : sec === 'sharing' ? L('المشاركة', 'Sharing') : t('nav_' + sec);
+  const title = sec === 'settings' ? t('settings') : sec === 'tasks' ? t('tasks_title') : sec === 'sharing' ? L('المشاركة', 'Sharing') : sec === 'goals' ? L('الأهداف الشخصية', 'Personal goals') : t('nav_' + sec);
   const subs = {
     today: D.fmt(D.todayISO(), locale(), { weekday: 'long', day: 'numeric', month: 'long' }),
     tasks: L('مهامك على مدار الأسبوع', 'Your tasks across the week'),
@@ -416,8 +421,9 @@ function shell() {
     dashboard: L('ملخص يومك ومتابعتك', 'Your day at a glance'),
     settings: L('المظهر والحساب وهوية التقارير', 'Appearance, account and report identity'),
     sharing: L('من يرى أي مشروع وما الذي يراه', 'Who sees which project, and what'),
+    goals: L('متابعة أهدافك الشخصية بعيدًا عن مشروعات العمل ومالياتها', 'Track personal goals separately from work projects and finance'),
   };
-  const content = sec === 'today' ? renderToday() : sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : sec === 'sharing' ? renderSharing() : renderTasks();
+  const content = sec === 'today' ? renderToday() : sec === 'dashboard' ? renderDashboard() : sec === 'tasks' ? renderTasks() : sec === 'settings' ? renderSettings() : sec === 'projects' ? renderProjects() : sec === 'finance' ? renderFinance() : sec === 'meetings' ? renderMeetings() : sec === 'sharing' ? renderSharing() : sec === 'goals' ? renderGoals() : renderTasks();
   const animatePage = S.animateNextRender;
   S.animateNextRender = false;
   const tabs = [['today', 'nav_today'], ['projects', 'nav_projects'], ['finance', 'nav_finance']];
@@ -629,7 +635,7 @@ function remindText(kind, id, projectId) {
 
 function openMoreSheet() {
   const row = (section, label) => `<button class="more-row" data-action="more-go" data-section="${section}">${esc(label)}${icon(dir() === 'rtl' ? 'chevL' : 'chevR', 16)}</button>`;
-  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet more-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${L('المزيد', 'More')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div>${row('tasks', t('nav_tasks'))}${row('meetings', t('nav_meetings'))}${row('dashboard', t('nav_dashboard'))}${row('sharing', L('المشاركة', 'Sharing'))}${row('settings', t('settings'))}</section></div>`;
+  $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet more-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${L('المزيد', 'More')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div>${row('tasks', t('nav_tasks'))}${row('meetings', t('nav_meetings'))}${row('dashboard', t('nav_dashboard'))}${row('sharing', L('المشاركة', 'Sharing'))}<hr class="sb-rule"><h3 class="sb-label">${L('شخصي', 'Personal')}</h3>${row('goals', L('الأهداف الشخصية', 'Personal goals'))}${row('settings', t('settings'))}</section></div>`;
 }
 
 function captureProjectOptions(selected) {
@@ -2133,6 +2139,33 @@ function importBrandLogo(file) {
   img.src = url;
 }
 
+function goalCollected(goal) {
+  return (Array.isArray(goal?.payments) ? goal.payments : []).reduce((sum, p) => sum + Math.max(0, Number(p.amount) || 0), 0);
+}
+function goalMoney(value) { return Number(value || 0).toLocaleString(locale(), { maximumFractionDigits: 2 }); }
+function goalForecast(goal) {
+  const total=Math.max(0,Number(goal.total)||0),collected=goalCollected(goal),remaining=Math.max(0,total-collected);
+  const payments=(Array.isArray(goal.payments)?goal.payments:[]).filter(p=>Number(p.amount)>0 && /^\d{4}-\d{2}-\d{2}$/.test(p.date||'')).sort((a,b)=>a.date.localeCompare(b.date));
+  let forecast='';
+  if(remaining>0 && payments.length){const first=new Date(payments[0].date+'T00:00:00Z'),now=new Date(D.todayISO()+'T00:00:00Z'),days=Math.max(1,Math.ceil((now-first)/86400000)+1),daily=collected/days;if(daily>0){const finish=new Date(now.getTime()+Math.ceil(remaining/daily)*86400000);forecast=L('بالمعدل ده هتخلّص في ','At this pace, you may finish in ')+finish.toLocaleDateString(locale(),{month:'long',year:'numeric'});}}
+  let targetNeed='';
+  if(remaining>0&&goal.targetDate){const now=new Date(D.todayISO()+'T00:00:00Z'),target=new Date(goal.targetDate+'T00:00:00Z'),days=Math.max(1,Math.ceil((target-now)/86400000)),weekly=remaining/(days/7),monthly=remaining/(days/30.4375);targetNeed=days<=45?L('محتاج ','Need ')+goalMoney(weekly)+L(' في الأسبوع للوصول للموعد المستهدف',' per week to meet your target date'):L('محتاج ','Need ')+goalMoney(monthly)+L(' في الشهر للوصول للموعد المستهدف',' per month to meet your target date');}
+  return {total,collected,remaining,percent:total>0?Math.min(100,collected/total*100):0,forecast,targetNeed};
+}
+function renderGoals() {
+  const active=S.goals.filter(g=>goalCollected(g)<Math.max(0,Number(g.total)||0));
+  const sorted=[...S.goals].sort((a,b)=>(Number(goalCollected(b)>=Number(b.total))-Number(goalCollected(a)>=Number(a.total)))||Number(b.updatedAt||0)-Number(a.updatedAt||0));
+  const rows=sorted.map(goal=>{
+    const f=goalForecast(goal),open=S.expandedGoalId===goal.id,phases=Array.isArray(goal.phases)?goal.phases:[],payments=Array.isArray(goal.payments)?[...goal.payments].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))):[];
+    return `<article class="goal-card ${open?'expanded':''}"><div class="goal-line"><button class="goal-main" data-action="goal-expand" data-id="${esc(goal.id)}" aria-expanded="${open}"><strong>${esc(goal.name)}</strong><span class="goal-progress"><i style="width:${f.percent.toFixed(2)}%"></i></span><small>${L('جمعت','Collected')} ${goalMoney(f.collected)} ${L('من','of')} ${goalMoney(f.total)} · ${L('فاضل','Remaining')} ${goalMoney(f.remaining)}</small></button><button class="btn icon-btn goal-add-payment" data-action="goal-payment-open" data-id="${esc(goal.id)}" aria-label="${L('إضافة دفعة','Add payment')}">${icon('plus',18)}</button></div>
+      ${open?`<div class="goal-details"><form class="goal-edit-form" data-action="save-goal-details" data-id="${esc(goal.id)}"><label class="lab">${L('اسم الهدف','Goal name')}<input class="input" name="name" maxlength="100" required value="${esc(goal.name)}"></label><label class="lab">${L('السعر الكلي','Total amount')}<input class="input" name="total" type="number" min="0.01" step="0.01" required value="${esc(goal.total)}"></label><label class="lab">${L('التاريخ المستهدف (اختياري)','Target date (optional)')}<input class="input" name="targetDate" type="date" value="${esc(goal.targetDate||'')}"></label><button class="btn sm" type="submit">${L('حفظ التعديلات','Save changes')}</button></form>
+      <div class="goal-detail-grid"><section><h3>${L('المراحل','Milestones')}</h3>${phases.length?phases.map((p,i)=>`<label class="goal-phase"><input type="checkbox" data-action="goal-phase-toggle" data-id="${esc(goal.id)}" data-index="${i}" ${p.done?'checked':''}><span class="${p.done?'done':''}">${esc(p.name)}</span><button type="button" class="text-action" data-action="goal-phase-delete" data-id="${esc(goal.id)}" data-index="${i}">${L('حذف','Delete')}</button></label>`).join(''):`<p class="muted">${L('لا توجد مراحل — الهدف يعمل بشكل طبيعي بدونها.','No milestones — the goal works normally without them.')}</p>`}<form class="goal-inline-form" data-action="add-goal-phase" data-id="${esc(goal.id)}"><input class="input" name="phase" maxlength="80" placeholder="${L('اسم مرحلة جديدة','New milestone name')}" required><button class="btn sm" type="submit">${L('إضافة','Add')}</button></form></section>
+      <section><h3>${L('الدفعات','Payments')}</h3>${payments.length?payments.map(p=>`<form class="goal-payment goal-payment-form" data-action="edit-goal-payment" data-id="${esc(goal.id)}" data-payment="${esc(p.id)}"><input class="input" name="amount" type="number" min="0.01" step="0.01" value="${esc(p.amount)}" required aria-label="${L('المبلغ','Amount')}"><input class="input" name="date" type="date" value="${esc(p.date||D.todayISO())}" required aria-label="${L('التاريخ','Date')}"><button class="text-action" type="submit">${L('حفظ','Save')}</button><button class="text-action" type="button" data-action="goal-payment-delete" data-id="${esc(goal.id)}" data-payment="${esc(p.id)}">${L('حذف','Delete')}</button></form>`).join(''):`<p class="muted">${L('لم تسجل أي دفعات بعد.','No payments recorded yet.')}</p>`}<form class="goal-inline-form" data-action="add-goal-payment" data-id="${esc(goal.id)}"><input class="input" name="amount" type="number" min="0.01" step="0.01" placeholder="${L('المبلغ','Amount')}" required><input class="input" name="date" type="date" value="${D.todayISO()}" required><button class="btn sm" type="submit">${L('تسجيل الدفعة','Add payment')}</button></form></section></div>
+      ${f.forecast?`<p class="goal-insight">${esc(f.forecast)}</p>`:''}${f.targetNeed?`<p class="goal-insight">${esc(f.targetNeed)}</p>`:''}<div class="goal-footer"><button class="text-action danger" data-action="goal-delete" data-id="${esc(goal.id)}">${L('حذف الهدف','Delete goal')}</button></div></div>`:''}</article>`;
+  }).join('');
+  return `<section class="goals-page"><div class="goals-head"><p class="muted">${L('مساحة خاصة بأهدافك، منفصلة عن مشروعات العمل والماليات.','A private space for personal goals, separate from work projects and finance.')}</p></div>${active.length>4?`<p class="goal-soft-warning">${L('عندك أكتر من ٤ أهداف نشطة. حاول تركز على الأهم.','You have more than 4 active goals. Consider focusing on the most important ones.')}</p>`:''}<form class="goal-create" data-action="save-goal"><label class="lab">${L('اسم الهدف','Goal name')}<input class="input" name="name" maxlength="100" placeholder="${L('مثلاً: شراء لابتوب','e.g. Buy a laptop')}" required></label><label class="lab">${L('السعر الكلي','Total amount')}<input class="input" name="total" type="number" min="0.01" step="0.01" placeholder="0" required></label><button class="btn primary" type="submit">${L('إضافة هدف','Add goal')}</button></form><div class="goals-list">${rows||`<div class="empty">${L('لسه مفيش أهداف شخصية. أضف أول هدف.','No personal goals yet. Add your first goal.')}</div>`}</div></section>`;
+}
+
 function renderSettings() {
   const th = S.settings.theme;
   const sc = shownColors(th);
@@ -2328,7 +2361,7 @@ async function importData(file) {
     return;
   }
 
-  const collections = ['projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets', 'meetings'];
+  const collections = ['projects', 'deliverables', 'financeEntries', 'personalExpenses', 'personalBudgets', 'meetings', 'goals'];
   if (!data || data.app !== 'weeklyplanner' || !Array.isArray(data.tasks) ||
       collections.some((key) => data[key] !== undefined && !Array.isArray(data[key])) ||
       (data.settings !== undefined && (!data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)))) {
@@ -2581,6 +2614,12 @@ async function onClick(e) {
       render(); break;
     }
     case 'sb-group': { const id = el.dataset.id; if (S.sbClosed.has(id)) S.sbClosed.delete(id); else S.sbClosed.add(id); try { localStorage.setItem('wp1:sb-closed', JSON.stringify([...S.sbClosed])); } catch {} el.closest('.sb-group')?.classList.toggle('closed', S.sbClosed.has(id)); el.setAttribute('aria-expanded', String(!S.sbClosed.has(id))); const ic = el.querySelector('.ic'); if (ic) { ic.classList.remove('ph-folder', 'ph-folder-open'); ic.classList.add(S.sbClosed.has(id) ? 'ph-folder' : 'ph-folder-open'); } break; }
+    case 'goal-expand': S.expandedGoalId=S.expandedGoalId===el.dataset.id?null:el.dataset.id; render(); break;
+    case 'goal-payment-open': S.expandedGoalId=el.dataset.id; render(); setTimeout(()=>document.querySelector('.goal-inline-form[data-action="add-goal-payment"] input[name="amount"]')?.focus(),0); break;
+    case 'goal-payment-delete': { const g=S.goals.find(x=>x.id===el.dataset.id); if(g&&confirm(L('حذف الدفعة؟ سيتم تحديث إجمالي التجميع.','Delete this payment? The collected total will be recalculated.'))){await S.store.save('goals',{...g,payments:(g.payments||[]).filter(p=>p.id!==el.dataset.payment),updatedAt:Date.now()});} break; }
+    case 'goal-phase-toggle': { const g=S.goals.find(x=>x.id===el.dataset.id),i=Number(el.dataset.index); if(g&&g.phases?.[i]) await S.store.save('goals',{...g,phases:g.phases.map((p,n)=>n===i?{...p,done:el.checked}:p),updatedAt:Date.now()}); break; }
+    case 'goal-phase-delete': { const g=S.goals.find(x=>x.id===el.dataset.id),i=Number(el.dataset.index); if(g&&g.phases?.[i]) await S.store.save('goals',{...g,phases:g.phases.filter((p,n)=>n!==i),updatedAt:Date.now()}); break; }
+    case 'goal-delete': { if(confirm(L('حذف الهدف وكل دفعاته ومراحله؟','Delete this goal and all its payments and milestones?'))) await S.store.remove('goals',el.dataset.id); S.expandedGoalId=null; break; }
     case 'nav-status': case 'nav-recent': closeProjectPanel(true); S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.sbOpen = false; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'sb-archive': closeProjectPanel(true); S.section = 'projects'; S.showArchivedProjects = true; S.activeProjectId = null; S.sbOpen = false; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
     case 'nav-expand': S.navOpenSection=S.navOpenSection===el.dataset.section?'':el.dataset.section; if(!S.navExpanded){S.navExpanded=true;localStorage.setItem('wp1:nav-expanded','1');} render(); break;
@@ -2810,7 +2849,7 @@ async function onClick(e) {
 
 
 async function onSubmit(e) {
-const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-requirement','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting','update-meeting','add-installment','save-project-followup'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
+const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.dataset.action; if (!['save-project','add-requirement','add-deliverable','add-finance','save-personal-budget','add-personal-expense','edit-personal-expense','auth-email','save-meeting','update-meeting','add-installment','save-project-followup','save-goal','save-goal-details','add-goal-payment','add-goal-phase','edit-goal-payment'].includes(a)) return; e.preventDefault(); if (!el.reportValidity()) return; const submitBtn=el.querySelector('[type=submit]'); if(submitBtn?.disabled)return; if(submitBtn){submitBtn.disabled=true;submitBtn.dataset.oldText=submitBtn.textContent;submitBtn.textContent='جارٍ الحفظ…';} try {
     if (a === 'auth-email') { const email=$('#auth-email').value.trim(), password=$('#auth-password').value; if(S.authMode==='signup') await S.store.signUpEmail(email,password); else await S.store.signInEmail(email,password); toast(S.authMode==='signup'?'تم إنشاء الحساب.':'تم تسجيل الدخول.'); }
     else if (a === 'save-project') { const old=S.projects.find(x=>x.id===el.dataset.id); const p={ id:old?.id||uid(), name:$('#p-name').value.trim(), type:$('#p-type').value, status:$('#p-status').value, client:$('#p-client').value.trim(), location:$('#p-location').value.trim(), contractValue:Number($('#p-contract').value)||0, revisionsIncluded:($('#p-revs')?.value===''||!$('#p-revs'))?(old?.revisionsIncluded??null):Math.max(0,Math.floor(Number($('#p-revs').value)||0)), startDate:$('#p-start').value||null, endDate:$('#p-end').value||null, notes:$('#p-notes').value.trim(), workScope:[...el.querySelectorAll('[name="p-scope"]:checked')].map(x=>x.value), archivedAt:old?.archivedAt||null, installments:Array.isArray(old?.installments)?old.installments:[], followUpDate:old?.followUpDate||null, followUpNote:old?.followUpNote||'', createdAt:old?.createdAt||Date.now(), updatedAt:Date.now() }; const duplicate=S.projects.find(x=>x.id!==p.id&&x.name.trim().toLocaleLowerCase()===p.name.trim().toLocaleLowerCase());
       if(duplicate) {
@@ -2856,6 +2895,11 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
       if(autoProcess){try{await transcribeMeetingAudio(savedMeeting.id);await generateMeetingMinutes(savedMeeting.id);}catch(processError){toast('تم حفظ الاجتماع والتسجيل، لكن تعذر إكمال التفريغ أو إعداد المحضر: '+(processError.message||processError));}}
     }
+    else if (a === 'save-goal') { const name=el.elements.name.value.trim(),total=Number(el.elements.total.value); if(!name||!Number.isFinite(total)||total<=0)throw new Error(L('أدخل اسمًا وسعرًا صحيحًا.','Enter a valid name and total amount.')); const goal={id:uid(),name,total,payments:[],phases:[],targetDate:null,createdAt:Date.now(),updatedAt:Date.now()}; await S.store.save('goals',goal); S.expandedGoalId=goal.id; el.reset(); toast(L('تمت إضافة الهدف.','Goal added.')); render(); }
+    else if (a === 'save-goal-details') { const old=S.goals.find(g=>g.id===el.dataset.id); if(!old)throw new Error(L('الهدف غير موجود.','Goal not found.')); const name=el.elements.name.value.trim(),total=Number(el.elements.total.value); if(!name||!Number.isFinite(total)||total<=0)throw new Error(L('أدخل اسمًا وسعرًا صحيحًا.','Enter a valid name and total amount.')); await S.store.save('goals',{...old,name,total,targetDate:el.elements.targetDate.value||null,updatedAt:Date.now()}); toast(L('تم تحديث الهدف.','Goal updated.')); }
+    else if (a === 'add-goal-payment') { const g=S.goals.find(x=>x.id===el.dataset.id),amount=Number(el.elements.amount.value),date=el.elements.date.value||D.todayISO(); if(!g||!Number.isFinite(amount)||amount<=0)throw new Error(L('أدخل مبلغ دفعة صحيحًا.','Enter a valid payment amount.')); await S.store.save('goals',{...g,payments:[...(g.payments||[]),{id:uid(),amount,date,createdAt:Date.now()}],updatedAt:Date.now()}); S.expandedGoalId=g.id; toast(L('تم تسجيل الدفعة.','Payment recorded.')); render(); }
+    else if (a === 'add-goal-phase') { const g=S.goals.find(x=>x.id===el.dataset.id),name=el.elements.phase.value.trim(); if(!g||!name)throw new Error(L('اكتب اسم المرحلة.','Enter a milestone name.')); await S.store.save('goals',{...g,phases:[...(g.phases||[]),{id:uid(),name,done:false}],updatedAt:Date.now()}); S.expandedGoalId=g.id; render(); }
+    else if (a === 'edit-goal-payment') { const g=S.goals.find(x=>x.id===el.dataset.id),amount=Number(el.elements.amount.value),date=el.elements.date.value; if(!g||!Number.isFinite(amount)||amount<=0||!date)throw new Error(L('راجع مبلغ وتاريخ الدفعة.','Check the payment amount and date.')); await S.store.save('goals',{...g,payments:(g.payments||[]).map(p=>p.id===el.dataset.payment?{...p,amount,date,updatedAt:Date.now()}:p),updatedAt:Date.now()}); toast(L('تم تعديل الدفعة.','Payment updated.')); }
     else if (a === 'save-personal-budget') { const amount=Number($('#personal-budget').value); if(amount<0||!Number.isFinite(amount)) throw new Error('أدخل ميزانية صحيحة'); const month=S.expenseMonth; await S.store.save('personalBudgets',{id:month,amount,updatedAt:Date.now()}); toast('تم حفظ الميزانية.'); }
     else if (a === 'add-installment') { const project=S.projects.find(x=>x.id===el.dataset.id);if(!project)throw new Error('المشروع غير موجود.');const amount=Number($('#installment-amount').value),title=$('#installment-title').value.trim();if(!title||!Number.isFinite(amount)||amount<=0)throw new Error('أدخل اسم الدفعة ومبلغًا صحيحًا.');const installment={id:uid(),title,amount,dueDate:$('#installment-date').value||null,status:'pending',createdAt:Date.now()};const updated={...project,installments:[...(Array.isArray(project.installments)?project.installments:[]),installment],updatedAt:Date.now()};await S.store.save('projects',updated);S.projects=S.projects.map(x=>x.id===updated.id?updated:x);el.reset();render();toast('تمت إضافة الدفعة.'); }
     else if (a === 'save-project-followup') { const project=S.projects.find(x=>x.id===el.dataset.id);if(!project)throw new Error('المشروع غير موجود.');const updated={...project,followUpDate:$('#follow-up-date').value||null,followUpNote:$('#follow-up-note').value.trim(),updatedAt:Date.now()};await S.store.save('projects',updated);S.projects=S.projects.map(x=>x.id===updated.id?updated:x);render();toast('تم حفظ متابعة العميل.'); }
