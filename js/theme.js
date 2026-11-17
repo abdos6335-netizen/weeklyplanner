@@ -114,6 +114,7 @@ export const DEFAULT_THEME = {
   icons: 'plain',          // Phosphor icons بدون خلفية أو إطار
   font: 'ibm',
   scale: 100,              // 90..120
+  done: 'green',            // green | orange — لون الإنجاز مستقل عن لون التمييز
 };
 
 const DEFAULT_BG = { light: '#f6f4ef', dark: '#1c1d21' };
@@ -125,6 +126,7 @@ export function mergeTheme(input) {
     for (const k of ['mode', 'scale', 'font']) if (input[k] !== undefined) saved[k] = input[k];
   }
   const t = { ...DEFAULT_THEME, ...(saved || {}), v: 7 };
+  t.done = t.done === 'orange' ? 'orange' : 'green';
   t.bg = { ...DEFAULT_THEME.bg, ...((saved && saved.bg) || {}) };
   t.text = { ...DEFAULT_THEME.text, ...((saved && saved.text) || {}) };
   return t;
@@ -230,6 +232,8 @@ export function buildVars(theme) {
     : 'inset 0 2px 5px rgba(24,24,32,.10), inset 0 -1px 0 rgba(255,255,255,.65)';
   const good = dark ? '#5fd3a0' : '#23895f';
   const goodSoft = dark ? 'rgba(95,211,160,.16)' : 'rgba(47,158,114,.16)';
+  const done = theme.done === 'orange' ? (dark ? '#f0a35c' : '#e58a32') : good;
+  const doneSoft = theme.done === 'orange' ? (dark ? 'rgba(240,163,92,.17)' : 'rgba(229,138,50,.16)') : goodSoft;
 
   const glow1 = `hsl(${ah} ${Math.round(70 * k)}% ${dark ? 32 : 78}% / ${dark ? 0.45 : 0.55})`;
   const glow2 = `hsl(${(ah + 55) % 360} ${Math.round(65 * k)}% ${dark ? 30 : 82}% / ${dark ? 0.35 : 0.45})`;
@@ -280,9 +284,11 @@ export function buildVars(theme) {
       '--inset': inset,
       '--good': good,
       '--good-soft': goodSoft,
+      '--done': done,
+      '--done-soft': doneSoft,
       '--line': mix(bg, text, dark ? 0.14 : 0.12),
   };
-  return { dark, mode, vars: { ...out, ...generic, ...(glassSet || {}) } };
+  return { dark, mode, vars: { ...out, ...generic, ...(glassSet || {}), '--done': done, '--done-soft': doneSoft } };
 }
 
 export function applyTheme(rawTheme) {
