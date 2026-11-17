@@ -2848,7 +2848,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       let savedMeeting=meeting;
       if(S.pendingMeetingAudio){await saveMeetingAudio(meeting.id,S.pendingMeetingAudio);S.pendingMeetingAudio=null;savedMeeting={...meeting,hasAudio:true,updatedAt:Date.now()};await S.store.save('meetings',savedMeeting);}
       S.meetings=[...S.meetings.filter(m=>m.id!==savedMeeting.id),savedMeeting];
-      const autoProcess=S.autoProcessMeetingAfterSave || !!(S.nativeMeetingFileName || S.pendingMeetingAudio);S.autoProcessMeetingAfterSave=false;
+      const autoProcess=S.autoProcessMeetingAfterSave || !!savedMeeting.hasAudio;S.autoProcessMeetingAfterSave=false;
       S.nativeMeetingDraftId=null; S.nativeMeetingFileName=null;
       toast(`تم حفظ Meeting ${String(sequence).padStart(2,'0')} في مشروع ${project.name}.`);
       el.reset(); $('#meeting-date').value=D.todayISO(); render();
