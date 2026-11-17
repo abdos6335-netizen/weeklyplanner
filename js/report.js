@@ -60,7 +60,7 @@ td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;text-a
 .bar{height:6px;background:#e8e6e1;border-radius:3px;overflow:hidden;min-width:70px}.bar i{display:block;height:100%;background:var(--acc)}
 .pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:10.5px;background:var(--soft);border:1px solid var(--line);white-space:nowrap}
 .pill.ok{background:#e6f3ec;border-color:#bfe0cf;color:#1d6a47}.pill.wait{background:#fff4dd;border-color:#f0dba6;color:#8a6212}.pill.bad{background:#fde9e6;border-color:#f3c3bc;color:#a23b2d}
-.empty{color:var(--mut)}.num{font-variant-numeric:tabular-nums;white-space:nowrap}.pos{color:#1d6a47}.neg{color:#a23b2d}
+.empty{color:var(--mut)}.num{font-variant-numeric:tabular-nums;white-space:nowrap}.pos{color:#1d6a47}.neg{color:#a23b2d}.rev-high{color:var(--acc);font-weight:600}
 .note{white-space:pre-wrap;background:var(--soft);border-radius:8px;padding:10px 12px}
 footer.rf{margin-top:28px;border-top:1px solid var(--line);padding-top:8px;font-size:10.5px;color:var(--mut)}
 footer.rf .links{display:flex;flex-wrap:wrap;gap:4px 16px;margin-bottom:4px}
