@@ -402,3 +402,27 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
 .sb-dots i:nth-child(1) { background: radial-gradient(circle at 40% 35%, #f6b8c4 0%, #e38ba0 70%, #cf7088 100%); }
 .sb-dots i:nth-child(2) { background: radial-gradient(circle at 40% 35%, #f6e2a0 0%, #e6c26c 70%, #cfa650 100%); }
 .sb-dots i:nth-child(3) { background: radial-gradient(circle at 40% 35%, #bdeed8 0%, #86d6b0 70%, #62bd93 100%); }
+
+
+/* v6.3 — التسجيل الصوتي اليدوي: مؤشر نابض لا يوقف التسجيل تلقائيًا */
+.cap-mic, .voice-controls [data-action="voice-start"], .voice-fab { position: relative; isolation: isolate; }
+.cap-mic.is-recording, .voice-controls [data-action="voice-start"].is-recording,
+.voice-fab.is-recording {
+  background: color-mix(in srgb, var(--text) 12%, var(--panel)) !important;
+  color: color-mix(in srgb, var(--text) 72%, var(--panel)) !important;
+  border-color: color-mix(in srgb, var(--text) 28%, transparent) !important;
+}
+.cap-mic.is-recording::after, .voice-controls [data-action="voice-start"].is-recording::after,
+.voice-fab.is-recording::after {
+  content: ''; position: absolute; inset: -5px; z-index: -1; border-radius: inherit;
+  border: 1.5px solid color-mix(in srgb, var(--text) 42%, transparent);
+  pointer-events: none; animation: wp-voice-pulse 1.35s ease-out infinite;
+}
+@keyframes wp-voice-pulse {
+  0% { transform: scale(1); opacity: .55; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cap-mic.is-recording::after, .voice-controls [data-action="voice-start"].is-recording::after,
+  .voice-fab.is-recording::after { animation: none; transform: scale(1); opacity: .35; }
+}

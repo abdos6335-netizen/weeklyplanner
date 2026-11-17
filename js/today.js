@@ -17,6 +17,19 @@ function tokens(s) {
   return normAr(s).split(' ').map((w) => w.replace(/^ال/, '')).filter((w) => w.length > 2 && !STOP.has(w));
 }
 
+// عنوان موجز للمهام الطويلة. لا يغيّر النصوص القصيرة ولا يعتمد على الإنترنت.
+const TITLE_FILLER = new Set(['عايز','عايزين','محتاج','محتاجه','محتاجين','لو','سمحت','من','فضلك','مطلوب','يرجى','برجاء','عاوز','عاوزين','please','kindly','need','want','would','could','can','you','the','a','an','to','for','and','with']);
+export function shortTitle(text) {
+  const clean = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (!clean || clean.split(/\s+/u).length <= 3) return clean;
+  const words = clean.split(/\s+/u);
+  const meaningful = words.filter((word) => !TITLE_FILLER.has(normAr(word)));
+  const source = meaningful.length ? meaningful : words;
+  const picked = source.slice(0, 5);
+  const title = picked.join(' ');
+  return title !== clean ? title.replace(/[.…]+$/u, '') + '…' : title;
+}
+
 // ---------------------------------------------------------------- الأرقام والمبالغ
 const UNITS = {
   واحد: 1, اتنين: 2, اثنين: 2, تلاته: 3, ثلاثه: 3, اربعه: 4, اربع: 4, خمسه: 5, خمس: 5, سته: 6, ست: 6, سبعه: 7, سبع: 7, تمانيه: 8, ثمانيه: 8, تمن: 8, تسعه: 9, تسع: 9, عشره: 10, عشر: 10,

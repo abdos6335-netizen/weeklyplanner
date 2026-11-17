@@ -4,7 +4,7 @@ import { t, setLang, lang, dir, locale } from './i18n.js';
 import { translateText } from './i18n-en.js';
 import { buildProjectReport, buildDocument, reportShell, esc as rEsc } from './report.js';
 import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
-import { buildToday, parseCaptureActions, revisionState, ACTION_KIND } from './today.js';
+import { buildToday, parseCaptureActions, revisionState, ACTION_KIND, shortTitle } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
 import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount } from './share.js';
@@ -77,6 +77,9 @@ const S = {
   meetingWeek: null,
   activeMeetingProjectId: null,
   meetingRecognition: null,
+  voiceRecognition: null,
+  voiceRecording: false,
+  voiceAutoAnalyze: false,
   nativeMeetingRecording: false,
   nativeMeetingDraftId: null,
   nativeMeetingFileName: null,
@@ -638,7 +641,7 @@ function openCaptureSheet(projectId, keepText = '') {
   S.capture = { projectId: pid, text: keepText, actions: [] };
   $('#layer').innerHTML = `<div class="overlay" data-action="overlay"><section class="sheet capture-sheet glass" role="dialog" aria-modal="true" aria-label="${L('تسجيل سريع', 'Quick capture')}">
     <div class="cap-handle"></div>
-    <div class="cap-hero"><button class="cap-mic" data-action="voice-start" aria-label="${L('ابدأ التسجيل', 'Start recording')}">${icon('mic', 34)}</button><strong>${L('اضغط وتكلّم', 'Tap and speak')}</strong><small id="voice-status" class="muted" aria-live="polite">${L('قول اللي حصل بالعامية، والتطبيق يوزّعه على المشروع.', 'Say what happened; the app routes it into the project.')}</small></div>
+    <div class="cap-hero"><button class="cap-mic" data-action="voice-start" aria-pressed="false" aria-label="${L('ابدأ التسجيل', 'Start recording')}">${icon('mic', 34)}</button><strong>${L('اضغط وتكلّم', 'Tap and speak')}</strong><small id="voice-status" class="muted" aria-live="polite">${L('قول اللي حصل بالعامية، والتطبيق يوزّعه على المشروع.', 'Say what happened; the app routes it into the project.')}</small></div>
     <label class="lab" for="voice-text">${L('أو اكتب / الصق رسالة', 'Or type / paste a message')}</label>
     <textarea class="input textarea" id="voice-text" rows="3">${esc(keepText)}</textarea>
     <div class="cap-row"><label class="lab" for="cap-project">${L('المشروع', 'Project')}</label><select class="input compact" id="cap-project">${captureProjectOptions(pid)}</select></div>
@@ -666,6 +669,14 @@ function captureActionHtml(a, project) {
     <button class="cap-btn ok" data-action="capture-toggle" data-id="${a.id}" data-on="1" aria-label="${L('قبول', 'Accept')}" aria-pressed="${a.on}">${icon('check', 22)}</button></li>`;
 }
 
+function analyzeCaptureText() {
+  const text = $('#voice-text')?.value.trim(), pid = $('#cap-project')?.value;
+  if (!text) { toast(t('voice_empty')); return; }
+  const project = S.projects.find((x) => x.id === pid);
+  if (!project) { toast(L('اختر مشروعًا أولًا.', 'Pick a project first.')); return; }
+  S.capture = { projectId: pid, text, actions: parseCaptureActions(text, { project, deliverables: S.deliverables }).map((a) => ({ ...a, on: a.kind !== 'payment' })) };
+  renderCaptureReview();
+}
 function renderCaptureReview() {
   const c = S.capture; if (!c) return;
   const project = S.projects.find((p) => p.id === c.projectId);
@@ -1450,7 +1461,7 @@ async function waSave() {
 
 function openVoiceSheet() {
   const options=S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start">${icon('mic',20)} ${t('start_recording')}</button><select class="input compact" id="voice-language" aria-label="لغة التسجيل"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
+  $('#layer').innerHTML=`<div class="overlay" data-action="overlay"><section class="sheet voice-sheet glass" role="dialog" aria-modal="true"><div class="sheet-head"><h2>${t('voice_entry')}</h2><button class="btn icon-btn" data-action="close-voice" aria-label="${t('cancel')}">×</button></div><p class="muted">${t('voice_help')}</p><div class="voice-controls"><button class="btn primary" data-action="voice-start" aria-pressed="false" aria-label="${L('ابدأ التسجيل', 'Start recording')}">${icon('mic',20)} ${t('start_recording')}</button><select class="input compact" id="voice-language" aria-label="لغة التسجيل"><option value="ar-EG">العربية</option><option value="en-US">English</option></select><span id="voice-status" class="muted">${t('voice_ready')}</span></div><label class="lab" for="voice-text">${t('transcript')}</label><textarea class="input textarea" id="voice-text" rows="4" placeholder="${t('voice_placeholder')}"></textarea><p id="voice-understanding" class="muted" aria-live="polite">سيحلل التطبيق كلامك ويعرض العملية المقترحة قبل تنفيذ العمليات الحساسة.</p><label class="lab" for="voice-target">${t('save_as')}</label><select class="input" id="voice-target"><option value="auto">اكتشاف نوع الأمر تلقائيًا</option><option value="task">${t('voice_task')}</option><option value="finance">${t('voice_finance')}</option><option value="project">إنشاء مشروع</option><option value="deliverable">تحديث تسليم أو اعتماد</option><option value="report">إعداد تقرير</option></select><div id="voice-finance-fields" hidden><label class="lab" for="voice-project">${t('project')}</label><select class="input" id="voice-project"><option value="">${t('choose_project')}</option>${options}</select><label class="lab" for="voice-kind">${t('transaction_type')}</label><select class="input" id="voice-kind"><option value="income">${t('income')}</option><option value="expense">${t('expenses')}</option></select><label class="lab" for="voice-amount">${t('amount')}</label><input class="input" id="voice-amount" type="number" min="0.01" step="0.01" placeholder="0.00"><label class="lab" for="voice-date">${t('date')}</label><input class="input" id="voice-date" type="date" value="${D.todayISO()}"></div><div class="sheet-actions"><button class="btn" data-action="close-voice">${t('cancel')}</button><button class="btn primary" data-action="voice-save">تحليل الأمر ومتابعة</button></div></section></div>`;
 }
 
 function parseSpokenTaskDate(text){
@@ -1489,15 +1500,48 @@ function inferVoiceCommand(raw) {
   const isExpense=/مصروف|صرفت|دفعت/.test(text), kind=isExpense?'expense':'income';
   return {text,target,project,amount,date,priority,kind,low,afterMinutes:afterMinutes?Number(afterMinutes[1]||afterMinutes[2]):null};
 }
+function setVoiceRecordingUI(recording) {
+  document.querySelectorAll('[data-action="voice-start"], .voice-fab').forEach((button) => {
+    button.classList.toggle('is-recording', recording); button.setAttribute('aria-pressed', String(recording));
+    button.setAttribute('aria-label', recording ? L('إيقاف التسجيل', 'Stop recording') : L('ابدأ التسجيل', 'Start recording'));
+    if (button.classList.contains('cap-mic')) button.title = recording ? L('إيقاف التسجيل', 'Stop recording') : L('ابدأ التسجيل', 'Start recording');
+  });
+}
+function stopVoiceRecognition() {
+  if (!S.voiceRecording) return; S.voiceRecording = false;
+  const rec = S.voiceRecognition; setVoiceRecordingUI(false);
+  if (rec) { try { rec.stop(); } catch { /* انتهى التسجيل بالفعل */ } }
+  const status = $('#voice-status'); if (status) status.textContent = t('voice_done');
+}
 function startVoiceRecognition() {
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast(t('voice_unsupported'));return;}
-  const rec=new SR(); rec.lang=$('#voice-language')?.value || 'ar-EG'; rec.interimResults=true; rec.continuous=false;
-  const status=$('#voice-status'), field=$('#voice-text'); let finalText='';
-  rec.onstart=()=>{if(status)status.textContent=t('voice_listening');};
-  rec.onerror=()=>{if(status)status.textContent=t('voice_error');};
-  rec.onresult=(e)=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const txt=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=txt+' ';else interim+=txt;}if(field)field.value=(finalText+interim).trim(); const c=inferVoiceCommand(field?.value||''); const target=$('#voice-target');if(target&&target.value==='auto'){} const amt=$('#voice-amount');if(c.amount&&amt)amt.value=c.amount;const proj=$('#voice-project');if(c.project&&proj)proj.value=c.project.id;const kind=$('#voice-kind');if(kind)kind.value=c.kind;const box=$('#voice-finance-fields');if(box)box.hidden=c.target!=='finance';const msg=$('#voice-understanding');if(msg)msg.textContent=`النوع المتوقع: ${{task:'مهمة',finance:'حركة مالية (تحتاج تأكيدًا)',project:'إنشاء مشروع (يحتاج تأكيدًا)',deliverable:'تحديث تسليم/اعتماد (يحتاج تأكيدًا)',report:'تقرير'}[c.target]||'مهمة'}. ${c.project?'المشروع: '+c.project.name+'. ':''}${c.amount?'المبلغ المكتشف: '+c.amount+'. ':''}راجع البيانات قبل المتابعة.`;};
-  rec.onend=()=>{if(status)status.textContent=t('voice_done');}; rec.start();
+  if (S.voiceRecording) { stopVoiceRecognition(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast(t('voice_unsupported')); return; }
+  const rec = new SR(), status = $('#voice-status'), field = $('#voice-text');
+  let finalText = field?.value?.trim() ? field.value.trim() + ' ' : '';
+  rec.lang = $('#voice-language')?.value || 'ar-EG'; rec.interimResults = true; rec.continuous = true;
+  S.voiceRecognition = rec; S.voiceRecording = true; setVoiceRecordingUI(true);
+  rec.onstart = () => { if (status) status.textContent = t('voice_listening'); };
+  rec.onerror = (event) => { if (status) status.textContent = t('voice_error'); if (['not-allowed','service-not-allowed','audio-capture'].includes(event.error)) { S.voiceRecording = false; setVoiceRecordingUI(false); } };
+  rec.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) { const txt = event.results[i][0].transcript; if (event.results[i].isFinal) finalText += txt + ' '; else interim += txt; }
+    if (field) field.value = (finalText + interim).trim();
+    const c = inferVoiceCommand(field?.value || '');
+    const amt = $('#voice-amount'); if (c.amount && amt) amt.value = c.amount;
+    const proj = $('#voice-project'); if (c.project && proj) proj.value = c.project.id;
+    const kind = $('#voice-kind'); if (kind) kind.value = c.kind;
+    const box = $('#voice-finance-fields'); if (box) box.hidden = c.target !== 'finance';
+    const msg = $('#voice-understanding');
+    if (msg) msg.textContent = 'النوع المتوقع: ' + ({task:'مهمة',finance:'حركة مالية (تحتاج تأكيدًا)',project:'إنشاء مشروع (يحتاج تأكيدًا)',deliverable:'تحديث تسليم/اعتماد (يحتاج تأكيدًا)',report:'تقرير'}[c.target] || 'مهمة') + '. ' + (c.project ? 'المشروع: ' + c.project.name + '. ' : '') + (c.amount ? 'المبلغ المكتشف: ' + c.amount + '. ' : '') + 'راجع البيانات قبل المتابعة.';
+  };
+  rec.onend = () => {
+    if (S.voiceRecording && S.voiceRecognition === rec) { setTimeout(() => { if (!S.voiceRecording || S.voiceRecognition !== rec) return; try { rec.start(); } catch { /* إعادة تشغيل الجلسة حسب دعم المتصفح */ } }, 250); return; }
+    if (S.voiceRecognition === rec) S.voiceRecognition = null; setVoiceRecordingUI(false);
+    if (status) status.textContent = t('voice_done');
+    if (S.voiceAutoAnalyze) { S.voiceAutoAnalyze = false; analyzeCaptureText(); }
+  };
+  try { rec.start(); } catch (error) { S.voiceRecording = false; S.voiceRecognition = null; setVoiceRecordingUI(false); if (status) status.textContent = t('voice_error'); console.error(error); }
 }
 async function handleVoiceCommand(c) {
   if(c.target==='report') {
@@ -1505,8 +1549,10 @@ async function handleVoiceCommand(c) {
     const financial=/مالي|مالية|تحصيل|مصروف/.test(c.text); printProjectReport(c.project.id,financial?'finance':'status'); $('#layer').innerHTML=''; return;
   }
   if(c.target==='task') {
-    const date=c.date, title=c.text.length>90?c.text.slice(0,87)+'…':c.text;
-    const task=normalizeTask({id:uid(),title,notes:c.afterMinutes?`تنبيه/موعد بعد ${c.afterMinutes} دقيقة. ${c.text}`:c.text,date,weekRef:date,priority:c.priority,status:'todo',createdAt:Date.now(),updatedAt:Date.now(),projectId:c.project?.id||null});
+    const date = c.date;
+    const taskText = c.afterMinutes ? 'تنبيه/موعد بعد ' + c.afterMinutes + ' دقيقة. ' + c.text : c.text;
+    const prepared = prepareTaskText(c.text, taskText !== c.text ? taskText : '');
+    const task = normalizeTask({ id: uid(), title: prepared.title, notes: prepared.notes, date, weekRef: date, priority: c.priority, status: 'todo', createdAt: Date.now(), updatedAt: Date.now(), projectId: c.project?.id || null });
     return S.store.save('tasks',task).then(()=>{toast('تم حفظ المهمة.');$('#layer').innerHTML='';render();});
   }
   if(c.target==='finance') {
@@ -1989,6 +2035,14 @@ function segValue(field) {
   return b ? b.dataset.val : null;
 }
 
+function prepareTaskText(text, existingNotes = '') {
+  const original = String(text ?? '').trim(); const title = shortTitle(original);
+  const notes = title !== original && !String(existingNotes).includes(original)
+    ? [original, String(existingNotes ?? '').trim()].filter(Boolean).join('\n\n')
+    : String(existingNotes ?? '').trim();
+  return { title, notes };
+}
+
 function saveSheet() {
   const title = $('#f-title').value.trim();
   if (!title) { toast(t('title_required')); $('#f-title').focus(); return; }
@@ -1996,11 +2050,13 @@ function saveSheet() {
   const date = $('#f-date').value && D.isValidISO($('#f-date').value) ? $('#f-date').value : null;
   const status = segValue('status') || 'todo';
   const now = Date.now();
+  const originalNotes = $('#f-notes').value.trim();
+  const prepared = prev ? { title, notes: originalNotes } : prepareTaskText(title, originalNotes);
   const task = normalizeTask({
     ...(prev || {}),
     id: prev ? prev.id : uid(),
-    title,
-    notes: $('#f-notes').value.trim(),
+    title: prepared.title,
+    notes: prepared.notes,
     projectId: $('#f-project')?.value || null,
     date,
     weekRef: date || (prev && prev.weekRef) || S.week,
@@ -2548,18 +2604,12 @@ async function onClick(e) {
     case 'open-more': openMoreSheet(); break;
     case 'more-go': { $('#layer').innerHTML = ''; closeProjectPanel(true); if (el.dataset.section === 'settings') { S.prevSection = S.section; S.section = 'settings'; } else { S.section = el.dataset.section; S.navOpenSection = el.dataset.section; } S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break; }
     case 'cap-wa': { const pid = $('#cap-project')?.value; if (!pid) { toast(L('اختر مشروعًا أولًا.', 'Pick a project first.')); break; } openWhatsAppSheet(pid); break; }
-    case 'capture-analyze': {
-      const text = $('#voice-text')?.value.trim(); const pid = $('#cap-project')?.value;
-      if (!text) { toast(t('voice_empty')); break; }
-      const project = S.projects.find((x) => x.id === pid); if (!project) { toast(L('اختر مشروعًا أولًا.', 'Pick a project first.')); break; }
-      S.capture = { projectId: pid, text, actions: parseCaptureActions(text, { project, deliverables: S.deliverables }).map((a) => ({ ...a, on: a.kind !== 'payment' })) };
-      renderCaptureReview(); break;
-    }
+    case 'capture-analyze': analyzeCaptureText(); break;
     case 'capture-back': openCaptureSheet(S.capture?.projectId, S.capture?.text || ''); break;
     case 'capture-toggle': { syncCaptureInputs(); const a = S.capture?.actions.find((x) => x.id === el.dataset.id); if (a) { a.on = el.dataset.on === '1'; renderCaptureReview(); } break; }
     case 'capture-as-task': {
       const c = S.capture; if (!c) break; const today = D.todayISO();
-      try { await S.store.save('tasks', normalizeTask({ id: uid(), title: c.text.length > 90 ? c.text.slice(0, 87) + '…' : c.text, notes: c.text, date: today, weekRef: today, priority: 2, status: 'todo', projectId: c.projectId, createdAt: Date.now(), updatedAt: Date.now() })); toast(L('تم حفظ المهمة.', 'Task saved.')); $('#layer').innerHTML = ''; S.capture = null; render(); }
+      try { const prepared = prepareTaskText(c.text); await S.store.save('tasks', normalizeTask({ id: uid(), title: prepared.title, notes: prepared.notes, date: today, weekRef: today, priority: 2, status: 'todo', projectId: c.projectId, createdAt: Date.now(), updatedAt: Date.now() })); toast(L('تم حفظ المهمة.', 'Task saved.')); $('#layer').innerHTML = ''; S.capture = null; render(); }
       catch (err) { toast(t('save_failed', { msg: err.message || err })); }
       break;
     }
@@ -2579,7 +2629,7 @@ async function onClick(e) {
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener'); break;
     }
     case 'deliverable-rev': { const d = S.deliverables.find((x) => x.id === el.dataset.id); if (!d) break; S.store.save('deliverables', { ...d, rev: (Number(d.rev) || 1) + 1, status: 'pending', submittedAt: null, updatedAt: Date.now() }).then(() => { toast(L('تم فتح نسخة جديدة.', 'New version opened.')); refreshProjectPanel(); }).catch((err) => toast(t('save_failed', { msg: err.message || err }))); break; }
-    case 'voice-start': startVoiceRecognition(); break;
+    case 'voice-start': S.voiceAutoAnalyze = el.classList.contains('cap-mic'); startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
     case 'finance-view': S.financeView=v; render(); break;
     case 'show-projects': S.showArchivedProjects=v==='archived'; render(); break;
