@@ -1284,11 +1284,11 @@ function printProjectReport(id, mode) {
 }
 function printClientReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport('client', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
+  openReportWindow(buildProjectReport('client', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function printProjectFullReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
+  openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function openPrintChoice(id) {
   const p=S.projects.find(x=>x.id===id); if(!p)return;
