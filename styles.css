@@ -1483,3 +1483,10 @@ h2.td-label { font-size: var(--fs-cap); font-weight: var(--fw-med); line-height:
 
 /* Completion color picker */
 .done-color-options{display:flex;align-items:center;gap:.45rem}.done-color-choice{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--btn-ring);border-radius:999px;padding:.3rem .55rem;background:var(--surface);color:var(--text);font:inherit;font-size:.75rem;cursor:pointer}.done-color-choice i{width:12px;height:12px;border-radius:50%;display:block;background:#1f9c70}.done-color-choice.orange i{background:#e58a32}.done-color-choice[aria-pressed="true"]{border-color:var(--done);box-shadow:0 0 0 2px var(--done-soft)}.done-color-row{align-items:center}
+
+/* All completion/progress indicators share the selected semantic color. */
+html body .shell main .project-progress-track span{background:var(--done)!important}
+html body .shell main .project-phase-percent,html body .shell main .project-category-percent,html body .shell main .panel-percent,html body .shell main .project-progress-overall strong{color:var(--done)!important}
+html body .shell main .finance-ring>span,html body .shell main .fin-ring span{color:var(--done)}
+html body .shell main .finance-ring.loss>span,html body .shell main .fin-ring.loss span{color:#d45b52}
+html body .shell main .ratio-visual b{color:var(--ratio-color,var(--done))}
