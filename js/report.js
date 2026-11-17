@@ -57,10 +57,10 @@ h2{font-size:14px;font-weight:600;margin:22px 0 8px;padding-bottom:5px;border-bo
 table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:6px}
 th{background:var(--soft);font-weight:600;text-align:start;padding:7px 8px;border-bottom:1px solid var(--line)}
 td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;text-align:start;overflow-wrap:anywhere}tr{break-inside:avoid}
-.bar{height:6px;background:#e8e6e1;border-radius:3px;overflow:hidden;min-width:70px}.bar i{display:block;height:100%;background:var(--acc)}
+.bar{height:6px;background:#e8e6e1;border-radius:3px;overflow:hidden;min-width:70px}.bar i{display:block;height:100%;background:var(--done)}
 .pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:10.5px;background:var(--soft);border:1px solid var(--line);white-space:nowrap}
 .pill.ok{background:#e6f3ec;border-color:#bfe0cf;color:#1d6a47}.pill.wait{background:#fff4dd;border-color:#f0dba6;color:#8a6212}.pill.bad{background:#fde9e6;border-color:#f3c3bc;color:#a23b2d}
-.empty{color:var(--mut)}.num{font-variant-numeric:tabular-nums;white-space:nowrap}.pos{color:#1d6a47}.neg{color:#a23b2d}.rev-high{color:var(--acc);font-weight:600}
+.empty{color:var(--mut)}.num{font-variant-numeric:tabular-nums;white-space:nowrap}.pos{color:#1d6a47}.neg{color:#a23b2d}.rev-high{color:var(--done);font-weight:600}
 .note{white-space:pre-wrap;background:var(--soft);border-radius:8px;padding:10px 12px}
 footer.rf{margin-top:28px;border-top:1px solid var(--line);padding-top:8px;font-size:10.5px;color:var(--mut)}
 footer.rf .links{display:flex;flex-wrap:wrap;gap:4px 16px;margin-bottom:4px}
@@ -70,13 +70,14 @@ footer.rf a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--
 @media (max-width:760px){.sheet{width:auto;margin:0;padding:14px 14px 80px}.meta{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}header.rh{flex-direction:column;align-items:flex-start}.doc-title{text-align:start}}
 `;
 
-export function reportShell({ lang = 'ar', title, subtitle = '', brand = {}, meta = [], body = '' }) {
+export function reportShell({ lang = 'ar', title, subtitle = '', brand = {}, meta = [], body = '', doneColor = '#1f9c70' }) {
   const L = T[lang] || T.ar; const logo = logoSrc(brand); const links = brandLinks(brand);
+  const safeDoneColor = /^#[0-9a-f]{6}$/i.test(String(doneColor)) ? doneColor : '#1f9c70';
   const metaHtml = meta.length ? `<section class="meta">${meta.map(([k, v]) => `<div><small>${esc(k)}</small><b>${esc(v || '—')}</b></div>`).join('')}</section>` : '';
   const linkHtml = links.map((l) => `<a href="${esc(l.href)}" target="_blank" rel="noopener noreferrer"><b>${esc(l.label)}</b>${esc(l.text)}</a>`).join('');
   const addr = String(brand.address || '').trim();
   return `<!doctype html><html lang="${lang}" dir="${L.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}${subtitle ? ' — ' + esc(subtitle) : ''}</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap"><style>${CSS}</style></head><body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap"><style>${CSS}:root{--done:${safeDoneColor}}</style></head><body>
 <div class="toolbar"><button onclick="window.print()">${esc(L.print)}</button></div>
 <main class="sheet"><table class="pg"><tbody><tr><td><header class="rh"><div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}<div>${brand.name ? `<b>${esc(brand.name)}</b>` : ''}${brand.tagline ? `<small>${esc(brand.tagline)}</small>` : ''}</div></div>
 <div class="doc-title"><h1>${esc(title)}</h1><span>${esc(subtitle)}</span></div></header>
@@ -96,7 +97,7 @@ const approvalPill = (code, label) => pillFor({ approved: 'ok', submitted: 'ok',
 
 /** data: { project:{name,client,typeLabel,statusLabel,location,scopeLabel,notes,contract}, progress:{phases,percent}, totals:{income,expense,net,collectionPct,contract},
  *   deliverables:[{name,stageLabel,kindLabel,due,status,statusLabel,notes}], finance:[{date,category,kind,amount,description}], requirements:[{text,source,date,statusLabel}], money:fn } */
-export function buildProjectReport(mode, data, { lang = 'ar', brand = {} } = {}) {
+export function buildProjectReport(mode, data, { lang = 'ar', brand = {}, doneColor = '#1f9c70' } = {}) {
   const L = T[lang] || T.ar; const { project: p, progress, totals, deliverables = [], finance = [], requirements = [], money, installments = [], meetings = [] } = data;
   const cur = L.currency; const m = (n) => `${money(n)} ${cur}`;
   const date = new Date().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -137,7 +138,7 @@ export function buildProjectReport(mode, data, { lang = 'ar', brand = {} } = {})
   else if (mode === 'status') body += (phases.length ? `<h2>${esc(L.phases)}</h2>${phaseTable}` : '') + `<h2>${esc(L.deliverables)}</h2>${delivTable}${notes}`;
   else body += (phases.length ? `<h2>${esc(L.phases)}</h2>${phaseTable}` : '') + `<h2>${esc(L.requirements)}</h2>${reqTable}<h2>${esc(L.deliverables)}</h2>${delivTable}<h2>${esc(L.finance)}</h2>${finSummary}${finTable}${instTable}${meetTable}${notes}`;
   const title = mode === 'client' ? L.client : mode === 'finance' ? L.fin : mode === 'status' ? L.st : L.full;
-  return reportShell({ lang, title, subtitle: p.name, brand, meta, body });
+  return reportShell({ lang, title, subtitle: p.name, brand, meta, body, doneColor });
 }
 export const reportLabels = T;
 
