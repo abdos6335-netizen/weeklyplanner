@@ -142,7 +142,7 @@ async function runSync(me) {
         else await fs.deleteDoc(ref);
       }
 
-      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, updatedAt: now });
+      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, doneColor: typeof me.doneColor === 'function' ? me.doneColor() : '#1f9c70', updatedAt: now });
       else if (plan.meta.op === 'delete') await fs.deleteDoc(shareRef);
 
       const published = { ...(cfg.published || {}), access: { ...((cfg.published && cfg.published.access) || {}) } };
