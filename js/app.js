@@ -7,7 +7,7 @@ import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport,
 import { buildToday, parseCaptureActions, revisionState, revLabel, revisionHistory, ACTION_KIND, shortTitle } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
-import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount } from './share.js';
+import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount, updateShareThemeColor } from './share.js';
 import {
   applyTheme, mergeTheme, DEFAULT_THEME, PRESETS, FONTS, ensureFont, fontKey,
   effectiveMode, shownColors, watchSystemMode,
@@ -232,7 +232,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('goals', (docs) => { S.goals = docs; if (S.section === 'goals') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
-  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, doneColor: () => S.settings.theme.done === 'orange' ? '#e58a32' : '#1f9c70', openItem: openShareItem }));
+  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, doneColor: () => S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70'), openItem: openShareItem }));
   render();
   const q = new URLSearchParams(location.search);
   if (q.get('new') === '1') { history.replaceState(null, '', location.pathname); openSheet(null); }
@@ -283,11 +283,17 @@ function persistSettings() {
 }
 
 function updateTheme(fn, { render: doRender = false } = {}) {
+  const previousDoneColor = S.settings.theme.done;
   fn(S.settings.theme);
   S.settings.theme = applyTheme(S.settings.theme);
   cacheSettings();
   S.lastSettingsTouch = Date.now();
   persistSettings();
+  if (previousDoneColor !== S.settings.theme.done) {
+    const dark = effectiveMode(S.settings.theme) === 'dark';
+    const color = S.settings.theme.done === 'orange' ? (dark ? '#f0a35c' : '#e58a32') : (dark ? '#5fd3a0' : '#1f9c70');
+    updateShareThemeColor(color).catch((err) => console.warn('Could not sync guest completion color', err));
+  }
   if (doRender) render();
 }
 
