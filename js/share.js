@@ -34,6 +34,16 @@ let st = null; // حالة الجلسة الحالية
 let eventsBound = false;
 
 // ------------------------------------------------------------------ دورة الحياة
+export async function updateShareThemeColor(color) {
+  const safeColor = /^#[0-9a-f]{6}$/i.test(String(color || '')) ? color : '#1f9c70';
+  if (!st || !st.cloud || !st.fb) return;
+  const { fs, db } = st.fb;
+  for (const cfg of configs()) {
+    if (!cfg.guests || !cfg.guests.length) continue;
+    await fs.setDoc(fs.doc(db, 'shares', shareIdFor(st.uid, cfg.projectId)), { doneColor: safeColor }, { merge: true });
+  }
+}
+
 export function initShare(c) {
   disposeShare();
   ctx = c;
