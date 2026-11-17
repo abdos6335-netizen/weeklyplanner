@@ -40,7 +40,10 @@ export async function updateShareThemeColor(color) {
   const { fs, db } = st.fb;
   for (const cfg of configs()) {
     if (!cfg.guests || !cfg.guests.length) continue;
-    await fs.setDoc(fs.doc(db, 'shares', shareIdFor(st.uid, cfg.projectId)), { doneColor: safeColor }, { merge: true });
+    for (const guest of cfg.guests) {
+      const email = String(guest.email || '').toLowerCase();
+      if (email) await fs.setDoc(fs.doc(db, 'shares', shareIdFor(st.uid, cfg.projectId), 'access', email), { doneColor: safeColor }, { merge: true });
+    }
   }
 }
 
@@ -142,7 +145,7 @@ async function runSync(me) {
         await fs.deleteDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email));
       }
       for (const a of accessTodo.filter((x) => x.op === 'set')) {
-        await fs.setDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email), { ...a.doc, updatedAt: now });
+        await fs.setDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email), { ...a.doc, doneColor: typeof ctx.doneColor === 'function' ? ctx.doneColor() : '#1f9c70', updatedAt: now });
       }
 
       // تحديث النسخة المشتركة بعد تجهيز الصلاحيات؛ مستندات الأقسام لا تحتوي أي بريد أو قائمة أعضاء.
