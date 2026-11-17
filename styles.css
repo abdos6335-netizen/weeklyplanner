@@ -120,7 +120,7 @@ button { font: inherit; }
 .ring { width: 4.6rem; height: 4.6rem; flex: none; }
 .ring .trk { fill: none; stroke: var(--surface-2); stroke-width: 7; }
 .ring .val { fill: none; stroke: var(--done); stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
-.ring text { fill: var(--text); font-weight:500; font-size: 14px; font-family: var(--font); }
+.ring text { fill: var(--done); font-weight:500; font-size: 14px; font-family: var(--font); }
 .sum-main { font-weight:500; font-size: 1.05rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
 .chip {
@@ -843,7 +843,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .project-phase-row { border-bottom:1px solid color-mix(in srgb,var(--text-2) 16%,transparent); }
 .project-phase-row > summary { display:flex; justify-content:space-between; align-items:center; min-height:46px; padding:.6rem .15rem; cursor:pointer; list-style:none; font-size:.9rem; font-weight:450; }
 .project-phase-row > summary::-webkit-details-marker { display:none; }
-.project-phase-percent { color:var(--text-2); font-variant-numeric:tabular-nums; font-size:.82rem; }
+.project-phase-percent { color:var(--done); font-variant-numeric:tabular-nums; font-size:.82rem; }
 .project-phase-detail { padding:.15rem .2rem .85rem; color:var(--text-2); font-size:.82rem; }
 .project-phase-detail ul { margin:.5rem 0 0; padding-inline-start:1.25rem; }
 .project-phase-detail li { padding:.28rem 0; color:var(--text); }
@@ -900,7 +900,7 @@ html, body, #app { touch-action: pan-x pan-y; }
 .project-category-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:.12rem; }
 .project-category-copy strong { font-size:.88rem; font-weight:500; }
 .project-category-copy small { color:var(--text-2); font-size:.7rem; font-weight:400; }
-.project-category-percent { color:var(--text-2); font-size:.8rem; font-weight:500; font-variant-numeric:tabular-nums; }
+.project-category-percent { color:var(--done); font-size:.8rem; font-weight:500; font-variant-numeric:tabular-nums; }
 .project-category-chevron { display:inline-flex; color:var(--text-2); opacity:.7; }
 .project-accordion-actions { display:flex; flex-wrap:wrap; gap:1rem; padding:.75rem .15rem .2rem; border-top:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
 .text-action { padding:.35rem 0; border:0; background:transparent; color:var(--text-2); font:inherit; font-size:.75rem; cursor:pointer; }
@@ -994,12 +994,12 @@ html, body, #app { touch-action: pan-x pan-y; }
 .shell main .dashboard-metric-secondary { font-size:.72rem; }
 .shell main button:not(.fab):not(.voice-fab):not(.icon-btn) { box-shadow:none !important; }
 .shell main .btn:not(.danger),.shell main .btn.primary,.shell main .btn.ghost { border:0 !important; background:transparent !important; color:var(--text) !important; }
-.shell main input[type=checkbox] { accent-color:#e58a32; }
+.shell main input[type=checkbox] { accent-color:var(--done); }
 
 /* Reference-style checklist marks and quiet expandable dashboard headings. */
 .shell main .task .ring-c { width:1.15rem; height:1.15rem; border-radius:4px !important; border:1.5px solid color-mix(in srgb,var(--text-2) 65%,transparent); background:transparent !important; color:transparent; box-shadow:none !important; }
-.shell main .task.done .ring-c { border-color:#e58a32 !important; color:#e58a32 !important; background:transparent !important; }
-.shell main .task.done .ring-c .ic { color:#e58a32 !important; }
+.shell main .task.done .ring-c { border-color:var(--done) !important; color:#fff !important; background:var(--done) !important; }
+.shell main .task.done .ring-c .ic { color:#fff !important; }
 .shell main .dashboard-task-summary { display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.65rem .1rem; list-style:none; cursor:pointer; border-bottom:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
 .shell main .dashboard-task-summary::-webkit-details-marker { display:none; }
 .shell main .dashboard-task-summary::after { content:'⌄'; color:var(--text-2); font-size:.9rem; transition:transform .2s ease; }
@@ -1097,7 +1097,7 @@ body::before { display:none !important; background:none !important; }
   color:transparent !important; box-shadow:none !important;
 }
 .shell main .task.done .ring-c {
-  border-color:#e36b35 !important; background:#e36b35 !important;
+  border-color:var(--done) !important; background:var(--done) !important;
   color:#fff !important;
 }
 .shell main .task.done .ring-c .ic { color:#fff !important; font-size:12px !important; }
