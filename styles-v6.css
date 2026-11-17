@@ -440,3 +440,11 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
   .cap-mic.is-recording::after, .voice-controls [data-action="voice-start"].is-recording::after,
   .voice-fab.is-recording::after { animation: none; transform: scale(1); opacity: .35; }
 }
+
+
+/* v6.5 — حالة تسجيل الاجتماع */
+.meeting-record-row.is-recording { border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, transparent); padding: 8px 10px; }
+.meeting-record-row.is-recording #meeting-audio-status { color: var(--accent); font-weight: 600; }
+.meeting-record-row.is-recording #meeting-audio-status::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-inline-end: 7px; border-radius: 50%; background: var(--accent); animation: meeting-record-pulse 1.2s ease-in-out infinite; }
+@keyframes meeting-record-pulse { 50% { opacity: .35; transform: scale(.82); } }
+@media (prefers-reduced-motion: reduce) { .meeting-record-row.is-recording #meeting-audio-status::before { animation: none; } }
