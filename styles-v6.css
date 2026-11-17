@@ -419,7 +419,8 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
 .rev-history-item time { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 /* v6.3 — التسجيل الصوتي اليدوي: مؤشر نابض لا يوقف التسجيل تلقائيًا */
-.cap-mic, .voice-controls [data-action="voice-start"], .voice-fab { position: relative; isolation: isolate; }
+.cap-mic, .voice-controls [data-action="voice-start"] { position: relative; isolation: isolate; }
+.voice-fab { isolation: isolate; } /* يبقى ثابتًا (fixed) من styles.css — لا نغيّر position */
 .cap-mic.is-recording, .voice-controls [data-action="voice-start"].is-recording,
 .voice-fab.is-recording {
   background: color-mix(in srgb, var(--text) 12%, var(--panel)) !important;
