@@ -7,13 +7,13 @@ import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport,
 import { buildToday, parseCaptureActions, revisionState, revLabel, revisionHistory, ACTION_KIND, shortTitle } from './today.js';
 import * as D from './dates.js';
 import { icon, badge } from './icons.js';
-import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount } from './share.js';
+import { initShare, disposeShare, renderSharing, shareButton, renderShareRequests, pendingShareCount, updateShareThemeColor } from './share.js';
 import {
   applyTheme, mergeTheme, DEFAULT_THEME, PRESETS, FONTS, ensureFont, fontKey,
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.34';
+const VERSION = '3.1.35';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -232,7 +232,7 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('goals', (docs) => { S.goals = docs; if (S.section === 'goals') render(); }));
   S.unsubs.push(S.store.watch('requirements', (docs) => { S.requirements = docs; if (S.section === 'projects') render(); }));
   if (S.store.onStatus) S.unsubs.push(S.store.onStatus((status) => { S.syncStatus = status; const el = $('#sync-indicator'); if (el) { el.textContent = status.message || status.state; el.dataset.state = status.state; } }));
-  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, openItem: openShareItem }));
+  S.unsubs.push(initShare({ store: S.store, toast, rerender: render, isActive: () => S.section === 'sharing' || S.section === 'today', progressOf: projectProgressData, doneColor: () => S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70'), openItem: openShareItem }));
   render();
   const q = new URLSearchParams(location.search);
   if (q.get('new') === '1') { history.replaceState(null, '', location.pathname); openSheet(null); }
@@ -283,11 +283,17 @@ function persistSettings() {
 }
 
 function updateTheme(fn, { render: doRender = false } = {}) {
+  const previousDoneColor = S.settings.theme.done;
   fn(S.settings.theme);
   S.settings.theme = applyTheme(S.settings.theme);
   cacheSettings();
   S.lastSettingsTouch = Date.now();
   persistSettings();
+  if (previousDoneColor !== S.settings.theme.done) {
+    const dark = effectiveMode(S.settings.theme) === 'dark';
+    const color = S.settings.theme.done === 'orange' ? (dark ? '#f0a35c' : '#e58a32') : (dark ? '#5fd3a0' : '#1f9c70');
+    updateShareThemeColor(color).catch((err) => console.warn('Could not sync guest completion color', err));
+  }
   if (doRender) render();
 }
 
@@ -1155,7 +1161,7 @@ function financeRing(value, label, size = 'large', metric = 'collection', target
   const safeTarget = Number.isFinite(Number(target)) ? Math.min(100, Math.max(1, Number(target))) : 100;
   const targetLabel = lang() === 'ar' ? `الهدف ${safeTarget}%` : `Target ${safeTarget}%`;
   const look = ratioLookFor(context);
-  const color = value < 0 ? '#d45b52' : metric === 'collection' ? look.collectionColor : look.profitColor;
+  const color = value < 0 ? '#d45b52' : 'var(--done)';
   const isEmpty = value === null || !Number.isFinite(value);
   const amount = isEmpty ? 0 : Math.min(100, Math.abs(value) / safeTarget * 100);
   const rounded = isEmpty ? '—' : `${Math.round(value)}%`;
@@ -1210,7 +1216,7 @@ function ratioTitlePair(metrics, context = 'finance') {
   const look = ratioLookFor(context);
   const fmt = (value) => value === null || !Number.isFinite(value) ? '—' : `${Math.round(value)}%`;
   const ar = lang() === 'ar';
-  return `<span class="ratio-title-pair" style="--ratio-collection-color:${look.collectionColor};--ratio-profit-color:${look.profitColor};"><span><small>${ar ? 'تحصيل' : 'Collected'}</small><b class="collection">${fmt(metrics.collectionPct)}</b></span><span><small>${ar ? 'صافي' : 'Net margin'}</small><b class="profit">${fmt(metrics.profitPct)}</b></span></span>`;
+  return `<span class="ratio-title-pair" style="--ratio-collection-color:var(--done);--ratio-profit-color:var(--done);"><span><small>${ar ? 'تحصيل' : 'Collected'}</small><b class="collection">${fmt(metrics.collectionPct)}</b></span><span><small>${ar ? 'صافي' : 'Net margin'}</small><b class="profit">${fmt(metrics.profitPct)}</b></span></span>`;
 }
 
 function renderFinanceProjectCard(project) {
@@ -1280,15 +1286,15 @@ function reportData(p) {
 }
 function printProjectReport(id, mode) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport(mode === 'finance' ? 'finance' : 'status', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
+  openReportWindow(buildProjectReport(mode === 'finance' ? 'finance' : 'status', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function printClientReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport('client', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
+  openReportWindow(buildProjectReport('client', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function printProjectFullReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {} }));
+  openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function openPrintChoice(id) {
   const p=S.projects.find(x=>x.id===id); if(!p)return;
@@ -2202,6 +2208,7 @@ function renderSettings() {
     }).join('')}</div>`;
 
   const colors = `
+    <div class="row done-color-row"><span class="lab-i">${t('done_color')}</span><span class="done-color-options"><button type="button" class="done-color-choice green" data-action="set-done-color" data-val="green" aria-pressed="${th.done !== 'orange'}" title="${t('done_green')}"><i></i><span>${t('done_green')}</span></button><button type="button" class="done-color-choice orange" data-action="set-done-color" data-val="orange" aria-pressed="${th.done === 'orange'}" title="${t('done_orange')}"><i></i><span>${t('done_orange')}</span></button></span></div>
     <div class="row"><span class="lab-i">${t('bg_color')}</span><input type="color" data-input="bg" value="${sc.bg}"></div>
     <div class="row"><span class="lab-i">${t('accent_color')}</span><input type="color" data-input="accent" value="${sc.accent}"></div>
     <div class="row"><span class="lab-i">${t('text_color')}</span>
@@ -2813,6 +2820,7 @@ async function onClick(e) {
     case 'set-motion-style': updateSettings({ motion: { ...(S.settings.motion || DEFAULT_SETTINGS.motion), style: v } }); break;
     case 'set-motion-speed': updateSettings({ motion: { ...(S.settings.motion || DEFAULT_SETTINGS.motion), speed: v } }); break;
     case 'set-mode': updateTheme((x) => { x.mode = v; }, { render: true }); break;
+    case 'set-done-color': updateTheme((x) => { x.done = v === 'orange' ? 'orange' : 'green'; }, { render: true }); break;
     case 'set-preset': {
       const p = PRESETS[v];
       updateTheme((x) => {
@@ -2827,7 +2835,7 @@ async function onClick(e) {
       const p = PRESETS.glass;
       updateTheme((x) => {
         x.preset = 'glass'; x.accent = p.accent; x.sat = p.sat;
-        x.bg = { ...p.bg }; x.text = { light: null, dark: null }; x.surface = 'tint';
+        x.bg = { ...p.bg }; x.text = { light: null, dark: null }; x.surface = 'tint'; x.done = 'green';
       }, { render: true }); break;
     }
     case 'set-lang': updateSettings({ lang: v }); break;

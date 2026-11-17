@@ -113,7 +113,7 @@ function render() {
 }
 
 // ------------------------------------------------------------------ الأقسام (كل القيم تمر على esc)
-const bar = (p) => `<div class="sv-bar"><i style="width:${pct(p)}%"></i></div>`;
+const bar = (p) => `<div class="sv-bar"><i style="width:${pct(p)}%;background:${/^#[0-9a-f]{6}$/i.test(String(state.meta?.doneColor||''))?state.meta.doneColor:'var(--done,#1f9c70)'}"></i></div>`;
 const rowHtml = (main, sub, end, extra) => `<div class="sv-row"><div class="sv-row-main"><strong>${main}</strong>${sub ? `<small>${sub}</small>` : ''}${extra || ''}</div><div class="sv-row-end">${end || ''}</div></div>`;
 const empty = (t) => `<p class="sv-empty">${t}</p>`;
 

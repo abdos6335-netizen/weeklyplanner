@@ -34,13 +34,26 @@ let st = null; // حالة الجلسة الحالية
 let eventsBound = false;
 
 // ------------------------------------------------------------------ دورة الحياة
+export async function updateShareThemeColor(color) {
+  const safeColor = /^#[0-9a-f]{6}$/i.test(String(color || '')) ? color : '#1f9c70';
+  if (!st || !st.cloud || !st.fb) return;
+  const { fs, db } = st.fb;
+  for (const cfg of configs()) {
+    if (!cfg.guests || !cfg.guests.length) continue;
+    for (const guest of cfg.guests) {
+      const email = String(guest.email || '').toLowerCase();
+      if (email) await fs.setDoc(fs.doc(db, 'shares', shareIdFor(st.uid, cfg.projectId), 'access', email), { doneColor: safeColor }, { merge: true });
+    }
+  }
+}
+
 export function initShare(c) {
   disposeShare();
   ctx = c;
   const user = c.store && c.store.user;
   if (!c.store || c.store.mode !== 'cloud' || !user) { st = { cloud: false }; bindEvents(); return disposeShare; }
   st = {
-    cloud: true, uid: user.uid, email: String(user.email || '').toLowerCase(),
+    cloud: true, uid: user.uid, email: String(user.email || '').toLowerCase(), doneColor: typeof c.doneColor === 'function' ? c.doneColor() : '#1f9c70',
     data: { projects: [], deliverables: [], financeEntries: [], meetings: [], requirements: [], shareConfigs: [] },
     ready: new Set(), unsubs: [], timer: null, queue: Promise.resolve(), fb: null,
     status: {}, sheetProjectId: null, listSig: '',
@@ -132,7 +145,7 @@ async function runSync(me) {
         await fs.deleteDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email));
       }
       for (const a of accessTodo.filter((x) => x.op === 'set')) {
-        await fs.setDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email), { ...a.doc, updatedAt: now });
+        await fs.setDoc(fs.doc(db, 'shares', plan.shareId, 'access', a.email), { ...a.doc, doneColor: typeof ctx.doneColor === 'function' ? ctx.doneColor() : '#1f9c70', updatedAt: now });
       }
 
       // تحديث النسخة المشتركة بعد تجهيز الصلاحيات؛ مستندات الأقسام لا تحتوي أي بريد أو قائمة أعضاء.
@@ -142,7 +155,8 @@ async function runSync(me) {
         else await fs.deleteDoc(ref);
       }
 
-      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, updatedAt: now });
+      if (plan.meta.op === 'set') await fs.setDoc(shareRef, { ...plan.meta.doc, doneColor: typeof ctx.doneColor === 'function' ? ctx.doneColor() : '#1f9c70', updatedAt: now });
+      else if (plan.meta.op !== 'delete') await fs.setDoc(shareRef, { doneColor: typeof ctx.doneColor === 'function' ? ctx.doneColor() : '#1f9c70' }, { merge: true });
       else if (plan.meta.op === 'delete') await fs.deleteDoc(shareRef);
 
       const published = { ...(cfg.published || {}), access: { ...((cfg.published && cfg.published.access) || {}) } };

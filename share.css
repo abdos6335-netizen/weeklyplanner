@@ -30,10 +30,10 @@
 .sh-foot { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line, rgb(0 0 0 / .1)); }
 
 /* ===== صفحة الضيف (share.html) ===== */
-.sv { --bg: #f4f4f6; --surface: #fff; --line: rgb(0 0 0 / .09); --text: #1c1c1e; --text-2: #6b6b73; --accent: #2f7d5b; --accent-soft: rgb(47 125 91 / .12); --warn: #b06a1b; --bad: #c4473f;
+.sv { --done: #1f9c70; --bg: #f4f4f6; --surface: #fff; --line: rgb(0 0 0 / .09); --text: #1c1c1e; --text-2: #6b6b73; --accent: #2f7d5b; --accent-soft: rgb(47 125 91 / .12); --warn: #b06a1b; --bad: #c4473f;
   margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.65 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
 @media (prefers-color-scheme: dark) {
-  .sv { --bg: #151517; --surface: #1e1e21; --line: rgb(255 255 255 / .1); --text: #ededf0; --text-2: #a0a0a8; --accent: #5fc496; --accent-soft: rgb(95 196 150 / .16); --warn: #e0a35a; --bad: #ef7d74; }
+  .sv { --done: #5fd3a0; --bg: #151517; --surface: #1e1e21; --line: rgb(255 255 255 / .1); --text: #ededf0; --text-2: #a0a0a8; --accent: #5fc496; --accent-soft: rgb(95 196 150 / .16); --warn: #e0a35a; --bad: #ef7d74; }
 }
 .sv * { box-sizing: border-box; }
 .sv-wrap { max-width: 820px; margin: 0 auto; padding: 1.4rem 1rem 4rem; }

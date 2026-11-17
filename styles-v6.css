@@ -386,8 +386,8 @@ html body .shell main .task .ring-c {
   background: transparent !important; color: transparent !important;
 }
 html body .shell main .task.doing .ring-c { border-color: var(--accent) !important; color: var(--accent) !important; }
-html body .shell main .task.done .ring-c { border-color: var(--accent) !important; background: var(--accent) !important; color: var(--on-accent, #fff) !important; }
-html body .shell main .task.done .ring-c .ic { color: var(--on-accent, #fff) !important; font-size: 12px !important; }
+html body .shell main .task.done .ring-c { border-color: var(--done) !important; background: var(--done) !important; color: #fff !important; }
+html body .shell main .task.done .ring-c .ic { color: #fff !important; font-size: 12px !important; }
 html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
 /* النقاط الثلاث: خرزات زجاجية باستل مع لمعة، مثل المرجع */
 .sb-dots { gap: 10px; padding-inline: 4px; }
