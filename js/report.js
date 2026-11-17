@@ -119,8 +119,10 @@ export function buildProjectReport(mode, data, { lang = 'ar', brand = {} } = {})
     deliverables.map((d) => {
       const rev = Math.max(1, Number(d.rev) || 1);
       const history = Array.isArray(d.revHistory) && d.revHistory.length ? d.revHistory : Array.from({ length: rev }, (_, i) => ({ rev: i + 1, date: '—' }));
-      const dates = history.map((item) => 'REV-' + Math.max(0, (Number(item.rev) || 1) - 1) + ': ' + (item.date || '—')).join(' · ');
-      return `<tr><td>${esc(d.name)}</td><td>${esc(d.stageLabel)}</td><td>${esc(d.kindLabel)}</td><td class="num">${esc(d.due || '—')}</td><td>${approvalPill(d.status, d.statusLabel)}</td><td class="num">${rev - 1}</td><td>${esc(dates)}</td><td>${esc(d.notes || '')}</td></tr>`;
+      const label = (item) => 'REV-' + Math.max(0, (Number(item.rev) || 1) - 1);
+      const dates = history.map((item) => label(item) + ': ' + (item.date || '—')).join(' · ');
+      const high = rev - 1 >= 3;
+      return `<tr><td>${esc(d.name)}</td><td>${esc(d.stageLabel)}</td><td>${esc(d.kindLabel)}</td><td class="num">${esc(d.due || '—')}</td><td>${approvalPill(d.status, d.statusLabel)}</td><td class="num ${high ? 'rev-high' : ''}">${rev - 1}</td><td class="${high ? 'rev-high' : ''}">${esc(dates)}</td><td>${esc(d.notes || '')}</td></tr>`;
     }), L);
   const finTable = table([L.date, L.cat, L.move, L.amount, L.desc],
     finance.map((f) => `<tr><td class="num">${esc(f.date || '—')}</td><td>${esc(f.category || '—')}</td><td>${f.kind === 'income' ? esc(L.income1) : esc(L.expense1)}</td><td class="num ${f.kind === 'income' ? 'pos' : ''}">${m(f.amount)}</td><td>${esc(f.description || '')}</td></tr>`), L);
