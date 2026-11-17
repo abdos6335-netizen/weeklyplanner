@@ -735,7 +735,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .project-progress-overall small,.project-progress-phase small{font-size:.68rem;color:var(--text-2)}
 .project-progress-overall strong{font-size:.92rem;font-variant-numeric:tabular-nums}
 .project-progress-track{height:6px;overflow:hidden;border-radius:99px;background:var(--surface-2)}
-.project-progress-track>span{display:block;width:0;height:100%;border-radius:inherit;background:var(--accent);transition:width .2s ease}
+.project-progress-track>span{display:block;width:0;height:100%;border-radius:inherit;background:var(--done);transition:width .2s ease}
 .project-progress-phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.55rem}
 .project-progress-phase{display:grid;gap:.3rem;min-width:0;padding:.5rem .6rem;border:1px solid var(--btn-ring);border-radius:12px;background:color-mix(in srgb,var(--surface) 72%,transparent)}
 .project-progress-phase>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
@@ -869,7 +869,7 @@ html, body, #app { touch-action: pan-x pan-y; }
 /* Finance progress is presented as quiet inline percentages, not rings or cards. */
 .finance-project-ratios,.finance-overview-ratios { display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; align-items:baseline; padding:.65rem .1rem; border-block:1px solid color-mix(in srgb,var(--text-2) 15%,transparent); }
 .finance-project-ratios span,.finance-overview-ratios span { color:var(--text-2); font-size:.78rem; }
-.finance-project-ratios b,.finance-overview-ratios strong { color:var(--text); font-size:.92rem; font-weight:500; margin-inline-start:.3rem; font-variant-numeric:tabular-nums; }
+.finance-project-ratios b,.finance-overview-ratios strong { color:var(--done); font-size:.92rem; font-weight:500; margin-inline-start:.3rem; font-variant-numeric:tabular-nums; }
 .finance-project-card,.finance-overview { background:transparent !important; border:0 !important; border-bottom:1px solid color-mix(in srgb,var(--text-2) 17%,transparent) !important; border-radius:0 !important; box-shadow:none !important; }
 .finance-project-summary { background:transparent; border:0; border-radius:0; box-shadow:none; font-weight:500; }
 .finance-project-details { border:0; box-shadow:none; background:transparent; }
@@ -1490,3 +1490,5 @@ html body .shell main .project-phase-percent,html body .shell main .project-cate
 html body .shell main .finance-ring>span,html body .shell main .fin-ring span{color:var(--done)}
 html body .shell main .finance-ring.loss>span,html body .shell main .fin-ring.loss span{color:#d45b52}
 html body .shell main .ratio-visual b{color:var(--ratio-color,var(--done))}
+
+html body .shell main .project-progress-phase>div:first-child strong,html body .shell main .project-list-ratios,html body .shell main .finance-project-ratios b,html body .shell main .finance-overview-ratios strong,html body .shell main .dashboard-metric-value{color:var(--done)!important}
