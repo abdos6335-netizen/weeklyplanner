@@ -92,10 +92,10 @@ ${metaHtml}${body}</td></tr></tbody><tfoot><tr><td><footer class="rf">${links.le
 
 const pillFor = (cls, text) => `<span class="pill ${cls}">${esc(text)}</span>`;
 export function phaseState(ph, lang) {
-  const L = T[lang] || T.ar;
+  const L = T[lang] || T.ar; const number = new Intl.NumberFormat(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB');
   if (!ph.total) return pillFor('', L.noItems);
   if (ph.done >= ph.total) return pillFor('ok', L.done);
-  if (ph.done > 0) return pillFor('wait', `${L.inProgress} ${ph.done}/${ph.total}`);
+  if (ph.done > 0) return pillFor('wait', `${L.inProgress} ${number.format(ph.done)}/${number.format(ph.total)}`);
   return pillFor('bad', L.notStarted);
 }
 const table = (heads, rows, L) => rows.length ? `<table><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>` : `<p class="empty">${esc(L.none)}</p>`;
@@ -105,29 +105,29 @@ const approvalPill = (code, label) => pillFor({ approved: 'ok', submitted: 'ok',
  *   deliverables:[{name,stageLabel,kindLabel,due,status,statusLabel,notes}], finance:[{date,category,kind,amount,description}], requirements:[{text,source,date,statusLabel}], money:fn } */
 export function buildProjectReport(mode, data, { lang = 'ar', brand = {}, doneColor = '#1f9c70' } = {}) {
   const L = T[lang] || T.ar; const { project: p, progress, totals, deliverables = [], finance = [], requirements = [], money, installments = [], meetings = [] } = data;
-  const cur = L.currency; const m = (n) => `${money(n)} ${cur}`;
-  const date = new Date().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+  const cur = L.currency; const m = (n) => `${money(n)} ${cur}`; const number = (n) => new Intl.NumberFormat(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { maximumFractionDigits: 2 }).format(Number(n) || 0);
+  const date = new Date().toLocaleDateString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
   const refNo = (p.code || '') || ('WP-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + String(p.name || '').length);
   const meta = [[L.project, p.name], [L.client, p.client], [L.type, p.typeLabel], [L.status, p.statusLabel], [L.location, p.location], [L.date, date]];
   if (p.scopeLabel && mode !== 'finance') meta.splice(5, 0, [L.scope, p.scopeLabel]);
   meta.push([L.ref, refNo]);
   const phases = (progress?.phases || []);
   const kpi = (k, v) => `<div class="kpi"><small>${esc(k)}</small><b>${v}</b></div>`;
-  const pctTxt = (v) => (v == null ? '—' : `<span class="pct">${Math.round(v)}%</span>`);
+  const pctTxt = (v) => (v == null ? '—' : `<span class="pct">${number(Math.round(v))}%</span>`);
   const netCls = totals.net < 0 ? 'neg' : 'pos';
   const kpis = mode === 'client'
     ? `<div class="kpis">${kpi(L.progress, pctTxt(progress?.percent))}${kpi(L.contract, m(totals.contract))}${kpi(L.income, m(totals.income))}${kpi(L.remaining, m(Math.max(0, totals.contract - totals.income)))}</div>`
     : mode === 'finance'
     ? `<div class="kpis">${kpi(L.contract, m(totals.contract))}${kpi(L.income, m(totals.income))}${kpi(L.expense, m(totals.expense))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}</div>`
-    : `<div class="kpis">${kpi(L.progress, pctTxt(progress?.percent))}${kpi(L.collection, pctTxt(totals.collectionPct))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}${kpi(L.deliverables, String(deliverables.length))}</div>`;
+    : `<div class="kpis">${kpi(L.progress, pctTxt(progress?.percent))}${kpi(L.collection, pctTxt(totals.collectionPct))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}${kpi(L.deliverables, number(deliverables.length))}</div>`;
   const phaseTable = phases.length ? table([L.phase, L.delivered, L.pct, L.state],
-    phases.map((ph) => `<tr><td>${esc(ph.label)}</td><td class="num">${ph.done} / ${ph.total}</td><td><div class="bar"><i style="width:${ph.total ? ph.percent : 0}%"></i></div><span class="num pct">${ph.total ? ph.percent + '%' : '—'}</span></td><td>${phaseState(ph, lang)}</td></tr>`), L) : '';
+    phases.map((ph) => `<tr><td>${esc(ph.label)}</td><td class="num">${number(ph.done)} / ${number(ph.total)}</td><td><div class="bar"><i style="width:${ph.total ? ph.percent : 0}%"></i></div><span class="num pct">${ph.total ? ph.percent + '%' : '—'}</span></td><td>${phaseState(ph, lang)}</td></tr>`), L) : '';
   const delivRows = deliverables.map((d) => {
     const rev=Math.max(1,Number(d.rev)||1);
     const history=Array.isArray(d.revHistory)&&d.revHistory.length?d.revHistory:Array.from({length:rev},(_,i)=>({rev:i+1,date:'—'}));
     const high=rev-1>=3;
     const revDates=history.map(item=>`<div class="rev-date ${high?'rev-high':''}"><b>REV-${Math.max(0,(Number(item.rev)||1)-1)}</b><small>${esc(item.date||'—')}</small></div>`).join('');
-    return `<tr><td>${esc(d.name)}</td><td class="nowrap">${esc(d.stageLabel)}</td><td class="nowrap">${esc(d.kindLabel)}</td><td class="num nowrap">${esc(d.due||'—')}</td><td class="nowrap">${approvalPill(d.status,d.statusLabel)}</td><td class="num ${high?'rev-high':''}">${rev-1}<div class="rev-dates">${revDates}</div></td><td>${esc(d.notes||'')}</td></tr>`;
+    return `<tr><td>${esc(d.name)}</td><td class="nowrap">${esc(d.stageLabel)}</td><td class="nowrap">${esc(d.kindLabel)}</td><td class="num nowrap">${esc(d.due||'—')}</td><td class="nowrap">${approvalPill(d.status,d.statusLabel)}</td><td class="num ${high?'rev-high':''}">${number(rev-1)}<div class="rev-dates">${revDates}</div></td><td>${esc(d.notes||'')}</td></tr>`;
   });
   const delivTable=delivRows.length?`<table class="deliverables-table"><colgroup><col class="name"><col class="stage"><col class="kind"><col class="due"><col class="approval"><col class="revisions"><col class="notes"></colgroup><thead><tr>${[L.name,L.stage,L.kind,L.due,L.approval,L.revisions,L.notes].map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${delivRows.join('')}</tbody></table>`:`<p class="empty">${esc(L.none)}</p>`;
   const finTable = table([L.date, L.cat, L.move, L.amount, L.desc],
