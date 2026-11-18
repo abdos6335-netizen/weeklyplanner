@@ -865,7 +865,8 @@ function money(value) { return new Intl.NumberFormat(locale(), { maximumFraction
 function reportDict(language = lang()) { return _dicts[language] || _dicts.ar; }
 function projectTypeLabel(v, language = lang()) { const d=reportDict(language); return ({ residential: d.type_residential, administrative: d.type_administrative, commercial: d.type_commercial, fitout: d.type_fitout })[v] || v || '—'; }
 function projectStatusLabel(v, language = lang()) { const d=reportDict(language); return ({ planning: d.status_planning, active: d.status_active, on_hold: d.status_on_hold, completed: d.status_completed })[v] || v || '—'; }
-function projectScopeLabel(scope, language = lang()) { const labels={design:'Design','3d':'Design',technical_drawings:language==='ar'?'اللوحات الفنية':'ShopDrawing',execution:language==='ar'?'التنفيذ':'Execution'}; const values=(Array.isArray(scope)?scope:[]).map(x=>labels[x]||x); return [...new Set(values)].join(' + '); }
+function projectScopeLabel(scope) { const labels={design:'Design','3d':'3D','technical_drawings':'Technical Drawings',execution:'Execution'}; return (Array.isArray(scope)?scope:[]).map(x=>labels[x]||x).join(' + '); }
+function reportScopeLabel(scope, reportLang) { const labels={design:'Design','3d':'Design',technical_drawings:reportLang==='ar'?'اللوحات الفنية':'ShopDrawing',execution:reportLang==='ar'?'التنفيذ':'Execution'}; return [...new Set((Array.isArray(scope)?scope:[]).map(x=>labels[x]||x))].join(' + '); }
 function projectProgressData(project, deliverables = S.deliverables) {
   const rows = deliverables.filter((d) => d.projectId === project.id);
   const selectedScopes = Array.isArray(project.workScope) ? project.workScope : [];
@@ -1307,7 +1308,7 @@ function reportData(p, reportLang = lang()) {
   }
   const reportMoney=(value)=>new Intl.NumberFormat(reportLang==='ar'?'ar-EG-u-nu-latn':'en-GB',{maximumFractionDigits:2}).format(Number(value)||0);
   return {
-    project: { name: p.name, client: p.client, typeLabel: projectTypeLabel(p.type,reportLang), statusLabel: projectStatusLabel(p.status,reportLang), location: p.location, scopeLabel: projectScopeLabel(p.workScope || [],reportLang), notes: p.notes, contract: totals.contract },
+    project: { name: p.name, client: p.client, typeLabel: projectTypeLabel(p.type,reportLang), statusLabel: projectStatusLabel(p.status,reportLang), location: p.location, scopeLabel: reportScopeLabel(p.workScope || [],reportLang), notes: p.notes, contract: totals.contract },
     progress: { ...progress, phases: mergedPhases },
     totals,
     deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage,reportLang), kindLabel: deliverableKindLabel(x.kind,reportLang), due: formatReportDate(x.dueDate,reportLang), status: x.status, statusLabel: approvalLabel(x.status,reportLang), notes: x.notes, rev: Math.max(1, Number(x.rev) || 1), revHistory: revisionHistory(x).map(item=>({...item,date:formatReportDate(item.date,reportLang)})) })),
