@@ -1654,7 +1654,7 @@ async function handleVoiceCommand(c) {
    const meeting=S.meetings.find(m=>m.id===meetingId);if(!meeting)throw new Error('الاجتماع غير موجود.');
    const blob=await getMeetingAudioBlob(meeting);if(!blob)throw new Error('التسجيل غير موجود على هذا الجهاز. افتح التطبيق على الجهاز الذي تم عليه التسجيل.');
    if(blob.size>24*1024*1024)throw new Error('حجم التسجيل أكبر من 24 ميجابايت. قسّم التسجيل إلى أجزاء أقصر ثم أعد المحاولة.');
-   const form=new FormData();form.append('audio',blob,meeting.audioFileName||('meeting-'+meeting.id+(blob.type.includes('mp4')?'.m4a':'.webm')));form.append('language',meeting.language||'ar');
+   const form=new FormData();form.append('audio',blob,meeting.audioFileName||('meeting-'+meeting.id+(blob.type.includes('mp4')?'.m4a':'.webm')));form.append('language',meeting.language||'mixed');
    toast('جارٍ إرسال التسجيل للتفريغ الصوتي…');
    const result=await meetingAiRequest('/transcribe',form,true);
    const transcript=String(result.text||'').trim();if(!transcript)throw new Error('لم يُرجع التفريغ أي نص واضح.');
@@ -1670,7 +1670,7 @@ async function handleVoiceCommand(c) {
    const validCategories=['design','shop-drawings','site','materials','client-review','general'];
    const projectMatch=S.projects.find(p=>p.name.trim().toLocaleLowerCase()===String(report.projectName||'').trim().toLocaleLowerCase());
    const confidence=Number(report.confidence)||0;
-   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),purpose:String(report.purpose||meeting.purpose||'').slice(0,240),topics:Array.isArray(report.topics)?report.topics.map(x=>String(x).slice(0,160)).slice(0,20).join('\n'):String(report.topics||meeting.topics||''),requirements:meeting.requirements||(Array.isArray(report.requirements)?report.requirements.map(x=>String(x).slice(0,240)).slice(0,30).join('\n'):''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId)||!!(meeting.projectId&&report.projectName&&!projectMatch),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[],participants:Array.isArray(report.attendees)?report.attendees.map(x=>String(x).slice(0,100)).slice(0,12).join('، '):meeting.participants,updatedAt:Date.now()};
+   const updated={...meeting,title:String(report.title||meeting.title||'Meeting').slice(0,180),category:validCategories.includes(report.category)?report.category:meeting.category,summary:String(report.summary||meeting.summary||''),openPoints:Array.isArray(report.openPoints)?report.openPoints.map(x=>String(x).slice(0,500)).slice(0,30):Array.isArray(meeting.openPoints)?meeting.openPoints:[],minutes:String(report.minutes||meeting.minutes||''),decisions:String(report.decisions||''),actions:String(report.actions||''),purpose:String(report.purpose||meeting.purpose||'').slice(0,240),topics:Array.isArray(report.topics)?report.topics.map(x=>String(x).slice(0,160)).slice(0,20).join('\n'):String(report.topics||meeting.topics||''),requirements:meeting.requirements||(Array.isArray(report.requirements)?report.requirements.map(x=>String(x).slice(0,240)).slice(0,30).join('\n'):''),aiGenerated:true,aiGeneratedAt:Date.now(),aiReviewRequired:confidence<0.75||(!projectMatch&&!meeting.projectId)||!!(meeting.projectId&&report.projectName&&!projectMatch),aiReviewNotes:Array.isArray(report.reviewNotes)?report.reviewNotes.slice(0,8):[],participants:Array.isArray(report.attendees)?report.attendees.map(x=>String(x).slice(0,100)).slice(0,12).join('، '):meeting.participants,updatedAt:Date.now()};
    if(projectMatch&&!meeting.projectId)updated.projectId=projectMatch.id;
    if(report.clientName&&confidence>=0.75&&!meeting.client){updated.client=String(report.clientName).slice(0,120);updated.secondParty=updated.client;}
    await S.store.save('meetings',updated);await syncMeetingRequirements(updated,updated.requirements);S.meetings=[...S.meetings.filter(m=>m.id!==meetingId),updated];
@@ -1801,10 +1801,15 @@ function renderMeetings() {
           <span id="meeting-audio-status" class="muted small">يُحفظ التسجيل محليًا على الجهاز ويرتبط بالاجتماع بعد الحفظ.</span>
         </div>
         <div class="meeting-record-row">
+          <label class="lab" for="meeting-upload-language">لغة تفريغ التسجيل</label>
+          <select class="input compact" id="meeting-upload-language"><option value="mixed" selected>عربي + English</option><option value="ar">العربية فقط</option><option value="en">English only</option></select>
+        </div>
+        <div class="meeting-record-row">
           <select class="input compact" id="meeting-language" aria-label="Speech language"><option value="ar-EG">العربية</option><option value="en-US">English</option></select>
           <button class="btn" type="button" data-action="meeting-record">إملاء صوتي للنص</button>
           <button class="btn" type="button" data-action="meeting-stop">إيقاف الإملاء</button>
         </div>
+        <p class="muted small">الإملاء المباشر بلغة واحدة. للمزج استخدم التسجيل ثم التفريغ.</p>
         <label class="lab" for="meeting-requirements">Client Requirements — طلبات العميل (كل طلب في سطر)</label><textarea class="input textarea" id="meeting-requirements" rows="3" placeholder="مثال: إضافة وحدة تخزين بجوار الثلاجة&#10;تغيير لون وحدات المطبخ"></textarea>
         <label class="lab" for="meeting-transcript">Transcript — نص الاجتماع</label>
         <textarea class="input textarea" id="meeting-transcript" rows="6" placeholder="أضف النص المستخرج أو الملاحظات بعد الاجتماع"></textarea>
@@ -1836,7 +1841,8 @@ function renderMeetings() {
             <div class="meeting-record-row">
               ${m.audioFileName||m.hasAudio?`<button class="btn sm" data-action="meeting-ai-transcribe" data-id="${esc(m.id)}">تفريغ التسجيل</button>`:''}
               ${m.transcript?`<button class="btn sm primary" data-action="meeting-ai-minutes" data-id="${esc(m.id)}">إنشاء محضر الاجتماع</button>`:''}
-              <button class="btn sm" data-action="meeting-print" data-id="${esc(m.id)}">طباعة MOM</button>
+              <button class="btn sm" data-action="meeting-print-short" data-id="${esc(m.id)}">نسخة مختصرة</button>
+              <button class="btn sm" data-action="meeting-print-full" data-id="${esc(m.id)}">نسخة كاملة</button>
               <button class="btn sm" data-action="meeting-audio-play" data-id="${esc(m.id)}">تشغيل الصوت</button>
               <button class="btn sm" data-action="meeting-audio-download" data-id="${esc(m.id)}">تنزيل الصوت</button>
               <button class="btn sm danger" data-action="meeting-audio-delete" data-id="${esc(m.id)}">حذف التسجيل</button>
@@ -1849,6 +1855,7 @@ function renderMeetings() {
             <form data-action="update-meeting" data-id="${esc(m.id)}" class="entry-form">
               <label class="lab">عنوان الاجتماع</label><input class="input" name="title" value="${esc(m.title||'')}">
               <label class="lab">اسم العميل / الطرف الثاني</label><input class="input" name="client" value="${esc(m.client||m.secondParty||'')}">
+              <label class="lab">ملخص الاجتماع</label><textarea class="input textarea" name="summary" rows="4">${esc(m.summary||'')}</textarea>
               <label class="lab">Purpose — الغرض من الاجتماع</label><input class="input" name="purpose" value="${esc(m.purpose||'')}">
               <label class="lab">Topics — المواضيع</label><textarea class="input textarea" name="topics" rows="3">${esc(m.topics||'')}</textarea>
               <label class="lab">Attendees — الحضور الآخرون</label><input class="input" name="participants" value="${esc(m.participants||'')}">
@@ -1856,6 +1863,7 @@ function renderMeetings() {
               <label class="lab">Transcript — النص الكامل</label><textarea class="input textarea" name="transcript" rows="5">${esc(m.transcript||'')}</textarea>
               <label class="lab">Minutes of Meeting — موضوعات المناقشة</label><textarea class="input textarea" name="minutes" rows="5">${esc(m.minutes||'')}</textarea>
               <label class="lab">Agreements & Decisions — الاتفاقات والقرارات</label><textarea class="input textarea" name="decisions" rows="4">${esc(m.decisions||'')}</textarea>
+              <label class="lab">نقاط مفتوحة</label><textarea class="input textarea" name="openPoints" rows="3">${esc((m.openPoints||[]).join('\n'))}</textarea>
               <label class="lab">Action Items — المهام</label><textarea class="input textarea" name="actions" rows="3">${esc(m.actions||'')}</textarea>
               <p class="muted small"><b>First Party:</b> ${esc(m.firstParty||currentUser)} · <b>Second Party:</b> ${esc(m.secondParty||m.client||'—')}</p>
               <button class="btn primary" type="submit">حفظ التعديلات</button>
@@ -1875,7 +1883,7 @@ function startMeetingRecognition(){
   rec.onend=()=>{S.meetingRecognition=null;toast('انتهى الإملاء الصوتي. راجع النص قبل الحفظ.');};
   try{rec.start();toast('بدأ الإملاء الصوتي. اترك صفحة التطبيق مفتوحة.');}catch(e){toast('تعذر بدء التسجيل الصوتي.');}
 }
-function printMeetingReport(id) {
+function printMeetingReport(id, mode = 'full') {
   const m = S.meetings.find((x) => x.id === id); if (!m) return;
   const p = S.projects.find((x) => x.id === m.projectId) || null;
   const block = (label, value) => value ? `<h2>${rEsc(label)}</h2><div class="note">${rEsc(value)}</div>` : '';
@@ -1885,10 +1893,19 @@ function printMeetingReport(id) {
   const meta = [['Meeting Title | عنوان الاجتماع', m.title], ['Project | المشروع', p?.name || m.projectName], ['Client | العميل', client],
     ['Date | التاريخ', [m.date, m.time].filter(Boolean).join(' ')], ['Category | التصنيف', cat], ['Type | النوع', m.mode === 'online' ? 'Online' : 'Offline']];
   const attendees = `<h2>Meeting Attendees | الحضور</h2><table><tbody><tr><td><small>First Party | الطرف الأول</small><br><b>${rEsc(first)}</b></td><td><small>Second Party | الطرف الثاني</small><br><b>${rEsc(client)}</b></td></tr></tbody></table>`;
-  const body = block('Purpose | الغرض من الاجتماع', m.purpose) + block('Topics | المواضيع', m.topics) + block('Minutes of Meeting | موضوعات المناقشة', m.minutes) +
-    block('Agreements & Decisions | القرارات والاتفاقات', m.decisions) + block('Client Requirements | طلبات العميل', m.requirements) + block('Action Items | المهام والمسؤوليات والمواعيد', m.actions) +
-    attendees + block('Other Attendees | الحضور الآخرون', m.participants) + block('Transcript | النص الكامل للاجتماع', m.transcript);
-  openReportWindow(reportShell({ lang: lang(), title: 'Minutes of Meeting', subtitle: 'محضر اجتماع', brand: S.settings.brand || {}, meta, body }));
+  const actionRows = String(m.actions || '').split(/\\r?\\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    const parts = line.split(/\\s+—\\s+/);
+    return `<tr><td>${rEsc(parts[0] || '')}</td><td>${rEsc(parts[1] || '—')}</td><td>${rEsc(parts[2] || '—')}</td></tr>`;
+  });
+  const actionTable = actionRows.length ? `<h2>Action Items | المهام</h2><table><thead><tr><th>Task | المهمة</th><th>Owner | المسؤول</th><th>Deadline | الموعد</th></tr></thead><tbody>${actionRows.join('')}</tbody></table>` : '';
+  const discussion = block('Topics | المواضيع', m.topics) + block('Minutes of Meeting | النقاش حسب الموضوع', m.minutes);
+  const body = mode === 'short'
+    ? block('Summary | ملخص الاجتماع', m.summary) + block('Agreements | تم الاتفاق على', m.decisions) + actionTable
+    : block('Summary | ملخص الاجتماع', m.summary) + block('Purpose | الغرض من الاجتماع', m.purpose) + discussion +
+      block('Agreements | تم الاتفاق على', m.decisions) + block('Open Points | نقاط مفتوحة', (m.openPoints || []).join('\\n')) +
+      block('Client Requirements | طلبات العميل', m.requirements) + actionTable + attendees +
+      block('Other Attendees | الحضور الآخرون', m.participants) + block('Transcript | النص الكامل للاجتماع', m.transcript);
+  openReportWindow(reportShell({ lang: lang(), title: 'Minutes of Meeting', subtitle: mode === 'short' ? 'نسخة مختصرة' : 'نسخة كاملة', brand: S.settings.brand || {}, meta, body }));
 }
 
 // ملخص المحضر بالحقول التسعة: Title/Purpose/Date/Client/Topics/Attendees/Decisions/Requirements/Action Items
@@ -1897,6 +1914,7 @@ function momSummary(m, p) {
   const client = m.client || m.secondParty || p?.client || '';
   const block = (label, text) => text ? `<div class="mom-field"><small class="muted">${label}</small><p>${esc(text).replace(/\n/g, '<br>')}</p></div>` : '';
   const body = [
+    block(ar ? 'ملخص الاجتماع' : 'Meeting Summary', m.summary),
     block(ar ? 'الغرض' : 'Purpose', m.purpose),
     block(ar ? 'العميل' : 'Client', client),
     block(ar ? 'التاريخ' : 'Date', [m.date, m.time].filter(Boolean).join(' ')),
@@ -2743,7 +2761,9 @@ async function onClick(e) {
     case 'meeting-record': startMeetingRecognition(); break;
     case 'meeting-stop': if(S.meetingRecognition){S.meetingRecognition.stop();S.meetingRecognition=null;} break;
     case 'meeting-project': S.activeMeetingProjectId=el.dataset.id; render(); break;
-    case 'meeting-print': printMeetingReport(el.dataset.id); break;
+    case 'meeting-print-short': printMeetingReport(el.dataset.id,'short'); break;
+    case 'meeting-print-full': printMeetingReport(el.dataset.id,'full'); break;
+    case 'meeting-print': printMeetingReport(el.dataset.id,'full'); break;
     case 'meeting-back': S.activeMeetingProjectId=null; render(); break;
     case 'voice-save': { const text=$('#voice-text')?.value.trim(); if(!text){toast(t('voice_empty'));break;} const c=inferVoiceCommand(text); try { await handleVoiceCommand(c); } catch(err) { console.error(err); toast(t('save_failed',{msg:err.message||err})); } break; }
     case 'new-project': openProjectSheet(); break;
@@ -2870,7 +2890,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const old=S.meetings.find(m=>m.id===el.dataset.id);if(!old)throw new Error('الاجتماع غير موجود.');
       const field=name=>el.querySelector('[name="'+name+'"]')?.value.trim()||'';
       const client=field('client');
-      const updated={...old,title:field('title')||old.title,client,secondParty:client||old.secondParty||'',transcript:field('transcript'),requirements:field('requirements'),minutes:field('minutes'),decisions:field('decisions'),actions:field('actions'),purpose:field('purpose'),topics:field('topics'),participants:field('participants'),aiReviewRequired:false,updatedAt:Date.now()}; await S.store.save('meetings',updated); await syncMeetingRequirements(updated,updated.requirements);
+      const updated={...old,title:field('title')||old.title,client,secondParty:client||old.secondParty||'',transcript:field('transcript'),summary:field('summary'),openPoints:field('openPoints').split('\n').map(x=>x.trim()).filter(Boolean),requirements:field('requirements'),minutes:field('minutes'),decisions:field('decisions'),actions:field('actions'),purpose:field('purpose'),topics:field('topics'),participants:field('participants'),aiReviewRequired:false,updatedAt:Date.now()}; await S.store.save('meetings',updated); await syncMeetingRequirements(updated,updated.requirements);
       toast('تم حفظ تعديلات محضر الاجتماع.');render();
     }
     else if (a === 'save-meeting') {
@@ -2891,7 +2911,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const date=$('#meeting-date').value||D.todayISO();
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
-      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),purpose:$('#meeting-purpose')?.value.trim()||'',topics:$('#meeting-topics')?.value.trim()||'',transcript,requirements:$('#meeting-requirements').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-language')?.value||'ar-EG').startsWith('en')?'en':'ar',audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
+      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),purpose:$('#meeting-purpose')?.value.trim()||'',topics:$('#meeting-topics')?.value.trim()||'',transcript,requirements:$('#meeting-requirements').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-upload-language')?.value||'mixed'),audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
       await syncMeetingRequirements(meeting,meeting.requirements);
       let savedMeeting=meeting;
