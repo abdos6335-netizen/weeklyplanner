@@ -1,6 +1,6 @@
 // WeeklyPlanner — المهام الأسبوعية والمشروعات والتسليمات والماليات والإدخال الصوتي.
 import { createStore } from './store.js';
-import { t, setLang, lang, dir, locale } from './i18n.js';
+import { t, setLang, lang, dir, locale, _dicts } from './i18n.js';
 import { translateText } from './i18n-en.js';
 import { buildProjectReport, buildDocument, reportShell, esc as rEsc } from './report.js';
 import { parseWhatsAppChat, senderList, extractRequirements, buildManagerReport, managerIntent } from './assistant.js';
@@ -13,7 +13,7 @@ import {
   effectiveMode, shownColors, watchSystemMode,
 } from './theme.js';
 
-const VERSION = '3.1.35';
+const VERSION = '3.1.36';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -759,7 +759,7 @@ async function saveCaptureSummaryTask(project, lines) {
 
 function vBadgeHtml(project, d) {
   const st = revisionState(project, d);
-  const historyRows = st.history.map((item) => `<span class="rev-history-item"><b>${revLabel(item.rev)}</b><time>${esc(item.date || '—')}</time></span>`).join('');
+  const historyRows = st.history.map((item) => `<span class="rev-history-item"><span><b>${revLabel(item.rev)}</b><time>${esc(item.date || '—')}</time></span>${item.rev > 1 ? `<button class="rev-remove" type="button" data-action="deliverable-rev-remove" data-id="${esc(d.id)}" data-rev="${item.rev}" aria-label="${esc(L(`إلغاء ${revLabel(item.rev)}`, `Cancel ${revLabel(item.rev)}`))}" title="${esc(L('إلغاء هذه النسخة', 'Cancel this revision'))}">${icon('trash',14)}</button>` : ''}</span>`).join('');
   return `<details class="rev-details"><summary class="v-badge ${st.over ? 'over' : ''} ${st.requested >= 3 ? 'is-high-rev' : ''}" title="${esc(L(`تعديلات مطلوبة ${st.requested} من ${st.included} مشمولة`, `${st.requested} of ${st.included} included revisions used`))}">${revLabel(st.rev)}</summary><div class="rev-history-pop" aria-label="${L('سجل التعديلات', 'Revision history')}">${historyRows}</div></details>`;
 }
 function vActionsHtml(project, d) {
@@ -862,9 +862,10 @@ function renderDashboard() {
 }
 
 function money(value) { return new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(Number(value) || 0); }
-function projectTypeLabel(v) { return ({ residential: t('type_residential'), administrative: t('type_administrative'), commercial: t('type_commercial'), fitout: t('type_fitout') })[v] || v || '—'; }
-function projectStatusLabel(v) { return ({ planning: t('status_planning'), active: t('status_active'), on_hold: t('status_on_hold'), completed: t('status_completed') })[v] || v || '—'; }
-function projectScopeLabel(scope) { const labels={design:'Design','3d':'3D','technical_drawings':'Technical Drawings',execution:'Execution'}; return (Array.isArray(scope)?scope:[]).map(x=>labels[x]||x).join(' + '); }
+function reportDict(language = lang()) { return _dicts[language] || _dicts.ar; }
+function projectTypeLabel(v, language = lang()) { const d=reportDict(language); return ({ residential: d.type_residential, administrative: d.type_administrative, commercial: d.type_commercial, fitout: d.type_fitout })[v] || v || '—'; }
+function projectStatusLabel(v, language = lang()) { const d=reportDict(language); return ({ planning: d.status_planning, active: d.status_active, on_hold: d.status_on_hold, completed: d.status_completed })[v] || v || '—'; }
+function projectScopeLabel(scope, language = lang()) { const labels={design:'Design','3d':'Design',technical_drawings:language==='ar'?'اللوحات الفنية':'ShopDrawing',execution:language==='ar'?'التنفيذ':'Execution'}; const values=(Array.isArray(scope)?scope:[]).map(x=>labels[x]||x); return [...new Set(values)].join(' + '); }
 function projectProgressData(project, deliverables = S.deliverables) {
   const rows = deliverables.filter((d) => d.projectId === project.id);
   const selectedScopes = Array.isArray(project.workScope) ? project.workScope : [];
@@ -1030,10 +1031,13 @@ function renderProjectRequirementsPanel(project, requirements) {
     '<p class="muted small"><button class="btn sm" data-action="wa-open" data-id="' + esc(project.id) + '">' + L('استيراد من WhatsApp / WhatsApp Business', 'Import from WhatsApp / WhatsApp Business') + '</button></p>';
 }
 
-function deliverableKindsHtml() { return '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + t('type_plan') + '</option><option value="section">' + t('type_section') + '</option><option value="elevation">' + t('type_elevation') + '</option><option value="detail">' + t('type_detail') + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + t('other') + '</option>'; }
+function deliverableKindsHtml(language = lang()) { const d=reportDict(language); return '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + d.type_plan + '</option><option value="section">' + d.type_section + '</option><option value="elevation">' + d.type_elevation + '</option><option value="detail">' + d.type_detail + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + d.other + '</option>'; }
+function deliverableKindLabel(v, language = lang()) { const m = new RegExp('<option value="' + String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\function deliverableKindsHtml() { return '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + t('type_plan') + '</option><option value="section">' + t('type_section') + '</option><option value="elevation">' + t('type_elevation') + '</option><option value="detail">' + t('type_detail') + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + t('other') + '</option>'; }
 function deliverableKindLabel(v) { const m = new RegExp('<option value="' + String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '">([^<]*)<').exec(deliverableKindsHtml()); return m ? m[1] : (v || '—'); }
 function deliverableStageLabel(v) { return ({ concept: t('stage_concept'), design: t('stage_design'), technical: t('stage_technical'), execution: t('stage_execution') })[v] || v || '—'; }
-function approvalLabel(v) { return ({ pending: t('approval_pending'), submitted: t('approval_submitted'), approved: t('approval_approved'), revision: t('approval_revision') })[v] || v || '—'; }
+function approvalLabel(v) { return ({ pending: t('approval_pending'), submitted: t('approval_submitted'), approved: t('approval_approved'), revision: t('approval_revision') })[v] || v || '—'; }') + '">([^<]*)<').exec(deliverableKindsHtml(language)); return m ? m[1] : (v || '—'); }
+function deliverableStageLabel(v, language = lang()) { const d=reportDict(language); return ({ concept: d.stage_concept, design: d.stage_design, technical: d.stage_technical, execution: d.stage_execution })[v] || v || '—'; }
+function approvalLabel(v, language = lang()) { const d=reportDict(language); return ({ pending: d.approval_pending, submitted: d.approval_submitted, approved: d.approval_approved, revision: d.approval_revision })[v] || v || '—'; }
 function renderProjectDeliverablesPanel(project, deliverables) {
   const rows = deliverables;
   const stages = '<option value="concept">' + t('stage_concept') + '</option><option value="design">' + t('stage_design') + '</option><option value="technical">' + t('stage_technical') + '</option><option value="execution">' + t('stage_execution') + '</option>';
@@ -1265,36 +1269,71 @@ function openReportWindow(html) {
   const w = window.open('', '_blank'); if (!w) { toast(t('print_popup_blocked')); return; }
   w.document.open(); w.document.write(html); w.document.close();
 }
-function reportData(p) {
+function formatReportDate(value, reportLang = 'ar') {
+  if (!value) return '—';
+  const raw=String(value);
+  let date;
+  const iso=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  if (iso) date=new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3]));
+  else date=new Date(value);
+  if (!Number.isFinite(date.getTime())) return raw;
+  return new Intl.DateTimeFormat(reportLang==='ar'?'ar-EG-u-nu-latn':'en-GB',{day:'2-digit',month:'short',year:'numeric'}).format(date);
+}
+function reportSourceLabel(source, sourceLabel, reportLang) {
+  const category=({meeting:reportLang==='ar'?'اجتماع':'Meeting',whatsapp:reportLang==='ar'?'WhatsApp':'WhatsApp',manual:reportLang==='ar'?'طلب مباشر':'Direct request'})[source] || (reportLang==='ar'?'طلب مباشر':'Direct request');
+  const detail=String(sourceLabel||'').trim();
+  if (!detail || detail==='WhatsApp' || detail==='Meeting' || detail==='طلب مباشر') return category;
+  return category + ' · ' + detail;
+}
+function reportData(p, reportLang = lang()) {
   const id = p.id;
   const ds = S.deliverables.filter((x) => x.projectId === id).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
-  const fs = S.financeEntries.filter((x) => x.projectId === id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const rawFinance = S.financeEntries.filter((x) => x.projectId === id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const reqs = S.requirements.filter((x) => x.projectId === id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const totals = projectFinanceTotals(p, fs), progress = projectProgressData(p, ds);
-  const ar = lang() === 'ar';
-  const phaseNames = { design: ar ? 'التصميم' : 'Design', '3d': '3D', technical_drawings: ar ? 'اللوحات الفنية' : 'Technical drawings', execution: ar ? 'التنفيذ' : 'Execution' };
+  const totals = projectFinanceTotals(p, rawFinance), progress = projectProgressData(p, ds);
+  const dict=reportDict(reportLang);
+  const mergedPhases=[];
+  let designAdded=false;
+  for (const phase of progress.phases) {
+    if (phase.key==='design' || phase.key==='3d') {
+      if (designAdded) continue;
+      designAdded=true;
+      const designPhases=progress.phases.filter(x=>x.key==='design'||x.key==='3d');
+      const done=designPhases.reduce((sum,x)=>sum+x.done,0);
+      const total=designPhases.reduce((sum,x)=>sum+x.total,0);
+      mergedPhases.push({key:'design',label:'Design',done,total,percent:total?Math.round(done/total*100):0});
+    } else {
+      const labels={technical_drawings:reportLang==='ar'?'اللوحات الفنية':'ShopDrawing',execution:reportLang==='ar'?'التنفيذ':'Execution'};
+      mergedPhases.push({...phase,label:labels[phase.key]||phase.label});
+    }
+  }
+  const reportMoney=(value)=>new Intl.NumberFormat(reportLang==='ar'?'ar-EG-u-nu-latn':'en-GB',{maximumFractionDigits:2}).format(Number(value)||0);
+  const rawSources={meeting:'meeting',whatsapp:'whatsapp'};
   return {
-    project: { name: p.name, client: p.client, typeLabel: projectTypeLabel(p.type), statusLabel: projectStatusLabel(p.status), location: p.location, scopeLabel: projectScopeLabel(p.workScope || []), notes: p.notes, contract: totals.contract },
-    progress: { ...progress, phases: progress.phases.map((x) => ({ ...x, label: phaseNames[x.key] || x.label })) },
+    project: { name: p.name, client: p.client, typeLabel: projectTypeLabel(p.type,reportLang), statusLabel: projectStatusLabel(p.status,reportLang), location: p.location, scopeLabel: projectScopeLabel(p.workScope || [],reportLang), notes: p.notes, contract: totals.contract },
+    progress: { ...progress, phases: mergedPhases },
     totals,
-    deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage), kindLabel: deliverableKindLabel(x.kind), due: x.dueDate, status: x.status, statusLabel: approvalLabel(x.status), notes: x.notes, rev: Math.max(1, Number(x.rev) || 1), revHistory: revisionHistory(x) })),
-    finance: fs, money,
-    installments: (p.installments || []).map((i) => ({ name: i.title || i.name, dueDate: i.dueDate, amount: i.amount, status: i.status })),
-    meetings: S.meetings.filter((x) => x.projectId === id).sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 5).map((x) => ({ date: x.date, title: x.title, decisions: x.decisions, actions: x.actions })),
-    requirements: reqs.map((x) => ({ text: x.text, source: x.sourceLabel || x.source, date: x.date, statusLabel: ({ open: lang() === 'ar' ? 'مفتوح' : 'Open', doing: lang() === 'ar' ? 'قيد التنفيذ' : 'In progress', done: lang() === 'ar' ? 'تم' : 'Done' })[x.status] || x.status })),
+    deliverables: ds.map((x) => ({ name: x.name, stageLabel: deliverableStageLabel(x.stage,reportLang), kindLabel: deliverableKindLabel(x.kind,reportLang), due: formatReportDate(x.dueDate,reportLang), status: x.status, statusLabel: approvalLabel(x.status,reportLang), notes: x.notes, rev: Math.max(1, Number(x.rev) || 1), revHistory: revisionHistory(x).map(item=>({...item,date:formatReportDate(item.date,reportLang)})) })),
+    finance: rawFinance.map(x=>({...x,date:formatReportDate(x.date,reportLang)})), money: reportMoney,
+    installments: (p.installments || []).map((i) => ({ name: i.title || i.name, dueDate: formatReportDate(i.dueDate,reportLang), amount: i.amount, status: i.status })),
+    meetings: S.meetings.filter((x) => x.projectId === id).sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 5).map((x) => ({ date: formatReportDate(x.date,reportLang), title: x.title, decisions: x.decisions, actions: x.actions })),
+    requirements: reqs.map((x) => ({ text: x.text, source: reportSourceLabel(x.source,x.sourceLabel,reportLang), date: formatReportDate(x.date,reportLang), statusLabel: ({ open: reportLang==='ar'?'مفتوح':'Open', doing: reportLang==='ar'?'قيد التنفيذ':'In progress', done: reportLang==='ar'?'تم':'Done' })[x.status] || x.status })),
   };
 }
 function printProjectReport(id, mode) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport(mode === 'finance' ? 'finance' : 'status', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
+  const reportLang=lang();
+  openReportWindow(buildProjectReport(mode === 'finance' ? 'finance' : 'status', reportData(p, reportLang), { lang: reportLang, brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function printClientReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport('client', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
+  const reportLang=lang();
+  openReportWindow(buildProjectReport('client', reportData(p, reportLang), { lang: reportLang, brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function printProjectFullReport(id) {
   const p = S.projects.find((x) => x.id === id); if (!p) return;
-  openReportWindow(buildProjectReport('full', reportData(p), { lang: lang(), brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
+  const reportLang=lang();
+  openReportWindow(buildProjectReport('full', reportData(p, reportLang), { lang: reportLang, brand: S.settings.brand || {}, doneColor: S.settings.theme.done === 'orange' ? (effectiveMode(S.settings.theme) === 'dark' ? '#f0a35c' : '#e58a32') : (effectiveMode(S.settings.theme) === 'dark' ? '#5fd3a0' : '#1f9c70') }));
 }
 function openPrintChoice(id) {
   const p=S.projects.find(x=>x.id===id); if(!p)return;
@@ -2701,6 +2740,17 @@ async function onClick(e) {
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener'); break;
     }
     case 'deliverable-rev': { const d = S.deliverables.find((x) => x.id === el.dataset.id); if (!d) break; const rev = (Number(d.rev) || 1) + 1, now = Date.now(); const revHistory = [...revisionHistory(d).filter((item) => item.rev < rev), { rev, date: D.todayISO() }]; S.store.save('deliverables', { ...d, rev, revHistory, status: 'pending', submittedAt: null, updatedAt: now }).then(() => { toast(L('تم فتح نسخة جديدة.', 'New version opened.')); refreshProjectPanel(); }).catch((err) => toast(t('save_failed', { msg: err.message || err }))); break; }
+    case 'deliverable-rev-remove': {
+      const d=S.deliverables.find(x=>x.id===el.dataset.id); if(!d)break;
+      const targetRev=Number(el.dataset.rev); if(!Number.isInteger(targetRev)||targetRev<=1)break;
+      const label=revLabel(targetRev);
+      if(!confirm(L(`إلغاء ${label} لهذه التسليمة؟`, `Cancel ${label} for this deliverable?`)))break;
+      const remaining=revisionHistory(d).filter(item=>item.rev!==targetRev).map((item,index)=>({...item,rev:index+1}));
+      const updated={...d,rev:Math.max(1,remaining.length),revHistory:remaining,updatedAt:Date.now()};
+      try{await S.store.save('deliverables',updated);S.deliverables=S.deliverables.map(x=>x.id===updated.id?updated:x);toast(L(`تم إلغاء ${label} وإعادة ترقيم النسخ.`,`Cancelled ${label} and renumbered remaining revisions.`));refreshProjectPanel();}
+      catch(err){toast(t('save_failed',{msg:err.message||err}));}
+      break;
+    }
     case 'voice-start': S.voiceAutoAnalyze = el.classList.contains('cap-mic'); startVoiceRecognition(); break;
     case 'close-voice': $('#layer').innerHTML=''; break;
     case 'finance-view': S.financeView=v; render(); break;
