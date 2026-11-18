@@ -122,7 +122,7 @@ export function buildProjectReport(mode, data, { lang = 'ar', brand = {}, doneCo
     ? `<div class="kpis">${kpi(L.contract, m(totals.contract))}${kpi(L.income, m(totals.income))}${kpi(L.expense, m(totals.expense))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}</div>`
     : `<div class="kpis">${kpi(L.progress, pctTxt(progress?.percent))}${kpi(L.collection, pctTxt(totals.collectionPct))}${kpi(L.net, `<span class="${netCls}">${m(totals.net)}</span>`)}${kpi(L.deliverables, number(deliverables.length))}</div>`;
   const phaseTable = phases.length ? table([L.phase, L.delivered, L.pct, L.state],
-    phases.map((ph) => `<tr><td>${esc(ph.label)}</td><td class="num">${number(ph.done)} / ${number(ph.total)}</td><td><div class="bar"><i style="width:${ph.total ? ph.percent : 0}%"></i></div><span class="num pct">${ph.total ? ph.percent + '%' : '—'}</span></td><td>${phaseState(ph, lang)}</td></tr>`), L) : '';
+    phases.map((ph) => `<tr><td>${esc(ph.label)}</td><td class="num">${number(ph.done)} / ${number(ph.total)}</td><td><div class="bar"><i style="width:${ph.total ? ph.percent : 0}%"></i></div><span class="num pct">${ph.total ? number(ph.percent) + '%' : '—'}</span></td><td>${phaseState(ph, lang)}</td></tr>`), L) : '';
   const delivRows = deliverables.map((d) => {
     const rev=Math.max(1,Number(d.rev)||1);
     const history=Array.isArray(d.revHistory)&&d.revHistory.length?d.revHistory:Array.from({length:rev},(_,i)=>({rev:i+1,date:'—'}));
