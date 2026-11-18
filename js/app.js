@@ -1813,6 +1813,8 @@ function renderMeetings() {
         <label class="lab" for="meeting-requirements">Client Requirements — طلبات العميل (كل طلب في سطر)</label><textarea class="input textarea" id="meeting-requirements" rows="3" placeholder="مثال: إضافة وحدة تخزين بجوار الثلاجة&#10;تغيير لون وحدات المطبخ"></textarea>
         <label class="lab" for="meeting-transcript">Transcript — نص الاجتماع</label>
         <textarea class="input textarea" id="meeting-transcript" rows="6" placeholder="أضف النص المستخرج أو الملاحظات بعد الاجتماع"></textarea>
+        <label class="lab" for="meeting-summary">ملخص الاجتماع</label>
+        <textarea class="input textarea" id="meeting-summary" rows="4" placeholder="ملخص عام لما دار في الاجتماع والنتيجة النهائية"></textarea>
         <label class="lab" for="meeting-purpose">Purpose — الغرض من الاجتماع</label>
         <input class="input" id="meeting-purpose" maxlength="240" placeholder="مثال: مراجعة الشوب دروينج والتعديلات">
         <label class="lab" for="meeting-topics">Topics — المواضيع (كل موضوع في سطر)</label>
@@ -1821,6 +1823,8 @@ function renderMeetings() {
         <textarea class="input textarea" id="meeting-minutes" rows="6" placeholder="01. Shop Drawings Review&#10;النقاط التي تمت مناقشتها...&#10;&#10;02. Colors & Materials&#10;النقاط التي تمت مناقشتها..."></textarea>
         <label class="lab" for="meeting-decisions">Agreements & Decisions — تم الاتفاق على</label>
         <textarea class="input textarea" id="meeting-decisions" rows="4" placeholder="1. ...&#10;2. ...&#10;3. ..."></textarea>
+        <label class="lab" for="meeting-open-points">نقاط مفتوحة — لم تُحسم بعد</label>
+        <textarea class="input textarea" id="meeting-open-points" rows="3" placeholder="كل نقطة غير محسومة في سطر"></textarea>
         <label class="lab" for="meeting-actions">Action Items — المهام والمسؤوليات والمواعيد</label>
         <textarea class="input textarea" id="meeting-actions" rows="3" placeholder="المهمة — المسؤول — الموعد (إن ذُكر)"></textarea>
         <button class="btn primary" type="submit">حفظ محضر الاجتماع</button>
@@ -1921,6 +1925,7 @@ function momSummary(m, p) {
     block(ar ? 'المواضيع' : 'Topics', m.topics),
     block(ar ? 'الحضور' : 'Attendees', [m.firstParty, m.participants].filter(Boolean).join('، ')),
     block(ar ? 'القرارات' : 'Decisions', m.decisions),
+    block(ar ? 'نقاط مفتوحة' : 'Open Points', (m.openPoints || []).join('\n')),
     block(ar ? 'المتطلبات' : 'Requirements', m.requirements),
     block(ar ? 'المهام' : 'Action Items', m.actions),
     m.minutes && !m.topics ? block(ar ? 'ملخص النقاش' : 'Discussion', m.minutes) : '',
@@ -2911,7 +2916,7 @@ const el = e.target.closest('form[data-action]'); if (!el) return; const a = el.
       const date=$('#meeting-date').value||D.todayISO();
       const previous=S.meetings.filter(m=>m.projectId===project.id);
       const sequence=previous.reduce((n,m)=>Math.max(n,Number(m.sequence)||0),-1)+1;
-      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),purpose:$('#meeting-purpose')?.value.trim()||'',topics:$('#meeting-topics')?.value.trim()||'',transcript,requirements:$('#meeting-requirements').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-upload-language')?.value||'mixed'),audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
+      const transcript=$('#meeting-transcript').value.trim(); const firstParty=$('#meeting-first-party')?.value.trim()||S.user?.displayName||S.user?.name||S.user?.email||''; const secondParty=$('#meeting-client').value.trim()||project.client||''; const title=$('#meeting-title').value.trim(); let category=$('#meeting-category')?.value||'general'; if(category==='general'){const hay=(title+' '+transcript).toLocaleLowerCase();if(/shop.?draw|شوب|لوح(ة|ات)|تنفيذي/.test(hay))category='shop-drawings';else if(/3d|design|تصميم|رندر|موديل/.test(hay))category='design';else if(/site|موقع|تنفيذ|استلام/.test(hay))category='site';else if(/color|colour|خامة|خامات|لون|ألوان|الوان/.test(hay))category='materials';else if(/اعتماد|موافقة|عميل|ملاحظات العميل/.test(hay))category='client-review';} const meeting={id:S.nativeMeetingDraftId||uid(),projectId:project.id,sequence,title:title||`Meeting ${String(sequence).padStart(2,'0')}`,category,client:secondParty,firstParty,secondParty,date,time:$('#meeting-time').value||'',mode:$('#meeting-mode').value,participants:$('#meeting-participants').value.trim(),summary:$('#meeting-summary')?.value.trim()||'',purpose:$('#meeting-purpose')?.value.trim()||'',topics:$('#meeting-topics')?.value.trim()||'',openPoints:($('#meeting-open-points')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean),transcript,requirements:$('#meeting-requirements').value.trim(),minutes:$('#meeting-minutes').value.trim(),decisions:$('#meeting-decisions').value.trim(),actions:$('#meeting-actions').value.trim(),language:($('#meeting-upload-language')?.value||'mixed'),audioFileName:S.nativeMeetingFileName||null,hasAudio:!!(S.nativeMeetingFileName||S.pendingMeetingAudio),createdAt:Date.now(),updatedAt:Date.now()};
       await S.store.save('meetings',meeting);
       await syncMeetingRequirements(meeting,meeting.requirements);
       let savedMeeting=meeting;
