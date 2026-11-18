@@ -1894,7 +1894,7 @@ function printMeetingReport(id, mode = 'full') {
     ['Date | التاريخ', [m.date, m.time].filter(Boolean).join(' ')], ['Category | التصنيف', cat], ['Type | النوع', m.mode === 'online' ? 'Online' : 'Offline']];
   const attendees = `<h2>Meeting Attendees | الحضور</h2><table><tbody><tr><td><small>First Party | الطرف الأول</small><br><b>${rEsc(first)}</b></td><td><small>Second Party | الطرف الثاني</small><br><b>${rEsc(client)}</b></td></tr></tbody></table>`;
   const actionRows = String(m.actions || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
-    const parts = line.split(/\\s+—\\s+/);
+    const parts = line.split(/\s+—\s+/);
     return `<tr><td>${rEsc(parts[0] || '')}</td><td>${rEsc(parts[1] || '—')}</td><td>${rEsc(parts[2] || '—')}</td></tr>`;
   });
   const actionTable = actionRows.length ? `<h2>Action Items | المهام</h2><table><thead><tr><th>Task | المهمة</th><th>Owner | المسؤول</th><th>Deadline | الموعد</th></tr></thead><tbody>${actionRows.join('')}</tbody></table>` : '';
