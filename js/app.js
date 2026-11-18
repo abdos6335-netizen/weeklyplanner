@@ -1033,8 +1033,8 @@ function renderProjectRequirementsPanel(project, requirements) {
 
 function deliverableKindsHtml(language = lang()) { const d=reportDict(language); return '<optgroup label="Existing & Layout"><option value="existing">Existing</option><option value="masonry">Masonry</option><option value="demolish">Demolish</option><option value="furniture">Furniture</option><option value="dimension">Dimension</option><option value="furniture-layout">Furniture Layout</option><option value="plan">' + d.type_plan + '</option><option value="section">' + d.type_section + '</option><option value="elevation">' + d.type_elevation + '</option><option value="detail">' + d.type_detail + '</option></optgroup><optgroup label="Ceiling & Electrical"><option value="rcp">RCP</option><option value="electrical-power">Electrical Power</option><option value="electrical-switches">Electrical Switches</option><option value="electrical-low-current">Electrical Low Current</option></optgroup><optgroup label="Finishes"><option value="flooring">Flooring</option><option value="wall-finishing">Wall Finishing</option></optgroup><optgroup label="Mechanical"><option value="mechanical-ac">Mechanical AC</option><option value="mechanical-plumbing">Mechanical Plumbing</option><option value="mechanical-drainage">Mechanical Drainage</option></optgroup><optgroup label="Schedules"><option value="schedule-door">Schedule - Door</option><option value="schedule-window">Schedule - Window</option><option value="schedule-finishes">Schedule - Finishes</option><option value="schedule-lighting">Schedule - Lighting</option><option value="schedule-ffe">Schedule - FF&E</option></optgroup><option value="3d">3D</option><option value="other">' + d.other + '</option>'; }
 function deliverableKindLabel(v, language = lang()) { const escaped=String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const m=new RegExp('<option value="'+escaped+'">([^<]*)<').exec(deliverableKindsHtml(language)); return m ? m[1] : (v || '—'); }
-function deliverableStageLabel(v) { return ({ concept: t('stage_concept'), design: t('stage_design'), technical: t('stage_technical'), execution: t('stage_execution') })[v] || v || '—'; }
-function approvalLabel(v) { return ({ pending: t('approval_pending'), submitted: t('approval_submitted'), approved: t('approval_approved'), revision: t('approval_revision') })[v] || v || '—'; }') + '">([^<]*)<').exec(deliverableKindsHtml(language)); return m ? m[1] : (v || '—'); }
+function deliverableStageLabel(v, language = lang()) { const d=reportDict(language); return ({ concept:d.stage_concept,design:d.stage_design,technical:d.stage_technical,execution:d.stage_execution })[v] || v || '—'; }
+function approvalLabel(v, language = lang()) { const d=reportDict(language); return ({ pending:d.approval_pending,submitted:d.approval_submitted,approved:d.approval_approved,revision:d.approval_revision })[v] || v || '—'; }') + '">([^<]*)<').exec(deliverableKindsHtml(language)); return m ? m[1] : (v || '—'); }
 function deliverableStageLabel(v, language = lang()) { const d=reportDict(language); return ({ concept: d.stage_concept, design: d.stage_design, technical: d.stage_technical, execution: d.stage_execution })[v] || v || '—'; }
 function approvalLabel(v, language = lang()) { const d=reportDict(language); return ({ pending: d.approval_pending, submitted: d.approval_submitted, approved: d.approval_approved, revision: d.approval_revision })[v] || v || '—'; }
 function renderProjectDeliverablesPanel(project, deliverables) {
@@ -1272,7 +1272,7 @@ function formatReportDate(value, reportLang = 'ar') {
   if (!value) return '—';
   const raw=String(value);
   let date;
-  const iso=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) date=new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3]));
   else date=new Date(value);
   if (!Number.isFinite(date.getTime())) return raw;
