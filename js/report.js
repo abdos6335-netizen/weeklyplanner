@@ -62,6 +62,7 @@ td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;text-a
 .nowrap{white-space:nowrap;overflow-wrap:normal;word-break:normal}
 .deliverables-table{table-layout:auto;min-width:100%}
 .deliverables-table col.name{width:26%}.deliverables-table col.stage{width:11%}.deliverables-table col.kind{width:17%}.deliverables-table col.due{width:11%}.deliverables-table col.approval{width:12%}.deliverables-table col.revisions{width:12%}.deliverables-table col.notes{width:11%}
+.deliverables-table th:nth-child(1),.deliverables-table td:nth-child(1){min-width:125px}.deliverables-table th:nth-child(2),.deliverables-table td:nth-child(2){min-width:72px}.deliverables-table th:nth-child(3),.deliverables-table td:nth-child(3){min-width:96px}.deliverables-table th:nth-child(4),.deliverables-table td:nth-child(4){min-width:74px}.deliverables-table th:nth-child(5),.deliverables-table td:nth-child(5){min-width:82px}.deliverables-table th:nth-child(6),.deliverables-table td:nth-child(6){min-width:88px}.deliverables-table th:nth-child(7),.deliverables-table td:nth-child(7){min-width:100px}
 .rev-date{display:flex;align-items:baseline;gap:6px;white-space:nowrap}.rev-date b{font-weight:600}.rev-date small{color:var(--mut);font-size:.88em}
 .bar{height:6px;background:#e8e6e1;border-radius:3px;overflow:hidden;min-width:70px}.bar i{display:block;height:100%;background:var(--done)}
 .pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:calc(var(--rs)*.82);background:var(--soft);border:1px solid var(--line);white-space:nowrap}
