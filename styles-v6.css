@@ -417,6 +417,7 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
 .rev-history-item + .rev-history-item { border-top: 1px solid var(--line); }
 .rev-history-item b { color: var(--text); font-weight: 600; }
 .rev-history-item time { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.rev-history-item>span{display:flex;align-items:center;gap:10px;min-width:0}.rev-remove{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;padding:0;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer}.rev-remove:hover{color:var(--danger,var(--accent));border-color:var(--accent);background:var(--surface-2,var(--panel))}.rev-remove .ic{width:14px;height:14px}
 
 /* v6.3 — التسجيل الصوتي اليدوي: مؤشر نابض لا يوقف التسجيل تلقائيًا */
 .cap-mic, .voice-controls [data-action="voice-start"] { position: relative; isolation: isolate; }
