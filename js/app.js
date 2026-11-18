@@ -1893,7 +1893,7 @@ function printMeetingReport(id, mode = 'full') {
   const meta = [['Meeting Title | عنوان الاجتماع', m.title], ['Project | المشروع', p?.name || m.projectName], ['Client | العميل', client],
     ['Date | التاريخ', [m.date, m.time].filter(Boolean).join(' ')], ['Category | التصنيف', cat], ['Type | النوع', m.mode === 'online' ? 'Online' : 'Offline']];
   const attendees = `<h2>Meeting Attendees | الحضور</h2><table><tbody><tr><td><small>First Party | الطرف الأول</small><br><b>${rEsc(first)}</b></td><td><small>Second Party | الطرف الثاني</small><br><b>${rEsc(client)}</b></td></tr></tbody></table>`;
-  const actionRows = String(m.actions || '').split(/\\r?\\n/).map(line => line.trim()).filter(Boolean).map(line => {
+  const actionRows = String(m.actions || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
     const parts = line.split(/\\s+—\\s+/);
     return `<tr><td>${rEsc(parts[0] || '')}</td><td>${rEsc(parts[1] || '—')}</td><td>${rEsc(parts[2] || '—')}</td></tr>`;
   });
@@ -1902,7 +1902,7 @@ function printMeetingReport(id, mode = 'full') {
   const body = mode === 'short'
     ? block('Summary | ملخص الاجتماع', m.summary) + block('Agreements | تم الاتفاق على', m.decisions) + actionTable
     : block('Summary | ملخص الاجتماع', m.summary) + block('Purpose | الغرض من الاجتماع', m.purpose) + discussion +
-      block('Agreements | تم الاتفاق على', m.decisions) + block('Open Points | نقاط مفتوحة', (m.openPoints || []).join('\\n')) +
+      block('Agreements | تم الاتفاق على', m.decisions) + block('Open Points | نقاط مفتوحة', (m.openPoints || []).join('\n')) +
       block('Client Requirements | طلبات العميل', m.requirements) + actionTable + attendees +
       block('Other Attendees | الحضور الآخرون', m.participants) + block('Transcript | النص الكامل للاجتماع', m.transcript);
   openReportWindow(reportShell({ lang: lang(), title: 'Minutes of Meeting', subtitle: mode === 'short' ? 'نسخة مختصرة' : 'نسخة كاملة', brand: S.settings.brand || {}, meta, body }));
