@@ -482,7 +482,7 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
     --primary: var(--ph-accent, #217a5c) !important; --primary-text: var(--ph-accent-ink, #fff) !important;
     --btn: transparent !important; --btn-ring: var(--ph-line, #3a3a3a) !important;
     --raise: none !important; --inset: none !important; --shell-shadow: none !important; --blur: 0px !important;
-    --font: "Kanit", "IBM Plex Sans Arabic", system-ui, sans-serif !important;
+    /* Font family inherits the user-selected --font from js/theme.js. */
     /* color-scheme is synchronized from the selected effective mode in applyPhoneTheme(). */
   }
   html, body { background: var(--ph-bg, #131313) !important; }
