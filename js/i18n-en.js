@@ -427,6 +427,17 @@ export const EN = {
 'لوحة':'Drawing','مالية':'Financial','مشروع':'Project','مصروف':'Expense','معتمد':'Approved','مفتوح':'Open','أخرى':'Other','اطبع':'Print','بكرة':'Tomorrow','جنيه':'EGP','حلقة':'Ring','خامة':'Material','دفعة':'Installment','دفعت':'paid','رندر':'Render','سكني':'Residential','سلمت':'delivered','شارة':'Badge','شريط':'Bar','صافي':'Net','صرفت':'spent','عاجل':'Urgent','عداد':'Counter','عميل':'Client','غداً':'Tomorrow','قبضت':'received','مثال':'Example','مهمة':'Task','موقع':'Site','ناعم':'Soft','هادئ':'Calm',
 'بعد':'after','ج.م':'EGP','حذف':'Delete','حفظ':'Save','دخل':'Income','ربط':'Link','سجل':'Record','صحة':'Health','عرض':'View','غدا':'Tomorrow','فني':'Technical','لون':'Color','يوم':'Day',
 'يناير':'January','فبراير':'February','مارس':'March','أبريل':'April','ابريل':'April','مايو':'May','يونيو':'June','يوليو':'July','أغسطس':'August','اغسطس':'August','سبتمبر':'September','أكتوبر':'October','اكتوبر':'October','نوفمبر':'November','ديسمبر':'December',
+'المظهر والألوان':'Appearance & colors',
+'الكمبيوتر':'Desktop',
+'الموبايل':'Mobile',
+'تنطبق على شاشة الموبايل فقط (الديسكتوب والتابلت لا يتأثران).':'Applies only to the mobile screen; desktop and tablet are unaffected.',
+'لون الخلفية':'Background color',
+'لون الشريط الجانبي':'Sidebar color',
+'لون النصوص والأيقونات':'Text and icon color',
+'لون الخطوط الفاصلة':'Divider color',
+'لون التمييز النشط':'Active accent color',
+'تنبيه: تباين النص مع الخلفية أقل من 4.5:1. يُفضّل تعديل أحد اللونين لتحسين القراءة.':'Warning: text-to-background contrast is below 4.5:1. Consider changing one of these colors for readability.',
+'إعادة ألوان هذا الوضع':'Reset this mode colors',
 };
 // أطول مفتاح أولًا حتى لا تُستبدل أجزاء من عبارات أطول
 export const EN_KEYS = Object.keys(EN).sort((a, b) => b.length - a.length);
