@@ -27,12 +27,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: Install isolated test dependencies
         run: npm install --no-save firebase @firebase/rules-unit-testing firebase-tools
+      - name: Create isolated Firestore emulator config
+        run: |
+          cat > firebase-test.json <<'EOF'
+          {
+            "firestore": {
+              "rules": "firestore.rules"
+            },
+            "emulators": {
+              "firestore": {
+                "host": "127.0.0.1",
+                "port": 8080
+              },
+              "ui": {
+                "enabled": false
+              }
+            }
+          }
+          EOF
       - name: Run pure sharing tests and Firestore rules emulator tests
         run: >
           npx firebase emulators:exec --only firestore
           --project demo-weeklyplanner
-          --config .github/firebase-test.json
+          --config firebase-test.json
           "node --test tests/share-core.test.mjs tests/firestore-rules.test.mjs"
