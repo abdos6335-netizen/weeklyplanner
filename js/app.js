@@ -59,7 +59,9 @@ function installTranslator() {
   translateNode(document.body);
 }
 
-const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, typography: { heading: 112, subheading: 100, item: 92 }, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
+// ألوان ثيم الموبايل (≤599px فقط) — مأخوذة من المرجع، وقابلة للتغيير من الإعدادات
+const DEFAULT_PHONE = { bg: '#131313', rail: '#2b2c30', ink: '#f2f2f2', line: '#3a3a3a' };
+const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, phone: { ...DEFAULT_PHONE }, typography: { heading: 112, subheading: 100, item: 92 }, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
 
 const S = {
   store: null,
@@ -123,6 +125,8 @@ function mergeSettings(saved) {
   s.typography = { ...DEFAULT_SETTINGS.typography, ...(saved?.typography || {}) };
   for (const key of ['heading','subheading','item']) { const n = Number(s.typography[key]); s.typography[key] = Number.isFinite(n) ? Math.min(130, Math.max(80, Math.round(n))) : DEFAULT_SETTINGS.typography[key]; }
   s.motion = { ...DEFAULT_SETTINGS.motion, ...(saved?.motion || {}) };
+  s.phone = { ...DEFAULT_PHONE, ...(saved?.phone || {}) };
+  for (const k of Object.keys(DEFAULT_PHONE)) if (!/^#[0-9a-f]{6}$/i.test(s.phone[k])) s.phone[k] = DEFAULT_PHONE[k];
   s.financeTargets = { ...DEFAULT_SETTINGS.financeTargets, ...(saved?.financeTargets || {}) };
   for (const key of ['collection', 'profit']) {
     const target = Number(s.financeTargets[key]);
@@ -244,9 +248,16 @@ function applySettings(rerender) {
   S.settings.theme = applyTheme(S.settings.theme);
   applyMotionSettings();
   applyTypographySettings();
+  applyPhoneTheme();
   document.title = t('app');
   cacheSettings();
   if (rerender && S.user) render();
+}
+
+function applyPhoneTheme() {
+  const ph = { ...DEFAULT_PHONE, ...(S.settings.phone || {}) };
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(ph)) root.style.setProperty('--ph-' + k, v);
 }
 
 function applyMotionSettings() {
@@ -357,6 +368,7 @@ function railHtml(sec) {
         ${items.map(([id, key]) => `<button class="rail-btn ${sec === id ? 'on' : ''}" data-action="nav" data-section="${id}" aria-label="${t(key)}" title="${t(key)}" ${sec === id ? 'aria-current="page"' : ''}>${icon(NAV_ICON[id], 22, sec === id)}</button>`).join('')}
       </nav>
       <span class="rail-label" aria-hidden="true">WEEKLY PLANNER · NAV</span>
+      <span class="rail-word" aria-hidden="true">WEEKLY</span>
     </div>
     <div class="rail-pill">
       <span class="rail-label" aria-hidden="true">SETTINGS</span>
@@ -2301,6 +2313,15 @@ function renderSettings() {
     ${range('blur', 0, 32, th.blur, 'px', !th.glass)}
     <button class="btn" data-action="reset-colors">${t('reset_colors')}</button>`;
 
+  const ph = { ...DEFAULT_PHONE, ...(S.settings.phone || {}) };
+  const phoneColors = `
+    <p class="hint">${t('phone_hint')}</p>
+    <div class="row"><span class="lab-i">${t('ph_bg')}</span><input type="color" data-input="ph-bg" value="${ph.bg}"></div>
+    <div class="row"><span class="lab-i">${t('ph_rail')}</span><input type="color" data-input="ph-rail" value="${ph.rail}"></div>
+    <div class="row"><span class="lab-i">${t('ph_ink')}</span><input type="color" data-input="ph-ink" value="${ph.ink}"></div>
+    <div class="row"><span class="lab-i">${t('ph_line')}</span><input type="color" data-input="ph-line" value="${ph.line}"></div>
+    <button class="btn" data-action="reset-phone">${t('ph_reset')}</button>`;
+
   const iconsFonts = `
     <div class="lab">${lang() === 'ar' ? 'نظام الأيقونات' : 'Icon system'}</div>
 
@@ -2412,6 +2433,7 @@ function renderSettings() {
     ${group('typography', 'type', lang() === 'ar' ? 'أحجام الخطوط' : 'Typography sizes', typographySettings)}
     ${group('motion', 'sparkles', lang() === 'ar' ? 'الحركة والانتقالات' : 'Motion & transitions', motionSettings)}
     ${group('colors', 'layers', 'g_colors', colors)}
+    ${group('phone', 'palette', 'g_phone', phoneColors)}
     ${group('icons', 'type', 'g_icons_fonts', iconsFonts)}
     ${group('language', 'globe', 'g_language', language)}
     ${group('account', 'user', 'g_account', account)}
@@ -2919,6 +2941,7 @@ async function onClick(e) {
     case 'set-surface': updateTheme((x) => { x.surface = v; }, { render: true }); break;
     case 'set-icons': updateTheme((x) => { x.icons = v; }, { render: true }); break;
     case 'set-font': updateTheme((x) => { x.font = v; }, { render: true }); break;
+    case 'reset-phone': updateSettings({ phone: { ...DEFAULT_PHONE } }); break;
     case 'reset-colors': {
       const p = PRESETS.glass;
       updateTheme((x) => {
@@ -3029,6 +3052,9 @@ function onInput(e) {
       renderRatioPreview();
       break;
     }
+    case 'ph-bg': case 'ph-rail': case 'ph-ink': case 'ph-line':
+      if (/^#[0-9a-f]{6}$/i.test(v)) { S.settings.phone = { ...DEFAULT_PHONE, ...(S.settings.phone || {}), [k.slice(3)]: v }; applyPhoneTheme(); cacheSettings(); S.lastSettingsTouch = Date.now(); persistSettings(); }
+      break;
     case 'bg': updateTheme((x) => { x.bg[mode] = v; x.preset = 'custom'; }); break;
     case 'accent': updateTheme((x) => { x.accent = v; x.preset = 'custom'; }); break;
     case 'text': updateTheme((x) => { x.text[mode] = v; }); break;
