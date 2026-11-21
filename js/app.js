@@ -61,7 +61,7 @@ function installTranslator() {
 
 // ألوان ثيم الموبايل (≤599px فقط) — مأخوذة من المرجع، وقابلة للتغيير من الإعدادات
 const DEFAULT_PHONE = {
-  light: { bg: '#f4f3ef', rail: '#ffffff', ink: '#242424', line: '#dedede', accent: '#278a68' },
+  light: { bg: '#f4f3ef', rail: '#ffffff', ink: '#242424', line: '#dedede', accent: '#217a5c' },
   dark: { bg: '#131313', rail: '#2b2c30', ink: '#f2f2f2', line: '#3a3a3a', accent: '#f2f2f2' },
 };
 const DEFAULT_SETTINGS = { id: 'prefs', lang: 'ar', weekStartDay: 6, accordion: 'single', theme: DEFAULT_THEME, phone: { light: { ...DEFAULT_PHONE.light }, dark: { ...DEFAULT_PHONE.dark } }, typography: { heading: 112, subheading: 100, item: 92 }, motion: { style: 'apple', speed: 'normal' }, financeTargets: { collection: 100, profit: 25 }, ratioAppearance: { scope: 'global', global: { ...DEFAULT_RATIO_LOOK }, tabs: { dashboard: { ...DEFAULT_RATIO_LOOK }, projects: { ...DEFAULT_RATIO_LOOK }, finance: { ...DEFAULT_RATIO_LOOK } } } };
@@ -313,7 +313,7 @@ function applyPhoneTheme() {
   const ph = S.settings.phone?.[mode] || DEFAULT_PHONE[mode];
   const root = document.documentElement;
   for (const [k, v] of Object.entries(ph)) root.style.setProperty('--ph-' + k, v);
-  root.style.setProperty('--ph-accent-ink', phoneLuminance(ph.accent) > 0.42 ? '#171717' : '#ffffff');
+  root.style.setProperty('--ph-accent-ink', phoneLuminance(ph.accent) > 0.179 ? (phoneLuminance(ph.bg) < 0.4 ? ph.bg : '#171717') : '#ffffff');
   root.dataset.phoneMode = mode;
   root.style.colorScheme = mode;
 }
