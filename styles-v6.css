@@ -477,9 +477,9 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
     --rail: var(--ph-rail, #2b2c30) !important; --rail-ink: var(--ph-ink, #f2f2f2) !important;
     --rail-dim: color-mix(in srgb, var(--ph-ink, #f2f2f2) 58%, var(--ph-rail, #2b2c30)) !important; --rail-on: transparent !important;
     --card: transparent !important; --search: transparent !important; --tree-sel: color-mix(in srgb, var(--ph-ink, #f2f2f2) 7%, transparent) !important;
-    --accent: var(--ph-accent, #278a68) !important; --accent-text: var(--ph-accent-ink, #fff) !important; --on-accent: var(--ph-accent-ink, #fff) !important;
-    --accent-soft: color-mix(in srgb, var(--ph-accent, #278a68) 12%, var(--ph-bg, #131313)) !important;
-    --primary: var(--ph-accent, #278a68) !important; --primary-text: var(--ph-accent-ink, #fff) !important;
+    --accent: var(--ph-accent, #217a5c) !important; --accent-text: var(--ph-accent-ink, #fff) !important; --on-accent: var(--ph-accent-ink, #fff) !important;
+    --accent-soft: color-mix(in srgb, var(--ph-accent, #217a5c) 10%, var(--ph-bg, #131313)) !important;
+    --primary: var(--ph-accent, #217a5c) !important; --primary-text: var(--ph-accent-ink, #fff) !important;
     --btn: transparent !important; --btn-ring: var(--ph-line, #3a3a3a) !important;
     --raise: none !important; --inset: none !important; --shell-shadow: none !important; --blur: 0px !important;
     --font: "Kanit", "IBM Plex Sans Arabic", system-ui, sans-serif !important;
@@ -501,7 +501,7 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
   .rail-col {
     display: flex !important; flex-direction: column; position: fixed; z-index: 40; inset-block: 0; inset-inline-start: 0;
     width: 58px; height: auto; gap: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
-    background: var(--ph-rail, #2b2c30);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ph-rail, #2b2c30) 82%, #fff) 0%, var(--ph-rail, #2b2c30) 70%);
     border-inline-end: 1px solid var(--ph-line, #3a3a3a);
   }
   .rail-pill, .rail-pill.grow { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0; min-height: 0; border-radius: 0; background: none !important; box-shadow: none !important; width: 100%; }
@@ -559,8 +559,8 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
     background: transparent !important; border: 1px solid var(--ph-line, #3a3a3a) !important; border-radius: 999px !important; box-shadow: none !important; font-weight: 300;
   }
   .icon-btn { border-color: transparent !important; }
-  .btn.primary { background: var(--ph-accent, #278a68) !important; color: var(--ph-accent-ink, #fff) !important; border-color: transparent !important; }
-  .rail-btn.on::before { background: var(--ph-accent, #278a68) !important; }
+  .btn.primary { background: var(--ph-accent, #217a5c) !important; color: var(--ph-accent-ink, #fff) !important; border-color: transparent !important; }
+  .rail-btn.on::before { background: var(--ph-accent, #217a5c) !important; }
   .btn.ghost { border-color: transparent !important; }
   .input, .textarea, select.input {
     background: transparent !important; box-shadow: none !important; border: 0 !important; border-bottom: 1px solid var(--ph-line, #3a3a3a) !important; border-radius: 0 !important; font-weight: 200;
