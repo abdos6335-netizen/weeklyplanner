@@ -80,7 +80,7 @@ const ar = {
   contracts_total: 'إجمالي التعاقدات', collected: 'التحصيلات المسجلة', expenses: 'المصروفات', remaining: 'متبقي للتحصيل', net_cash: 'صافي التدفق النقدي', add_finance_entry: 'تسجيل حركة مالية', project: 'المشروع', choose_project: 'اختر مشروعًا', transaction_type: 'نوع الحركة', income: 'تحصيل / إيراد', amount: 'المبلغ', category: 'التصنيف', general: 'عام', design: 'تصميم', materials: 'خامات', labor: 'عمالة', transport: 'نقل', description: 'الوصف', save_entry: 'حفظ الحركة', transactions: 'الحركات المالية', project_deleted: 'مشروع محذوف', no_transactions: 'لا توجد حركات مالية مسجلة حتى الآن.', form_required: 'راجع المشروع والمبلغ قبل الحفظ.',
 
   // الإعدادات
-  g_appearance: 'المظهر',
+  g_appearance: 'المظهر والألوان',
   g_colors: 'الألوان والأسطح',
   g_phone: 'ألوان الموبايل',
   phone_hint: 'تنطبق على شاشة الموبايل فقط (الديسكتوب والتابلت لا يتأثران).',
@@ -88,7 +88,9 @@ const ar = {
   ph_rail: 'لون الشريط الجانبي',
   ph_ink: 'لون النصوص والأيقونات',
   ph_line: 'لون الخطوط الفاصلة',
-  ph_reset: 'إعادة ألوان الموبايل',
+  ph_accent: 'لون التمييز النشط',
+  ph_contrast: 'تنبيه: تباين النص مع الخلفية أقل من 4.5:1. يُفضّل تعديل أحد اللونين لتحسين القراءة.',
+  ph_reset: 'إعادة ألوان هذا الوضع',
   g_icons_fonts: 'الأيقونات والخط',
   g_language: 'اللغة والأسبوع',
   g_account: 'الحساب والبيانات',
