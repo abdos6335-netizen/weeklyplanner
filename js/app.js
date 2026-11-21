@@ -177,7 +177,35 @@ const cmpTasks = (a, b) =>
   (isDone(a) - isDone(b)) || (b.priority - a.priority) || (a.createdAt - b.createdAt);
 
 // ================================================================== الإقلاع
+// ---- الموبايل: سحب (swipe) نحو حافة الشريط يخفيه، وزر صغير يرجّعه. الحالة محفوظة على الجهاز.
+function setRailHidden(hidden) {
+  document.documentElement.dataset.rail = hidden ? '0' : '1';
+  try { localStorage.setItem('wp1:rail-hidden', hidden ? '1' : '0'); } catch { /* تجاهل */ }
+}
+function initRailSwipe() {
+  try { document.documentElement.dataset.rail = localStorage.getItem('wp1:rail-hidden') === '1' ? '0' : '1'; } catch { document.documentElement.dataset.rail = '1'; }
+  let x0 = 0, y0 = 0, ok = false;
+  const blocked = (el) => {
+    if (!el || !el.closest) return true;
+    if (el.closest('#layer, .sheet, .sidebar, input, textarea, select, [data-noswipe]')) return true;
+    for (let n = el; n && n !== document.body; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true; }
+    return false;
+  };
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY;
+    ok = window.innerWidth <= 599 && e.touches.length === 1 && !blocked(e.target);
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!ok) return; ok = false;
+    const t = e.changedTouches[0]; const dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2) return;
+    const toStart = dir() === 'rtl' ? dx > 0 : dx < 0; // نحو الحافة اللي فيها الشريط = إخفاء
+    if (toStart && document.documentElement.dataset.rail !== '0') setRailHidden(true);
+  }, { passive: true });
+}
+
 async function boot() {
+  initRailSwipe();
   try {
     const c = JSON.parse(localStorage.getItem('wp1:settings-cache'));
     if (c) S.settings = mergeSettings(c);
@@ -450,6 +478,7 @@ function shell() {
     ${railHtml(sec)}
     <aside class="sidebar" aria-label="${L('القائمة', 'Menu')}">${sidebarHtml(sec)}</aside>
     <div class="sb-scrim" data-action="sidebar-toggle"></div>
+    <button class="rail-show" data-action="rail-show" aria-label="${L('إظهار الشريط', 'Show rail')}">${icon(rtl ? 'chevL' : 'chevR', 18)}</button>
     <main class="main ${animatePage ? 'page-transition' : ''} ${S.activeProjectId ? 'project-open' : ''}">
       <header class="topbar">
         <div class="tb-start">
@@ -2712,6 +2741,7 @@ async function onClick(e) {
     case 'auth-reset': { const email=$('#auth-email')?.value.trim(); if(!email){toast('اكتب بريدك الإلكتروني أولًا.');break;} try{await S.store.resetPassword(email);toast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.');}catch(err){toast(err.message||'تعذر إرسال الرابط.');} break; }
     case 'login-lang': updateSettings({ lang: lang() === 'ar' ? 'en' : 'ar' }, { render: false }); renderLogin(); break;
     case 'nav': closeProjectPanel(true); S.sbOpen = false; S.section = el.dataset.section; S.navOpenSection = el.dataset.section; S.activeProjectId = null; S.activeMeetingProjectId = null; S.animateNextRender = true; render(); window.scrollTo(0, 0); break;
+    case 'rail-show': setRailHidden(false); break;
     case 'sidebar-toggle': {
       if (window.innerWidth >= 1100) { S.sbCollapsed = !S.sbCollapsed; try { localStorage.setItem('wp1:sb-collapsed', S.sbCollapsed ? '1' : '0'); } catch {} }
       else S.sbOpen = !S.sbOpen;

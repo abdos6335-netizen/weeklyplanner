@@ -466,6 +466,7 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
    خط Kanit رفيع). الألوان من متغيرات --ph-* القابلة للتغيير من الإعدادات. لا شيء هنا يطبَّق على التابلت أو الديسكتوب.
    ====================================================================================== */
 .rail-word { display: none; }
+.rail-show { display: none; }
 @media (max-width: 599px) {
   :root {
     --bg: var(--ph-bg, #131313) !important; --panel: var(--ph-bg, #131313) !important; --page-bg: var(--ph-bg, #131313) !important;
@@ -596,4 +597,19 @@ html body .shell main .task .ring-c .ic { stroke-width: 2.6; }
   html[lang="ar"] .sb-label { letter-spacing: 0; text-transform: none; font-size: .8rem; }
   .sb-scroll { -webkit-mask-image: none; mask-image: none; }
   input[type=color] { border: 1px solid var(--text-2) !important; border-radius: 50% !important; }
+
+  /* إخفاء الشريط بالسحب + زر الإرجاع */
+  .rail-col { transition: transform .25s ease; }
+  html[data-rail="0"] .rail-col { transform: translateX(-101%); }
+  html[data-rail="0"][dir="rtl"] .rail-col { transform: translateX(101%); }
+  html body .shell > main.main { transition: margin-inline-start .25s ease; }
+  html[data-rail="0"] body .shell > main.main { margin-inline-start: 0; }
+  html[data-rail="0"] .sidebar { inset-inline-start: 0; }
+  html[data-rail="0"] .rail-show {
+    display: grid; place-items: center; position: fixed; z-index: 41; inset-inline-start: 0; top: calc(env(safe-area-inset-top) + 40%);
+    width: 22px; height: 56px; padding: 0; border: 1px solid var(--ph-line, #3a3a3a); border-inline-start: 0; border-radius: 0 28px 28px 0;
+    background: var(--ph-rail, #2b2c30); color: var(--rail-ink);
+  }
+  html[data-rail="0"][dir="rtl"] .rail-show { border-radius: 28px 0 0 28px; border-inline-end: 1px solid var(--ph-line, #3a3a3a); }
 }
+@media (prefers-reduced-motion: reduce) { .rail-col, html body .shell > main.main { transition: none; } }
