@@ -267,8 +267,14 @@ function onAuth(user) {
   S.unsubs.push(S.store.watch('settings', (docs) => {
     const d = docs.find((x) => x.id === 'prefs');
     if (d && Date.now() - S.lastSettingsTouch > 1500) {
+      const migratePhoneColors = !!d.phone && !d.phone.light && !d.phone.dark;
       S.settings = mergeSettings(d);
       applySettings(true);
+      if (migratePhoneColors) {
+        // Persist the one-time legacy-to-v6.10 shape migration without touching any project data.
+        S.lastSettingsTouch = Date.now();
+        persistSettings();
+      }
     }
   }));
   S.unsubs.push(S.store.watch('tasks', (docs) => { S.tasks = docs.map((d) => normalizeTask(d, true)); if (S.section === 'tasks' || S.section === 'dashboard' || S.section === 'today') render(); }));
